@@ -43,7 +43,7 @@ export function SiteFooter(): JSX.Element {
 							Dashboard
 						</Link>
 						<a
-							href="mailto:contact@makemyevent.org"
+							href="mailto:admin@makemyevent.org"
 							className="opacity-70 hover:opacity-100 transition-opacity"
 						>
 							Contact
@@ -51,7 +51,7 @@ export function SiteFooter(): JSX.Element {
 
 						{/* GitHub Link */}
 						<a
-							href="https://github.com/GaneshAdimalupu/openpass"
+							href="https://github.com/make-my-event/makemyevent"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-perforation hover:border-ink/40 bg-paper/60 text-ink font-mono text-xs hover:bg-perforation/20 transition-all cursor-pointer shadow-xs"
@@ -80,12 +80,12 @@ export function SiteFooter(): JSX.Element {
 				<div className="border-t border-perforation/60 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-mono opacity-60">
 					<p>© {new Date().getFullYear()} makemyevent. Open Source.</p>
 					<a
-						href="https://github.com/GaneshAdimalupu/openpass"
+						href="https://github.com/make-my-event/makemyevent"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="hover:underline hover:opacity-100 transition-opacity"
 					>
-						github.com/GaneshAdimalupu/openpass
+						github.com/make-my-event/makemyevent
 					</a>
 				</div>
 			</div>

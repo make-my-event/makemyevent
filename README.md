@@ -86,8 +86,8 @@ Ensure you have the following installed:
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/GaneshAdimalupu/openpass.git
-   cd openpass
+   git clone https://github.com/make-my-event/makemyevent.git
+   cd makemyevent
    ```
 
 2. **Install Dependencies**:
