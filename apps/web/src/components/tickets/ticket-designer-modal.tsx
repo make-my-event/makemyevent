@@ -604,7 +604,7 @@ export function TicketDesignerModal({
 								>
 									{/* Background Watermark/Branding */}
 									<div className="absolute right-6 top-6 opacity-5 pointer-events-none font-display font-black text-6xl uppercase tracking-tighter">
-										OpenPass
+										makemyevent
 									</div>
 
 									{/* Render Layers on Canvas */}
