@@ -110,3 +110,69 @@ describeWithDb("users.changePassword (database)", () => {
 		]);
 	});
 });
+
+describeWithDb(
+	"users.changePassword: first password needs a recent sign-in (database)",
+	() => {
+		const suffix = randomUUID().slice(0, 8);
+		const email = `first-pw-${suffix}@example.com`;
+		const sessionToken = `first-${randomUUID()}`;
+		let userId: string;
+
+		const callerSignedInAt = (authTime: number | null) =>
+			appRouter.createCaller(
+				createContext(userId, sessionToken, null, randomUUID(), authTime),
+			);
+		const setFirstPassword = (authTime: number | null) =>
+			callerSignedInAt(authTime).users.changePassword({
+				newPassword: "first password set",
+			});
+
+		beforeAll(async () => {
+			const user = await prisma.user.create({
+				data: {
+					email,
+					emailVerified: new Date(),
+					sessions: {
+						create: { sessionToken, expires: new Date(Date.now() + 864e5) },
+					},
+				},
+				select: { id: true },
+			});
+			userId = user.id;
+		});
+
+		afterAll(async () => {
+			await prisma.session.deleteMany({ where: { userId } });
+			await prisma.user.deleteMany({ where: { id: userId } });
+		});
+
+		it("refuses without a known sign-in time", async () => {
+			await expect(setFirstPassword(null)).rejects.toMatchObject({
+				code: "FORBIDDEN",
+			});
+		});
+
+		it("refuses when the sign-in was more than 10 minutes ago", async () => {
+			await expect(
+				setFirstPassword(Date.now() - 11 * 60 * 1000),
+			).rejects.toMatchObject({ code: "FORBIDDEN" });
+			const row = await prisma.user.findUniqueOrThrow({
+				where: { id: userId },
+				select: { passwordHash: true },
+			});
+			expect(row.passwordHash).toBeNull();
+		});
+
+		it("allows it right after signing in", async () => {
+			await expect(setFirstPassword(Date.now() - 60 * 1000)).resolves.toEqual({
+				success: true,
+			});
+			const row = await prisma.user.findUniqueOrThrow({
+				where: { id: userId },
+				select: { passwordHash: true },
+			});
+			expect(row.passwordHash).not.toBeNull();
+		});
+	},
+);

@@ -9,6 +9,8 @@ export interface Context {
 	guestTokenHash: string | null;
 	/** Client IP for rate limiting (lib/client-ip.ts), or null if unknown. */
 	clientIp: string | null;
+	/** When the user last actually signed in (ms since epoch), if known. */
+	authTime: number | null;
 }
 
 export const createContext = (
@@ -16,12 +18,14 @@ export const createContext = (
 	sessionToken?: string | null,
 	guestTokenHash?: string | null,
 	clientIp?: string | null,
+	authTime?: number | null,
 ): Context => ({
 	prisma,
 	userId: userId ?? null,
 	sessionToken: sessionToken ?? null,
 	guestTokenHash: guestTokenHash ?? null,
 	clientIp: clientIp ?? null,
+	authTime: authTime ?? null,
 });
 
 const t = initTRPC.context<Context>().create();
