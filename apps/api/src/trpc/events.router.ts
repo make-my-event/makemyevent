@@ -1,11 +1,29 @@
+import { randomBytes } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import type { EventStatus, PrismaClient } from "db";
 import { z } from "zod";
 import { sanitizeOptionalRichText } from "../lib/sanitize";
 import { imageUrl, linkUrl } from "../lib/url-validation";
 import { supabaseAdmin } from "../lib/supabase";
-import { sendInviteEmail, sendTicketEmail } from "../services/email.service";
-import { INVITE_TTL_DAYS, issueInviteToken } from "../services/invites";
+import {
+	sendInviteEmail,
+	sendTicketEmail,
+	sendTransferEmail,
+} from "../services/email.service";
+import {
+	INVITE_TTL_DAYS,
+	issueInviteToken,
+	verifiedEmail,
+} from "../services/invites";
+import {
+	generateQrToken,
+	generateTicketCode,
+	hasFullTicketAccess,
+	hashTicketAccessToken,
+	isSerializationFailure,
+	isUniqueViolation,
+	issueTicketAccessToken,
+} from "../services/tickets";
 import { authedProcedure, publicProcedure, router } from "./trpc";
 
 const BANNER_BUCKET = "event-banners";
@@ -2408,26 +2426,23 @@ export const eventsRouter = router({
 			z.object({
 				slug: z.string(),
 				tierId: z.string(),
-				attendeeName: z.string().min(1, "Name is required"),
-				attendeeEmail: z.string().email("Invalid email address"),
-				attendeePhone: z.string().optional(),
-				answers: z.string().optional(),
+				attendeeName: z.string().trim().min(1, "Name is required").max(200),
+				attendeeEmail: z.string().email("Invalid email address").max(254),
+				attendeePhone: z.string().max(40).optional(),
+				answers: z.string().max(20000).optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: {
-					tickets: {
-						where: { id: input.tierId },
-						include: {
-							issuedTickets: {
-								where: {
-									status: { in: ["CONFIRMED", "CHECKED_IN", "WAITLISTED"] },
-								},
-							},
-						},
-					},
+				select: {
+					id: true,
+					title: true,
+					status: true,
+					eventStart: true,
+					location: true,
+					registrationStart: true,
+					registrationEnd: true,
 				},
 			});
 
@@ -2442,139 +2457,186 @@ export const eventsRouter = router({
 				});
 			}
 
-			const tier = event.tickets[0];
+			const now = new Date();
+			if (event.registrationStart && now < event.registrationStart) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Registration for this event has not opened yet.",
+				});
+			}
+			if (event.registrationEnd && now > event.registrationEnd) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Registration for this event has closed.",
+				});
+			}
+
+			// Hidden (unpublished) tiers cannot be booked, even by id.
+			const tier = await ctx.prisma.ticket.findFirst({
+				where: { id: input.tierId, eventId: event.id, isPublished: true },
+				select: {
+					id: true,
+					name: true,
+					quantity: true,
+					allowWaitlist: true,
+					salesStart: true,
+					salesEnd: true,
+				},
+			});
 			if (!tier)
 				throw new TRPCError({
 					code: "NOT_FOUND",
 					message: "Ticket tier not found",
 				});
-
-			// Execute booking inside atomic transaction to eliminate concurrency overselling race conditions
-			return ctx.prisma.$transaction(async (tx) => {
-				// 1. Check if this attendee already has an active confirmed ticket for this tier
-				const existingConfirmed = await tx.issuedTicket.findFirst({
-					where: {
-						ticketId: tier.id,
-						attendeeEmail: {
-							equals: input.attendeeEmail.trim(),
-							mode: "insensitive",
-						},
-						status: { in: ["CONFIRMED", "CHECKED_IN"] },
-					},
+			if (tier.salesStart && now < tier.salesStart) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Sales for this ticket have not started yet.",
 				});
-
-				if (existingConfirmed) {
-					throw new TRPCError({
-						code: "BAD_REQUEST",
-						message: "You already have a confirmed ticket for this tier.",
-					});
-				}
-
-				// 2. Compute current confirmed count atomically
-				const confirmedCount = await tx.issuedTicket.count({
-					where: {
-						ticketId: tier.id,
-						status: { in: ["CONFIRMED", "CHECKED_IN"] },
-					},
+			}
+			if (tier.salesEnd && now > tier.salesEnd) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Sales for this ticket have ended.",
 				});
+			}
 
-				const isSoldOut =
-					tier.quantity !== null && confirmedCount >= tier.quantity;
+			const attendeeEmail = input.attendeeEmail.trim().toLowerCase();
+			const attendeeName = input.attendeeName.trim();
+			const access = issueTicketAccessToken();
+			const qrToken = generateQrToken();
 
-				// Generate code: OPT-XXXX-YYYY
-				const randChars = () =>
-					Math.random().toString(36).substring(2, 6).toUpperCase();
-				const ticketCode = `OPT-${randChars()}-${randChars()}`;
-				const qrToken = `qrv1_${crypto.randomUUID().replace(/-/g, "")}`;
+			// Count-then-insert at SERIALIZABLE isolation: concurrent bookings that
+			// would oversell the tier conflict and are retried, so the tier
+			// quantity holds exactly. A ticket-code collision is also retried.
+			const MAX_ATTEMPTS = 5;
+			let issued: {
+				ticketCode: string;
+				qrToken: string;
+				status: "CONFIRMED" | "WAITLISTED";
+				waitlistOrder: number | null;
+			} | null = null;
+			for (let attempt = 1; issued === null; attempt++) {
+				try {
+					issued = await ctx.prisma.$transaction(
+						async (tx) => {
+							const existingConfirmed = await tx.issuedTicket.findFirst({
+								where: {
+									ticketId: tier.id,
+									attendeeEmail: { equals: attendeeEmail, mode: "insensitive" },
+									status: { in: ["CONFIRMED", "CHECKED_IN"] },
+								},
+								select: { id: true },
+							});
+							if (existingConfirmed) {
+								throw new TRPCError({
+									code: "BAD_REQUEST",
+									message: "You already have a confirmed ticket for this tier.",
+								});
+							}
 
-				if (!isSoldOut) {
-					// Capacity available -> Issue CONFIRMED ticket
-					const issued = await tx.issuedTicket.create({
-						data: {
-							ticketId: tier.id,
-							eventId: event.id,
-							userId: ctx.userId ?? null,
-							ticketCode,
-							qrToken,
-							attendeeName: input.attendeeName.trim(),
-							attendeeEmail: input.attendeeEmail.trim().toLowerCase(),
-							attendeePhone: input.attendeePhone?.trim() || null,
-							answers: input.answers || null,
-							status: "CONFIRMED",
+							const confirmedCount = await tx.issuedTicket.count({
+								where: {
+									ticketId: tier.id,
+									status: { in: ["CONFIRMED", "CHECKED_IN"] },
+								},
+							});
+							const isSoldOut =
+								tier.quantity !== null && confirmedCount >= tier.quantity;
+
+							if (isSoldOut && !tier.allowWaitlist) {
+								throw new TRPCError({
+									code: "BAD_REQUEST",
+									message:
+										"This ticket tier is sold out and waitlisting is disabled.",
+								});
+							}
+
+							const waitlistOrder = isSoldOut
+								? (await tx.issuedTicket.count({
+										where: { ticketId: tier.id, status: "WAITLISTED" },
+									})) + 1
+								: null;
+
+							const created = await tx.issuedTicket.create({
+								data: {
+									ticketId: tier.id,
+									eventId: event.id,
+									userId: ctx.userId ?? null,
+									ticketCode: generateTicketCode(),
+									qrToken,
+									accessTokenHash: access.tokenHash,
+									attendeeName,
+									attendeeEmail,
+									attendeePhone: input.attendeePhone?.trim() || null,
+									answers: input.answers || null,
+									status: isSoldOut ? "WAITLISTED" : "CONFIRMED",
+									waitlistOrder,
+								},
+								select: {
+									ticketCode: true,
+									qrToken: true,
+									status: true,
+									waitlistOrder: true,
+								},
+							});
+							return {
+								...created,
+								status: created.status as "CONFIRMED" | "WAITLISTED",
+							};
 						},
-					});
-
-					// Dispatch ticket confirmation email with embedded QR code
-					sendTicketEmail({
-						toEmail: issued.attendeeEmail,
-						attendeeName: issued.attendeeName,
-						eventTitle: event.title,
-						eventStart: event.eventStart,
-						location: event.location,
-						ticketCode: issued.ticketCode,
-						qrToken: issued.qrToken,
-						tierName: tier.name,
-					}).catch((err) =>
-						console.error("Ticket email dispatch background error:", err),
+						{ isolationLevel: "Serializable" },
 					);
-
-					return {
-						status: "CONFIRMED" as const,
-						ticketCode: issued.ticketCode,
-						qrToken: issued.qrToken,
-						message: "Your ticket has been confirmed!",
-					};
+				} catch (error) {
+					const retryable =
+						isSerializationFailure(error) || isUniqueViolation(error);
+					if (retryable && attempt < MAX_ATTEMPTS) continue;
+					if (retryable) {
+						throw new TRPCError({
+							code: "CONFLICT",
+							message: "Registration is busy right now. Please try again.",
+						});
+					}
+					throw error;
 				}
+			}
 
-				// Sold Out -> Check waitlist eligibility
-				if (!tier.allowWaitlist) {
-					throw new TRPCError({
-						code: "BAD_REQUEST",
-						message:
-							"This ticket tier is sold out and waitlisting is disabled.",
-					});
-				}
+			// Only after the booking has committed.
+			if (issued.status === "CONFIRMED") {
+				sendTicketEmail({
+					toEmail: attendeeEmail,
+					attendeeName,
+					eventTitle: event.title,
+					eventStart: event.eventStart,
+					location: event.location,
+					ticketCode: issued.ticketCode,
+					qrToken: issued.qrToken,
+					tierName: tier.name,
+					accessToken: access.token,
+				}).catch((err) =>
+					console.error("Ticket email dispatch background error:", err),
+				);
+			}
 
-				const waitlistedCount = await tx.issuedTicket.count({
-					where: {
-						ticketId: tier.id,
-						status: "WAITLISTED",
-					},
-				});
-				const waitlistOrder = waitlistedCount + 1;
-
-				const issuedWaitlist = await tx.issuedTicket.create({
-					data: {
-						ticketId: tier.id,
-						eventId: event.id,
-						userId: ctx.userId ?? null,
-						ticketCode,
-						qrToken,
-						attendeeName: input.attendeeName.trim(),
-						attendeeEmail: input.attendeeEmail.trim().toLowerCase(),
-						attendeePhone: input.attendeePhone?.trim() || null,
-						answers: input.answers || null,
-						status: "WAITLISTED",
-						waitlistOrder,
-					},
-				});
-
-				return {
-					status: "WAITLISTED" as const,
-					ticketCode: issuedWaitlist.ticketCode,
-					qrToken: issuedWaitlist.qrToken,
-					waitlistOrder,
-					message: `You are #${waitlistOrder} in the queue on the waitlist.`,
-				};
-			});
+			return {
+				status: issued.status,
+				ticketCode: issued.ticketCode,
+				qrToken: issued.qrToken,
+				// The booking browser is the holder: it gets the ticket link token.
+				accessToken: access.token,
+				waitlistOrder: issued.waitlistOrder,
+				message:
+					issued.status === "CONFIRMED"
+						? "Your ticket has been confirmed!"
+						: `You are #${issued.waitlistOrder} in the queue on the waitlist.`,
+			};
 		}),
 
 	participatedList: authedProcedure.query(async ({ ctx }) => {
-		const user = await ctx.prisma.user.findUnique({
-			where: { id: ctx.userId },
-			select: { email: true },
-		});
-		const userEmail = user?.email;
+		// Tickets booked while signed out are matched by email, but only a
+		// verified email: otherwise registering with someone else's address
+		// would reveal (and grant access to) their tickets.
+		const userEmail = await verifiedEmail(ctx.prisma, ctx.userId);
 
 		const include = {
 			ticket: {
@@ -2637,66 +2699,222 @@ export const eventsRouter = router({
 		return result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 	}),
 
-	ticketGetByCode: publicProcedure
-		.input(z.object({ ticketCode: z.string() }))
+	/**
+	 * A ticket by its link token (the holder's proof) or by its printed code.
+	 * Full details (QR token, attendee details, transfer status) only for
+	 * someone with full access (see services/tickets.ts); a code alone returns
+	 * a minimal card.
+	 */
+	ticketGet: publicProcedure
+		.input(
+			z
+				.object({
+					ticketCode: z.string().max(32).optional(),
+					accessToken: z.string().min(40).max(64).optional(),
+				})
+				.refine((v) => Boolean(v.ticketCode) !== Boolean(v.accessToken), {
+					message: "Provide either a ticket code or a ticket link.",
+				}),
+		)
 		.query(async ({ ctx, input }) => {
-			const ticket = await ctx.prisma.issuedTicket.findUnique({
-				where: { ticketCode: input.ticketCode },
-				include: {
-					ticket: true,
-					event: {
-						select: {
-							id: true,
-							title: true,
-							slug: true,
-							eventStart: true,
-							eventEnd: true,
-							location: true,
-							isOnline: true,
-							onlineLink: true,
-							organizer: {
-								select: {
-									id: true,
-									name: true,
-									slug: true,
-									logoUrl: true,
-								},
+			const select = {
+				id: true,
+				ticketCode: true,
+				status: true,
+				attendeeName: true,
+				attendeeEmail: true,
+				userId: true,
+				accessTokenHash: true,
+				checkedInAt: true,
+				waitlistOrder: true,
+				qrToken: true,
+				ticket: {
+					select: {
+						id: true,
+						name: true,
+						price: true,
+						allowTransfer: true,
+						allowDrop: true,
+					},
+				},
+				event: {
+					select: {
+						id: true,
+						title: true,
+						slug: true,
+						eventStart: true,
+						eventEnd: true,
+						location: true,
+						isOnline: true,
+						onlineLink: true,
+						organizer: {
+							select: {
+								id: true,
+								name: true,
+								slug: true,
+								logoUrl: true,
+								ownerId: true,
 							},
 						},
 					},
-					transfers: {
-						orderBy: { createdAt: "desc" },
-						take: 1,
-					},
 				},
-			});
+				transfers: {
+					where: { status: "PENDING" as const },
+					orderBy: { createdAt: "desc" as const },
+					take: 1,
+					select: { recipientEmail: true, expiresAt: true },
+				},
+			};
+			const ticket = input.accessToken
+				? await ctx.prisma.issuedTicket.findUnique({
+						where: {
+							accessTokenHash: hashTicketAccessToken(input.accessToken),
+						},
+						select,
+					})
+				: await ctx.prisma.issuedTicket.findUnique({
+						where: { ticketCode: input.ticketCode },
+						select,
+					});
 
 			if (!ticket) {
 				throw new TRPCError({ code: "NOT_FOUND", message: "Ticket not found" });
 			}
 
-			return ticket;
+			const full = await hasFullTicketAccess(
+				ctx.prisma,
+				{
+					userId: ticket.userId,
+					attendeeEmail: ticket.attendeeEmail,
+					accessTokenHash: ticket.accessTokenHash,
+					organizerOwnerId: ticket.event.organizer.ownerId,
+				},
+				{ userId: ctx.userId, accessToken: input.accessToken },
+			);
+
+			if (!full) {
+				return {
+					access: "limited" as const,
+					ticketCode: ticket.ticketCode,
+					status: ticket.status,
+					ticket: { name: ticket.ticket.name },
+					event: {
+						title: ticket.event.title,
+						slug: ticket.event.slug,
+						eventStart: ticket.event.eventStart,
+						eventEnd: ticket.event.eventEnd,
+						location: ticket.event.location,
+						isOnline: ticket.event.isOnline,
+						organizer: { name: ticket.event.organizer.name },
+					},
+				};
+			}
+
+			const {
+				userId: _userId,
+				accessTokenHash: _accessTokenHash,
+				transfers,
+				event,
+				...details
+			} = ticket;
+			const { ownerId: _ownerId, ...organizer } = event.organizer;
+			return {
+				access: "full" as const,
+				...details,
+				event: { ...event, organizer },
+				pendingTransfer: transfers[0] ?? null,
+			};
+		}),
+
+	/**
+	 * Emails the holder a fresh ticket link (the previous link stops working).
+	 * Always answers the same way, so it reveals nothing about the ticket or the
+	 * address; a per-ticket cooldown limits how often a link is sent.
+	 */
+	ticketResendLink: publicProcedure
+		.input(z.object({ ticketCode: z.string().max(32) }))
+		.mutation(async ({ ctx, input }) => {
+			const RESEND_COOLDOWN_MS = 10 * 60 * 1000;
+			const now = new Date();
+			const ticket = await ctx.prisma.issuedTicket.findUnique({
+				where: { ticketCode: input.ticketCode.trim().toUpperCase() },
+				select: {
+					id: true,
+					status: true,
+					ticketCode: true,
+					qrToken: true,
+					attendeeName: true,
+					attendeeEmail: true,
+					ticket: { select: { name: true } },
+					event: { select: { title: true, eventStart: true, location: true } },
+				},
+			});
+
+			if (
+				ticket &&
+				(ticket.status === "CONFIRMED" || ticket.status === "CHECKED_IN")
+			) {
+				const access = issueTicketAccessToken();
+				// Atomic cooldown: only one request per window rotates the link.
+				const rotated = await ctx.prisma.issuedTicket.updateMany({
+					where: {
+						id: ticket.id,
+						OR: [
+							{ accessLinkSentAt: null },
+							{
+								accessLinkSentAt: {
+									lt: new Date(now.getTime() - RESEND_COOLDOWN_MS),
+								},
+							},
+						],
+					},
+					data: { accessTokenHash: access.tokenHash, accessLinkSentAt: now },
+				});
+				if (rotated.count === 1) {
+					sendTicketEmail({
+						toEmail: ticket.attendeeEmail,
+						attendeeName: ticket.attendeeName,
+						eventTitle: ticket.event.title,
+						eventStart: ticket.event.eventStart,
+						location: ticket.event.location,
+						ticketCode: ticket.ticketCode,
+						qrToken: ticket.qrToken,
+						tierName: ticket.ticket.name,
+						accessToken: access.token,
+					}).catch((err) =>
+						console.error("Ticket link resend email error:", err),
+					);
+				}
+			}
+
+			return {
+				requested: true as const,
+				message:
+					"If this ticket is active, a link to it has been sent to the attendee's email address.",
+			};
 		}),
 
 	ticketDrop: publicProcedure
 		.input(
 			z.object({
-				ticketCode: z.string(),
-				confirmAttendeeEmail: z.string().email().optional(),
-				reason: z.string().optional(),
+				ticketCode: z.string().max(32),
+				/** Token from the holder's ticket link, when not signed in as the owner. */
+				accessToken: z.string().min(40).max(64).optional(),
+				reason: z.string().max(1000).optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const ticket = await ctx.prisma.issuedTicket.findUnique({
 				where: { ticketCode: input.ticketCode },
-				include: {
-					ticket: true,
-					event: {
-						select: {
-							id: true,
-							organizer: { select: { ownerId: true } },
-						},
-					},
+				select: {
+					id: true,
+					ticketId: true,
+					status: true,
+					userId: true,
+					attendeeEmail: true,
+					accessTokenHash: true,
+					ticket: { select: { allowDrop: true } },
+					event: { select: { organizer: { select: { ownerId: true } } } },
 				},
 			});
 
@@ -2704,21 +2922,21 @@ export const eventsRouter = router({
 				throw new TRPCError({ code: "NOT_FOUND", message: "Ticket not found" });
 			}
 
-			// Security Authorization Check:
-			const isOwner =
-				ctx.userId &&
-				(ticket.userId === ctx.userId ||
-					ticket.event.organizer.ownerId === ctx.userId);
-			const emailMatches =
-				input.confirmAttendeeEmail &&
-				input.confirmAttendeeEmail.trim().toLowerCase() ===
-					ticket.attendeeEmail.toLowerCase();
-
-			if (!isOwner && !emailMatches) {
+			const allowed = await hasFullTicketAccess(
+				ctx.prisma,
+				{
+					userId: ticket.userId,
+					attendeeEmail: ticket.attendeeEmail,
+					accessTokenHash: ticket.accessTokenHash,
+					organizerOwnerId: ticket.event.organizer.ownerId,
+				},
+				{ userId: ctx.userId, accessToken: input.accessToken },
+			);
+			if (!allowed) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
 					message:
-						"To drop this ticket, please confirm your registered attendee email address.",
+						"To drop this ticket, open it from the link in your ticket email.",
 				});
 			}
 
@@ -2736,85 +2954,107 @@ export const eventsRouter = router({
 				});
 			}
 
-			// Atomic Drop and Waitlist Promotion Transaction
-			return ctx.prisma.$transaction(async (tx) => {
-				// 1. Mark ticket as DROPPED
-				await tx.issuedTicket.update({
-					where: { id: ticket.id },
+			const promoted = await ctx.prisma.$transaction(async (tx) => {
+				// Atomic: only a still-confirmed ticket can be dropped once.
+				const dropped = await tx.issuedTicket.updateMany({
+					where: { id: ticket.id, status: "CONFIRMED" },
 					data: { status: "DROPPED" },
 				});
-
-				// 2. AUTO-WAITLIST PROMOTION ENGINE:
-				const nextWaitlisted = await tx.issuedTicket.findFirst({
-					where: {
-						ticketId: ticket.ticketId,
-						status: "WAITLISTED",
-					},
-					orderBy: [{ waitlistOrder: "asc" }, { createdAt: "asc" }],
+				if (dropped.count === 0) {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: "This ticket is no longer active.",
+					});
+				}
+				// A pending transfer of a dropped ticket must not be claimable.
+				await tx.ticketTransfer.updateMany({
+					where: { issuedTicketId: ticket.id, status: "PENDING" },
+					data: { status: "CANCELLED" },
 				});
 
-				let promotedAttendeeEmail: string | null = null;
+				const nextWaitlisted = await tx.issuedTicket.findFirst({
+					where: { ticketId: ticket.ticketId, status: "WAITLISTED" },
+					orderBy: [{ waitlistOrder: "asc" }, { createdAt: "asc" }],
+					select: { id: true },
+				});
+				if (!nextWaitlisted) return null;
 
-				if (nextWaitlisted) {
-					// Promote waitlisted attendee to CONFIRMED
-					await tx.issuedTicket.update({
-						where: { id: nextWaitlisted.id },
-						data: {
-							status: "CONFIRMED",
-							waitlistOrder: null,
+				// The promoted attendee gets a fresh ticket link in their email.
+				const access = issueTicketAccessToken();
+				const promotedTicket = await tx.issuedTicket.update({
+					where: { id: nextWaitlisted.id },
+					data: {
+						status: "CONFIRMED",
+						waitlistOrder: null,
+						accessTokenHash: access.tokenHash,
+					},
+					select: {
+						attendeeEmail: true,
+						attendeeName: true,
+						ticketCode: true,
+						qrToken: true,
+						ticket: { select: { name: true } },
+						event: {
+							select: { title: true, eventStart: true, location: true },
 						},
-					});
-					promotedAttendeeEmail = nextWaitlisted.attendeeEmail;
-
-					// Fetch ticket & event context for email dispatch
-					const promotedTicket = await tx.issuedTicket.findUnique({
-						where: { id: nextWaitlisted.id },
-						include: { event: true, ticket: true },
-					});
-
-					if (promotedTicket) {
-						sendTicketEmail({
-							toEmail: promotedTicket.attendeeEmail,
-							attendeeName: promotedTicket.attendeeName,
-							eventTitle: promotedTicket.event.title,
-							eventStart: promotedTicket.event.eventStart,
-							location: promotedTicket.event.location,
-							ticketCode: promotedTicket.ticketCode,
-							qrToken: promotedTicket.qrToken,
-							tierName: promotedTicket.ticket.name,
-						}).catch((err) =>
-							console.error("Promoted waitlist ticket email error:", err),
-						);
-					}
-				}
-
-				return {
-					success: true,
-					promotedAttendeeEmail,
-					message: promotedAttendeeEmail
-						? "Ticket dropped. The next attendee on the waitlist was automatically promoted to Confirmed!"
-						: "Ticket dropped successfully.",
-				};
+					},
+				});
+				return { ticket: promotedTicket, accessToken: access.token };
 			});
+
+			// Only after the transaction has committed.
+			if (promoted) {
+				sendTicketEmail({
+					toEmail: promoted.ticket.attendeeEmail,
+					attendeeName: promoted.ticket.attendeeName,
+					eventTitle: promoted.ticket.event.title,
+					eventStart: promoted.ticket.event.eventStart,
+					location: promoted.ticket.event.location,
+					ticketCode: promoted.ticket.ticketCode,
+					qrToken: promoted.ticket.qrToken,
+					tierName: promoted.ticket.ticket.name,
+					accessToken: promoted.accessToken,
+				}).catch((err) =>
+					console.error("Promoted waitlist ticket email error:", err),
+				);
+			}
+
+			return {
+				success: true,
+				message: promoted
+					? "Ticket dropped. The next attendee on the waitlist was automatically promoted to Confirmed!"
+					: "Ticket dropped successfully.",
+			};
 		}),
 
 	ticketTransferInitiate: publicProcedure
 		.input(
 			z.object({
-				ticketCode: z.string(),
-				confirmSenderEmail: z.string().email().optional(),
-				recipientName: z.string().min(1, "Recipient name is required"),
-				recipientEmail: z.string().email("Invalid recipient email"),
+				ticketCode: z.string().max(32),
+				/** Token from the holder's ticket link, when not signed in as the owner. */
+				accessToken: z.string().min(40).max(64).optional(),
+				recipientName: z
+					.string()
+					.trim()
+					.min(1, "Recipient name is required")
+					.max(200),
+				recipientEmail: z.string().email("Invalid recipient email").max(254),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const ticket = await ctx.prisma.issuedTicket.findUnique({
 				where: { ticketCode: input.ticketCode },
-				include: {
-					ticket: true,
+				select: {
+					id: true,
+					status: true,
+					userId: true,
+					attendeeName: true,
+					attendeeEmail: true,
+					accessTokenHash: true,
+					ticket: { select: { name: true, allowTransfer: true } },
 					event: {
 						select: {
-							id: true,
+							title: true,
 							organizer: { select: { ownerId: true } },
 						},
 					},
@@ -2825,21 +3065,21 @@ export const eventsRouter = router({
 				throw new TRPCError({ code: "NOT_FOUND", message: "Ticket not found" });
 			}
 
-			// Security Authorization Check:
-			const isOwner =
-				ctx.userId &&
-				(ticket.userId === ctx.userId ||
-					ticket.event.organizer.ownerId === ctx.userId);
-			const emailMatches =
-				input.confirmSenderEmail &&
-				input.confirmSenderEmail.trim().toLowerCase() ===
-					ticket.attendeeEmail.toLowerCase();
-
-			if (!isOwner && !emailMatches) {
+			const allowed = await hasFullTicketAccess(
+				ctx.prisma,
+				{
+					userId: ticket.userId,
+					attendeeEmail: ticket.attendeeEmail,
+					accessTokenHash: ticket.accessTokenHash,
+					organizerOwnerId: ticket.event.organizer.ownerId,
+				},
+				{ userId: ctx.userId, accessToken: input.accessToken },
+			);
+			if (!allowed) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
 					message:
-						"To transfer this ticket, please confirm your registered attendee email address.",
+						"To transfer this ticket, open it from the link in your ticket email.",
 				});
 			}
 
@@ -2857,59 +3097,65 @@ export const eventsRouter = router({
 				});
 			}
 
-			if (
-				ticket.attendeeEmail.toLowerCase() ===
-				input.recipientEmail.toLowerCase()
-			) {
+			const recipientEmail = input.recipientEmail.trim().toLowerCase();
+			if (ticket.attendeeEmail.toLowerCase() === recipientEmail) {
 				throw new TRPCError({
 					code: "BAD_REQUEST",
 					message: "Cannot transfer ticket to the same email address.",
 				});
 			}
 
-			// Generate transfer token (valid for 48 hours)
-			const transferToken = `tr_${crypto.randomUUID().replace(/-/g, "")}`;
+			// Valid for 48 hours. The link is emailed to the recipient only; it is
+			// never returned to the caller.
+			const transferToken = `tr_${randomBytes(24).toString("base64url")}`;
 			const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-			return ctx.prisma.$transaction(async (tx) => {
-				// Invalidate any previously pending transfer tokens for this ticket
+			await ctx.prisma.$transaction(async (tx) => {
 				await tx.ticketTransfer.updateMany({
-					where: {
-						issuedTicketId: ticket.id,
-						status: "PENDING",
-					},
+					where: { issuedTicketId: ticket.id, status: "PENDING" },
 					data: { status: "CANCELLED" },
 				});
-
-				const transfer = await tx.ticketTransfer.create({
+				await tx.ticketTransfer.create({
 					data: {
 						issuedTicketId: ticket.id,
 						senderEmail: ticket.attendeeEmail,
-						recipientName: input.recipientName.trim(),
-						recipientEmail: input.recipientEmail.trim().toLowerCase(),
+						recipientName: input.recipientName,
+						recipientEmail,
 						transferToken,
 						expiresAt,
 						status: "PENDING",
 					},
+					select: { id: true },
 				});
-
-				return {
-					success: true,
-					transferToken: transfer.transferToken,
-					expiresAt: transfer.expiresAt,
-				};
 			});
+
+			sendTransferEmail({
+				toEmail: recipientEmail,
+				recipientName: input.recipientName,
+				senderFirstName: ticket.attendeeName.split(" ")[0] || "Someone",
+				eventTitle: ticket.event.title,
+				tierName: ticket.ticket.name,
+				transferToken,
+				expiresAt,
+			}).catch((err) => console.error("Transfer email dispatch error:", err));
+
+			return { success: true, recipientEmail, expiresAt };
 		}),
 
 	ticketTransferGet: publicProcedure
-		.input(z.object({ transferToken: z.string() }))
+		.input(z.object({ transferToken: z.string().max(100) }))
 		.query(async ({ ctx, input }) => {
 			const transfer = await ctx.prisma.ticketTransfer.findUnique({
 				where: { transferToken: input.transferToken },
-				include: {
+				select: {
+					status: true,
+					expiresAt: true,
+					recipientName: true,
+					recipientEmail: true,
 					issuedTicket: {
-						include: {
-							ticket: true,
+						select: {
+							attendeeName: true,
+							ticket: { select: { name: true } },
 							event: {
 								select: {
 									id: true,
@@ -2918,12 +3164,7 @@ export const eventsRouter = router({
 									eventStart: true,
 									eventEnd: true,
 									location: true,
-									organizer: {
-										select: {
-											name: true,
-											logoUrl: true,
-										},
-									},
+									organizer: { select: { name: true, logoUrl: true } },
 								},
 							},
 						},
@@ -2938,26 +3179,40 @@ export const eventsRouter = router({
 				});
 			}
 
-			const isExpired = new Date() > new Date(transfer.expiresAt);
-
+			// The recipient sees what they are receiving and from whom (first
+			// name), not the sender's ticket credentials or contact details.
+			const { attendeeName, ...issuedTicket } = transfer.issuedTicket;
 			return {
-				transfer,
-				isExpired,
+				transfer: {
+					status: transfer.status,
+					expiresAt: transfer.expiresAt,
+					recipientName: transfer.recipientName,
+					recipientEmail: transfer.recipientEmail,
+					senderName: attendeeName.split(" ")[0] || "Someone",
+					issuedTicket,
+				},
+				isExpired: new Date() > new Date(transfer.expiresAt),
 			};
 		}),
 
 	ticketTransferClaim: publicProcedure
 		.input(
 			z.object({
-				transferToken: z.string(),
-				attendeeName: z.string().min(1, "Name is required"),
-				attendeeEmail: z.string().email("Invalid email"),
+				transferToken: z.string().max(100),
+				attendeeName: z.string().trim().min(1, "Name is required").max(200),
+				attendeeEmail: z.string().email("Invalid email").max(254),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const transfer = await ctx.prisma.ticketTransfer.findUnique({
 				where: { transferToken: input.transferToken },
-				include: { issuedTicket: true },
+				select: {
+					id: true,
+					status: true,
+					expiresAt: true,
+					recipientEmail: true,
+					issuedTicketId: true,
+				},
 			});
 
 			if (!transfer) {
@@ -2975,8 +3230,8 @@ export const eventsRouter = router({
 			}
 
 			if (new Date() > new Date(transfer.expiresAt)) {
-				await ctx.prisma.ticketTransfer.update({
-					where: { id: transfer.id },
+				await ctx.prisma.ticketTransfer.updateMany({
+					where: { id: transfer.id, status: "PENDING" },
 					data: { status: "EXPIRED" },
 				});
 				throw new TRPCError({
@@ -2985,71 +3240,108 @@ export const eventsRouter = router({
 				});
 			}
 
-			// Strict Cryptographic Recipient Validation (Pretix Standard)
 			const normalizedClaimEmail = input.attendeeEmail.trim().toLowerCase();
-			const normalizedTargetEmail = transfer.recipientEmail
-				.trim()
-				.toLowerCase();
-
-			if (normalizedClaimEmail !== normalizedTargetEmail) {
+			if (
+				normalizedClaimEmail !== transfer.recipientEmail.trim().toLowerCase()
+			) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
-					message: `This transfer was issued exclusively for ${transfer.recipientEmail}. Please claim using the designated email address.`,
+					message:
+						"This transfer was issued for a different email address. Please claim using the address the transfer link was sent to.",
 				});
 			}
 
-			// Generate fresh code and QR token for security
-			const randChars = () =>
-				Math.random().toString(36).substring(2, 6).toUpperCase();
-			const newTicketCode = `OPT-${randChars()}-${randChars()}`;
-			const newQrToken = `qrv1_${crypto.randomUUID().replace(/-/g, "")}`;
+			// Fresh code, QR token and ticket link for the new holder; the previous
+			// holder's link and guest check-in cookie stop working.
+			const access = issueTicketAccessToken();
+			const qrToken = generateQrToken();
+			const MAX_ATTEMPTS = 5;
+			let claimed: {
+				ticketCode: string;
+				event: { title: string; eventStart: Date; location: string | null };
+				ticket: { name: string };
+			} | null = null;
+			for (let attempt = 1; claimed === null; attempt++) {
+				try {
+					claimed = await ctx.prisma.$transaction(async (tx) => {
+						// Single use: only a still-pending transfer can be completed.
+						const done = await tx.ticketTransfer.updateMany({
+							where: { id: transfer.id, status: "PENDING" },
+							data: { status: "COMPLETED", completedAt: new Date() },
+						});
+						if (done.count === 0) {
+							throw new TRPCError({
+								code: "BAD_REQUEST",
+								message:
+									"This transfer has already been completed or cancelled.",
+							});
+						}
 
-			// Execute atomically in a transaction
-			await ctx.prisma.$transaction([
-				ctx.prisma.issuedTicket.update({
-					where: { id: transfer.issuedTicketId },
-					data: {
-						attendeeName: input.attendeeName.trim(),
-						attendeeEmail: normalizedClaimEmail,
-						ticketCode: newTicketCode,
-						qrToken: newQrToken,
-						userId: ctx.userId ?? null,
-						status: "CONFIRMED",
-					},
-				}),
-				ctx.prisma.ticketTransfer.update({
-					where: { id: transfer.id },
-					data: {
-						status: "COMPLETED",
-						completedAt: new Date(),
-					},
-				}),
-			]);
+						// The ticket must still be active (not dropped, cancelled or
+						// checked in since the transfer was started).
+						const ticketCode = generateTicketCode();
+						const moved = await tx.issuedTicket.updateMany({
+							where: { id: transfer.issuedTicketId, status: "CONFIRMED" },
+							data: {
+								attendeeName: input.attendeeName,
+								attendeeEmail: normalizedClaimEmail,
+								attendeePhone: null,
+								answers: null,
+								ticketCode,
+								qrToken,
+								accessTokenHash: access.tokenHash,
+								accessLinkSentAt: null,
+								userId: ctx.userId ?? null,
+							},
+						});
+						if (moved.count === 0) {
+							throw new TRPCError({
+								code: "BAD_REQUEST",
+								message:
+									"This ticket is no longer active and cannot be transferred.",
+							});
+						}
 
-			// Fetch updated ticket pass context for email receipt
-			const claimedPass = await ctx.prisma.issuedTicket.findUnique({
-				where: { id: transfer.issuedTicketId },
-				include: { event: true, ticket: true },
-			});
+						await tx.guestTicketToken.deleteMany({
+							where: { issuedTicketId: transfer.issuedTicketId },
+						});
 
-			if (claimedPass) {
-				sendTicketEmail({
-					toEmail: claimedPass.attendeeEmail,
-					attendeeName: claimedPass.attendeeName,
-					eventTitle: claimedPass.event.title,
-					eventStart: claimedPass.event.eventStart,
-					location: claimedPass.event.location,
-					ticketCode: claimedPass.ticketCode,
-					qrToken: claimedPass.qrToken,
-					tierName: claimedPass.ticket.name,
-				}).catch((err) =>
-					console.error("Transferred ticket email dispatch error:", err),
-				);
+						return tx.issuedTicket.findUniqueOrThrow({
+							where: { id: transfer.issuedTicketId },
+							select: {
+								ticketCode: true,
+								event: {
+									select: { title: true, eventStart: true, location: true },
+								},
+								ticket: { select: { name: true } },
+							},
+						});
+					});
+				} catch (error) {
+					if (isUniqueViolation(error) && attempt < MAX_ATTEMPTS) continue;
+					throw error;
+				}
 			}
+
+			sendTicketEmail({
+				toEmail: normalizedClaimEmail,
+				attendeeName: input.attendeeName,
+				eventTitle: claimed.event.title,
+				eventStart: claimed.event.eventStart,
+				location: claimed.event.location,
+				ticketCode: claimed.ticketCode,
+				qrToken,
+				tierName: claimed.ticket.name,
+				accessToken: access.token,
+			}).catch((err) =>
+				console.error("Transferred ticket email dispatch error:", err),
+			);
 
 			return {
 				success: true,
-				ticketCode: newTicketCode,
+				ticketCode: claimed.ticketCode,
+				// The claiming browser is now the holder.
+				accessToken: access.token,
 				message: "Ticket transfer completed successfully!",
 			};
 		}),

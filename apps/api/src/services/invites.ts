@@ -266,7 +266,7 @@ export async function declineInviteByToken(
  * In-app invitations are matched by email, so an unverified address must never
  * match: anyone could register an account with someone else's email.
  */
-async function verifiedEmail(
+export async function verifiedEmail(
 	client: PrismaClient,
 	userId: string,
 ): Promise<string | null> {

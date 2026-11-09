@@ -42,6 +42,10 @@ export default function EventRsvpPage(): JSX.Element {
 	const [completedTicketCode, setCompletedTicketCode] = useState<string | null>(
 		null,
 	);
+	// Link token for the booked ticket: this browser is the holder.
+	const [completedAccessToken, setCompletedAccessToken] = useState<
+		string | null
+	>(null);
 	const [isPassModalOpen, setIsPassModalOpen] = useState<boolean>(false);
 
 	// Query Event data and ticket tiers
@@ -89,6 +93,7 @@ export default function EventRsvpPage(): JSX.Element {
 		trpc.events.ticketBook.useMutation({
 			onSuccess: async (res) => {
 				setCompletedTicketCode(res.ticketCode);
+				setCompletedAccessToken(res.accessToken);
 				// Best-effort: set the guest RSVP cookie so this browser can
 				// participate in QR chain check-in without needing an account.
 				// Signed-in users benefit from their account instead; the cookie
@@ -97,7 +102,7 @@ export default function EventRsvpPage(): JSX.Element {
 					await fetch("/api/guest-rsvp-init", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ ticketCode: res.ticketCode }),
+						body: JSON.stringify({ accessToken: res.accessToken }),
 					});
 				} catch {
 					// Non-critical — guest check-in is optional.
@@ -560,6 +565,7 @@ export default function EventRsvpPage(): JSX.Element {
 
 			<TicketPassModal
 				ticketCode={isPassModalOpen ? completedTicketCode : null}
+				accessToken={completedAccessToken}
 				onClose={() => setIsPassModalOpen(false)}
 			/>
 		</div>

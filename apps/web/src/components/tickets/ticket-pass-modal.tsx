@@ -7,7 +7,6 @@ import {
 	Calendar,
 	Check,
 	Clock,
-	Copy,
 	MapPin,
 	Printer,
 	Share2,
@@ -22,23 +21,27 @@ import type { JSX } from "react";
 
 export interface TicketPassModalProps {
 	ticketCode: string | null;
+	/**
+	 * Token from the holder's ticket link, when this browser has it (right
+	 * after booking or claiming). Without it, full details are only shown to
+	 * the signed-in owner.
+	 */
+	accessToken?: string | null;
 	onClose: () => void;
 }
 
 export function TicketPassModal({
 	ticketCode,
+	accessToken,
 	onClose,
 }: TicketPassModalProps): JSX.Element | null {
 	const { toast, showToast, dismissToast } = useToast();
-	const {
-		data: ticket,
-		isLoading,
-		error,
-		refetch,
-	} = trpc.events.ticketGetByCode.useQuery(
-		{ ticketCode: ticketCode ?? "" },
-		{ enabled: !!ticketCode },
+	const { data, isLoading, error, refetch } = trpc.events.ticketGet.useQuery(
+		accessToken ? { accessToken } : { ticketCode: ticketCode ?? "" },
+		{ enabled: !!(accessToken || ticketCode) },
 	);
+	// Full details only when the caller holds the ticket (see ticketGet).
+	const ticket = data?.access === "full" ? data : undefined;
 
 	const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
@@ -46,11 +49,8 @@ export function TicketPassModal({
 	const [isTransferOpen, setIsTransferOpen] = useState<boolean>(false);
 	const [recipientName, setRecipientName] = useState<string>("");
 	const [recipientEmail, setRecipientEmail] = useState<string>("");
-	const [transferSuccessUrl, setTransferSuccessUrl] = useState<string | null>(
-		null,
-	);
+	const [transferSentTo, setTransferSentTo] = useState<string | null>(null);
 	const [transferError, setTransferError] = useState<string | null>(null);
-	const [copiedTransferLink, setCopiedTransferLink] = useState<boolean>(false);
 
 	const [isDropOpen, setIsDropOpen] = useState<boolean>(false);
 	const [dropSuccessMessage, setDropSuccessMessage] = useState<string | null>(
@@ -73,11 +73,8 @@ export function TicketPassModal({
 	const { mutate: initiateTransfer, isPending: isTransferring } =
 		trpc.events.ticketTransferInitiate.useMutation({
 			onSuccess: (res) => {
-				const origin =
-					typeof window !== "undefined" ? window.location.origin : "";
-				setTransferSuccessUrl(
-					`${origin}/tickets/transfer/${res.transferToken}`,
-				);
+				// The claim link is emailed to the recipient, never shown here.
+				setTransferSentTo(res.recipientEmail);
 				refetch();
 			},
 			onError: (err) => {
@@ -101,7 +98,7 @@ export function TicketPassModal({
 		}
 	}, [ticket]);
 
-	if (!ticketCode) return null;
+	if (!ticketCode && !accessToken) return null;
 
 	const handleTransferSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -111,20 +108,13 @@ export function TicketPassModal({
 			return;
 		}
 
+		if (!ticket) return;
 		initiateTransfer({
-			ticketCode,
+			ticketCode: ticket.ticketCode,
+			accessToken: accessToken ?? undefined,
 			recipientName: recipientName.trim(),
 			recipientEmail: recipientEmail.trim(),
 		});
-	};
-
-	const handleCopyTransferLink = () => {
-		if (transferSuccessUrl) {
-			navigator.clipboard.writeText(transferSuccessUrl);
-			showToast("Transfer link copied to clipboard.");
-			setCopiedTransferLink(true);
-			setTimeout(() => setCopiedTransferLink(false), 2000);
-		}
 	};
 
 	const event = ticket?.event;
@@ -185,6 +175,19 @@ export function TicketPassModal({
 								Failed to Load Pass
 							</h3>
 							<p className="text-xs text-ink/70">{error.message}</p>
+						</div>
+					)}
+
+					{data?.access === "limited" && (
+						<div className="text-center p-8 border border-perforation rounded-xl space-y-2">
+							<TicketIcon className="w-8 h-8 text-stamp mx-auto" />
+							<h3 className="font-display font-semibold text-base">
+								{data.event.title}
+							</h3>
+							<p className="text-xs text-ink/70">
+								Open this ticket from the link in your ticket email to see the
+								QR code and manage it.
+							</p>
 						</div>
 					)}
 
@@ -355,7 +358,7 @@ export function TicketPassModal({
 											<button
 												type="button"
 												onClick={() => {
-													setTransferSuccessUrl(null);
+													setTransferSentTo(null);
 													setIsTransferOpen(true);
 												}}
 												className="p-2 rounded border border-perforation hover:bg-perforation/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
@@ -401,40 +404,17 @@ export function TicketPassModal({
 							</button>
 						</div>
 
-						{transferSuccessUrl ? (
-							<div className="space-y-3">
-								<div className="bg-stamp/10 border border-stamp/30 text-stamp p-3 rounded-md space-y-1">
-									<div className="flex items-center gap-2 font-semibold text-xs">
-										<Check className="w-4 h-4" />
-										Transfer Claim Link Created!
-									</div>
-									<p className="text-[11px] opacity-90">
-										Share this link with {recipientName}. Once accepted, their
-										pass will be activated and your old pass will be
-										invalidated.
-									</p>
+						{transferSentTo ? (
+							<div className="bg-stamp/10 border border-stamp/30 text-stamp p-4 rounded-md space-y-1">
+								<div className="flex items-center gap-2 font-semibold text-xs">
+									<Check className="w-4 h-4" />
+									Transfer link sent
 								</div>
-
-								<div className="flex items-center gap-2 border border-perforation rounded-md p-2 bg-paper/60 font-mono text-xs">
-									<input
-										type="text"
-										readOnly
-										value={transferSuccessUrl}
-										className="w-full bg-transparent outline-none truncate"
-									/>
-									<button
-										type="button"
-										onClick={handleCopyTransferLink}
-										className="px-2.5 py-1 bg-stamp text-paper rounded text-[11px] font-medium shrink-0 flex items-center gap-1 cursor-pointer"
-									>
-										{copiedTransferLink ? (
-											<Check className="w-3.5 h-3.5" />
-										) : (
-											<Copy className="w-3.5 h-3.5" />
-										)}
-										{copiedTransferLink ? "Copied" : "Copy"}
-									</button>
-								</div>
+								<p className="text-xs opacity-90">
+									We emailed {transferSentTo} a link to claim this ticket. It
+									expires in 48 hours. Once they claim it, your pass stops
+									working.
+								</p>
 							</div>
 						) : (
 							<form onSubmit={handleTransferSubmit} className="space-y-3">
@@ -526,7 +506,13 @@ export function TicketPassModal({
 							<button
 								type="button"
 								disabled={isDropping}
-								onClick={() => dropTicket({ ticketCode })}
+								onClick={() =>
+									ticket &&
+									dropTicket({
+										ticketCode: ticket.ticketCode,
+										accessToken: accessToken ?? undefined,
+									})
+								}
 								className="px-4 py-1.5 bg-alert text-paper rounded text-xs font-medium cursor-pointer hover:opacity-90 disabled:opacity-50"
 							>
 								{isDropping ? "Dropping..." : "Confirm Drop"}

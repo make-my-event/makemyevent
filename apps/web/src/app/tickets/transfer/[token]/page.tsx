@@ -25,6 +25,10 @@ export default function TicketTransferClaimPage(): JSX.Element {
 	const [claimedTicketCode, setClaimedTicketCode] = useState<string | null>(
 		null,
 	);
+	// Link token for the claimed ticket: this browser is now the holder.
+	const [claimedAccessToken, setClaimedAccessToken] = useState<string | null>(
+		null,
+	);
 	const [isPassModalOpen, setIsPassModalOpen] = useState<boolean>(false);
 	const [claimError, setClaimError] = useState<string | null>(null);
 
@@ -32,6 +36,7 @@ export default function TicketTransferClaimPage(): JSX.Element {
 		trpc.events.ticketTransferClaim.useMutation({
 			onSuccess: (res) => {
 				setClaimedTicketCode(res.ticketCode);
+				setClaimedAccessToken(res.accessToken);
 			},
 			onError: (err) => {
 				setClaimError(err.message);
@@ -170,8 +175,7 @@ export default function TicketTransferClaimPage(): JSX.Element {
 									{event.title}
 								</h1>
 								<p className="text-xs opacity-70 mt-1">
-									Sent by{" "}
-									<strong className="font-mono">{transfer.senderEmail}</strong>
+									Sent by <strong>{transfer.senderName}</strong>
 								</p>
 							</div>
 						</div>
@@ -268,6 +272,7 @@ export default function TicketTransferClaimPage(): JSX.Element {
 
 			<TicketPassModal
 				ticketCode={isPassModalOpen ? claimedTicketCode : null}
+				accessToken={claimedAccessToken}
 				onClose={() => setIsPassModalOpen(false)}
 			/>
 		</div>

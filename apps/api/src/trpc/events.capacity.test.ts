@@ -6,9 +6,24 @@
  */
 import { randomUUID } from "node:crypto";
 import { prisma } from "db";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
 import { appRouter } from "./app.router";
 import { createContext } from "./trpc";
+
+// Never contact the real email provider from tests (CI sets a dummy key).
+vi.mock("../services/email.service", () => ({
+	sendTicketEmail: async () => null,
+	sendInviteEmail: async () => null,
+	sendTransferEmail: async () => null,
+}));
 
 const describeWithDb =
 	process.env.RUN_DB_TESTS === "1" ? describe : describe.skip;

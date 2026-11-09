@@ -8,7 +8,6 @@ import {
 	Calendar,
 	Check,
 	Clock,
-	Copy,
 	MapPin,
 	Printer,
 	RefreshCw,
@@ -27,19 +26,27 @@ import type { JSX } from "react";
 
 export default function AttendeeTicketPage(): JSX.Element {
 	const params = useParams();
-	const ticketCode = params.code as string;
+	// /tickets/<token> is the holder's link (full pass). /tickets/OPT-XXXX-YYYY
+	// is a printed code (links in emails sent before ticket links existed):
+	// it shows a minimal card and lets the attendee request their link.
+	const ref = params.code as string;
+	const isPrintedCode = /^OPT-/i.test(ref);
+	const accessToken = isPrintedCode ? undefined : ref;
 	const { toast, showToast, dismissToast } = useToast();
 
 	// Query ticket details
-	const {
-		data: ticket,
-		isLoading,
-		error,
-		refetch,
-	} = trpc.events.ticketGetByCode.useQuery(
-		{ ticketCode },
-		{ enabled: !!ticketCode },
+	const { data, isLoading, error, refetch } = trpc.events.ticketGet.useQuery(
+		accessToken ? { accessToken } : { ticketCode: ref.toUpperCase() },
+		{ enabled: !!ref, retry: false },
 	);
+	// Full details only when the caller holds the ticket (see ticketGet).
+	const ticket = data?.access === "full" ? data : undefined;
+
+	const [resendMessage, setResendMessage] = useState<string | null>(null);
+	const resendLink = trpc.events.ticketResendLink.useMutation({
+		onSuccess: (res) => setResendMessage(res.message),
+		onError: (err) => setResendMessage(err.message),
+	});
 
 	// QR Code data URL state
 	const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -48,11 +55,8 @@ export default function AttendeeTicketPage(): JSX.Element {
 	const [isTransferOpen, setIsTransferOpen] = useState(false);
 	const [recipientName, setRecipientName] = useState("");
 	const [recipientEmail, setRecipientEmail] = useState("");
-	const [transferSuccessUrl, setTransferSuccessUrl] = useState<string | null>(
-		null,
-	);
+	const [transferSentTo, setTransferSentTo] = useState<string | null>(null);
 	const [transferError, setTransferError] = useState<string | null>(null);
-	const [copiedTransferLink, setCopiedTransferLink] = useState(false);
 
 	const [isDropOpen, setIsDropOpen] = useState(false);
 	const [dropSuccessMessage, setDropSuccessMessage] = useState<string | null>(
@@ -75,11 +79,8 @@ export default function AttendeeTicketPage(): JSX.Element {
 	const { mutate: initiateTransfer, isPending: isTransferring } =
 		trpc.events.ticketTransferInitiate.useMutation({
 			onSuccess: (res) => {
-				const origin =
-					typeof window !== "undefined" ? window.location.origin : "";
-				setTransferSuccessUrl(
-					`${origin}/tickets/transfer/${res.transferToken}`,
-				);
+				// The claim link is emailed to the recipient, never shown here.
+				setTransferSentTo(res.recipientEmail);
 				refetch();
 			},
 			onError: (err) => {
@@ -111,19 +112,13 @@ export default function AttendeeTicketPage(): JSX.Element {
 			return;
 		}
 
+		if (!ticket) return;
 		initiateTransfer({
-			ticketCode,
+			ticketCode: ticket.ticketCode,
+			accessToken,
 			recipientName: recipientName.trim(),
 			recipientEmail: recipientEmail.trim(),
 		});
-	};
-
-	const handleCopyTransferLink = () => {
-		if (transferSuccessUrl) {
-			navigator.clipboard.writeText(transferSuccessUrl);
-			setCopiedTransferLink(true);
-			setTimeout(() => setCopiedTransferLink(false), 2000);
-		}
 	};
 
 	if (isLoading) {
@@ -132,6 +127,49 @@ export default function AttendeeTicketPage(): JSX.Element {
 				<SiteHeader />
 				<main className="flex-1 flex items-center justify-center p-6">
 					<p className="animate-pulse opacity-60">Loading ticket pass...</p>
+				</main>
+			</div>
+		);
+	}
+
+	if (data?.access === "limited") {
+		return (
+			<div className="min-h-screen bg-paper flex flex-col">
+				<SiteHeader />
+				<main className="flex-1 flex items-center justify-center p-6">
+					<div className="text-center max-w-md border border-perforation p-8 rounded-lg space-y-4">
+						<TicketIcon className="w-12 h-12 text-stamp mx-auto" />
+						<h1 className="font-display font-semibold text-xl">
+							{data.event.title}
+						</h1>
+						<p className="text-sm text-ink/70">
+							Ticket <code className="font-mono">{data.ticketCode}</code> ·{" "}
+							{data.ticket.name}
+						</p>
+						<p className="text-sm text-ink/70">
+							To see the QR code or manage this ticket, open it from the link in
+							your ticket email. Need the link again? We can email it to the
+							address the ticket was booked with.
+						</p>
+						{resendMessage ? (
+							<p role="status" className="text-sm text-ink">
+								{resendMessage}
+							</p>
+						) : (
+							<button
+								type="button"
+								disabled={resendLink.isPending}
+								onClick={() =>
+									resendLink.mutate({ ticketCode: data.ticketCode })
+								}
+								className="px-4 py-2 bg-stamp text-paper rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+							>
+								{resendLink.isPending
+									? "Sending..."
+									: "Email me my ticket link"}
+							</button>
+						)}
+					</div>
 				</main>
 			</div>
 		);
@@ -148,8 +186,8 @@ export default function AttendeeTicketPage(): JSX.Element {
 							Ticket Not Found
 						</h1>
 						<p className="opacity-60 text-sm mb-6">
-							We could not find an active ticket with code{" "}
-							<code className="font-mono">{ticketCode}</code>.
+							We could not find this ticket. Check the link in your ticket
+							email.
 						</p>
 						<Link
 							href="/"
@@ -402,7 +440,7 @@ export default function AttendeeTicketPage(): JSX.Element {
 								<button
 									type="button"
 									onClick={() => {
-										setTransferSuccessUrl(null);
+										setTransferSentTo(null);
 										setIsTransferOpen(true);
 									}}
 									className="p-2.5 rounded-md border border-perforation hover:bg-perforation/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
@@ -445,42 +483,18 @@ export default function AttendeeTicketPage(): JSX.Element {
 							</button>
 						</div>
 
-						{transferSuccessUrl ? (
+						{transferSentTo ? (
 							<div className="space-y-4">
-								<div className="bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-300 p-4 rounded-md space-y-1">
+								<div className="bg-stamp/10 border border-stamp/30 text-stamp p-4 rounded-md space-y-1">
 									<div className="flex items-center gap-2 font-semibold text-sm">
 										<Check className="w-4 h-4" />
-										Transfer Claim Link Created!
+										Transfer link sent
 									</div>
 									<p className="text-xs opacity-90">
-										Share this link with {recipientName}. Once accepted, their
-										pass will be activated and your old QR will be safely
-										invalidated.
+										We emailed {transferSentTo} a link to claim this ticket. It
+										expires in 48 hours. Once they claim it, your pass stops
+										working.
 									</p>
-								</div>
-
-								<div className="flex items-center gap-2 border border-perforation rounded-md p-2 bg-paper/60 font-mono text-xs">
-									<input
-										type="text"
-										readOnly
-										value={transferSuccessUrl}
-										className="flex-1 bg-transparent border-none outline-none truncate"
-									/>
-									<button
-										type="button"
-										onClick={handleCopyTransferLink}
-										className="px-3 py-1 bg-stamp text-paper rounded text-xs hover:opacity-90 transition-opacity flex items-center gap-1 shrink-0"
-									>
-										{copiedTransferLink ? (
-											<>
-												<Check className="w-3.5 h-3.5" /> Copied
-											</>
-										) : (
-											<>
-												<Copy className="w-3.5 h-3.5" /> Copy Link
-											</>
-										)}
-									</button>
 								</div>
 
 								<button
@@ -613,7 +627,9 @@ export default function AttendeeTicketPage(): JSX.Element {
 							</button>
 							<button
 								type="button"
-								onClick={() => dropTicket({ ticketCode })}
+								onClick={() =>
+									dropTicket({ ticketCode: ticket.ticketCode, accessToken })
+								}
 								disabled={isDropping}
 								className="px-4 py-2 bg-alert text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
 							>
