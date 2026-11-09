@@ -54,9 +54,10 @@ describeWithDb("data exposure (database)", () => {
 	const orgSlug = `exposure-org-${suffix}`;
 	const communitySlug = `exposure-community-${suffix}`;
 
-	const anonymous = () => appRouter.createCaller(createContext(null, null));
+	const anonymous = () =>
+		appRouter.createCaller(createContext(null, null, null, randomUUID()));
 	const as = (userId: string) =>
-		appRouter.createCaller(createContext(userId, null));
+		appRouter.createCaller(createContext(userId, null, null, randomUUID()));
 
 	const createUser = async (label: string, name: string | null) => {
 		const user = await prisma.user.create({

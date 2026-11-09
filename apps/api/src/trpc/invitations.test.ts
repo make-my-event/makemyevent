@@ -49,8 +49,9 @@ describeWithDb("invitations (database)", () => {
 	const passwordEmail = `password-${suffix}@example.com`;
 
 	const as = (userId: string) =>
-		appRouter.createCaller(createContext(userId, null));
-	const anonymous = () => appRouter.createCaller(createContext(null, null));
+		appRouter.createCaller(createContext(userId, null, null, randomUUID()));
+	const anonymous = () =>
+		appRouter.createCaller(createContext(null, null, null, randomUUID()));
 
 	const createUser = async (
 		email: string,

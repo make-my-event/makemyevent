@@ -25,7 +25,8 @@ describeWithDb("input hardening (database)", () => {
 	let eventId: string;
 	const slug = `hardening-${suffix}`;
 
-	const owner = () => appRouter.createCaller(createContext(ownerId, null));
+	const owner = () =>
+		appRouter.createCaller(createContext(ownerId, null, null, randomUUID()));
 
 	const expectSafeHtml = (value: string | null | undefined) => {
 		expect(value).toBe("<p>Safe</p>");

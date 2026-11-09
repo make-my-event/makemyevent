@@ -20,10 +20,12 @@ describeWithDb("QR chain and staff check-in (database)", () => {
 	let ticketId = "";
 	let ticketCodes: string[] = [];
 
-	const owner = () => appRouter.createCaller(createContext(ownerId, null));
-	const staff = () => appRouter.createCaller(createContext(staffId, null));
+	const owner = () =>
+		appRouter.createCaller(createContext(ownerId, null, null, randomUUID()));
+	const staff = () =>
+		appRouter.createCaller(createContext(staffId, null, null, randomUUID()));
 	const attendee = (userId: string) =>
-		appRouter.createCaller(createContext(userId, null));
+		appRouter.createCaller(createContext(userId, null, null, randomUUID()));
 	const claimCode = async (
 		userId: string,
 		eventSlug: string,

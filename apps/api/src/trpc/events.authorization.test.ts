@@ -36,7 +36,7 @@ describeWithDb("events authorization (database)", () => {
 	let tierAId: string;
 
 	const as = (userId: string) =>
-		appRouter.createCaller(createContext(userId, null));
+		appRouter.createCaller(createContext(userId, null, null, randomUUID()));
 
 	const future = (days: number) =>
 		new Date(Date.now() + days * 24 * 3600 * 1000);

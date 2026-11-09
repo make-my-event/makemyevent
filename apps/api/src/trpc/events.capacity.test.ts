@@ -48,8 +48,10 @@ describeWithDb("events capacity (database)", () => {
 	let eventId: string;
 	let otherEventId: string;
 
-	const organizer = () => appRouter.createCaller(createContext(ownerId, null));
-	const visitor = () => appRouter.createCaller(createContext(null, null));
+	const organizer = () =>
+		appRouter.createCaller(createContext(ownerId, null, null, randomUUID()));
+	const visitor = () =>
+		appRouter.createCaller(createContext(null, null, null, randomUUID()));
 
 	const getTiers = async () =>
 		(await visitor().events.ticketsGet({ slug })).tiers;

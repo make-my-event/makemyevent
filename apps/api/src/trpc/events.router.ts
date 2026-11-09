@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import type { EventStatus, PrismaClient } from "db";
 import { z } from "zod";
+import { RATE_LIMITS, enforceRateLimits } from "../lib/rate-limit";
 import { sanitizeOptionalRichText } from "../lib/sanitize";
 import { imageUrl, linkUrl } from "../lib/url-validation";
 import { supabaseAdmin } from "../lib/supabase";
@@ -1900,6 +1901,11 @@ export const eventsRouter = router({
 				}
 			}
 
+			// Invitations email arbitrary addresses: limit per inviting user.
+			await enforceRateLimits(ctx.prisma, [
+				{ rule: RATE_LIMITS.inviteUser, identifier: ctx.userId },
+			]);
+
 			// Stored against the email only: no account is looked up or linked
 			// here, and the response says nothing about whether the address has
 			// one. A pending invitation gets a fresh single-use token and expiry
@@ -2433,6 +2439,12 @@ export const eventsRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			// Each booking emails the given address: limit per IP and per address.
+			await enforceRateLimits(ctx.prisma, [
+				{ rule: RATE_LIMITS.bookIp, identifier: ctx.clientIp },
+				{ rule: RATE_LIMITS.bookEmail, identifier: input.attendeeEmail },
+			]);
+
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
 				select: {
@@ -2717,6 +2729,14 @@ export const eventsRouter = router({
 				}),
 		)
 		.query(async ({ ctx, input }) => {
+			// Printed codes are guessable in principle: limit code lookups per IP.
+			// Link tokens are 256-bit and need no limit.
+			if (input.ticketCode) {
+				await enforceRateLimits(ctx.prisma, [
+					{ rule: RATE_LIMITS.ticketLookupIp, identifier: ctx.clientIp },
+				]);
+			}
+
 			const select = {
 				id: true,
 				ticketCode: true,
@@ -2834,6 +2854,9 @@ export const eventsRouter = router({
 	ticketResendLink: publicProcedure
 		.input(z.object({ ticketCode: z.string().max(32) }))
 		.mutation(async ({ ctx, input }) => {
+			await enforceRateLimits(ctx.prisma, [
+				{ rule: RATE_LIMITS.resendLinkIp, identifier: ctx.clientIp },
+			]);
 			const RESEND_COOLDOWN_MS = 10 * 60 * 1000;
 			const now = new Date();
 			const ticket = await ctx.prisma.issuedTicket.findUnique({
@@ -3042,6 +3065,10 @@ export const eventsRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			await enforceRateLimits(ctx.prisma, [
+				{ rule: RATE_LIMITS.transferIp, identifier: ctx.clientIp },
+			]);
+
 			const ticket = await ctx.prisma.issuedTicket.findUnique({
 				where: { ticketCode: input.ticketCode },
 				select: {

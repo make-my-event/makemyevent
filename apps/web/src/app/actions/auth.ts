@@ -1,7 +1,10 @@
 "use server";
 
+import { clientIpFromHeaders } from "@/../../api/src/lib/client-ip";
+import { RATE_LIMITS, consumeRateLimit } from "@/../../api/src/lib/rate-limit";
 import bcrypt from "bcryptjs";
 import { prisma } from "db";
+import { headers } from "next/headers";
 
 export type RegisterResult = {
 	success?: boolean;
@@ -22,6 +25,15 @@ export async function registerUser(
 		!rawPassword
 	) {
 		return { error: "Email and password are required" };
+	}
+
+	const ip = clientIpFromHeaders(await headers()) ?? "unknown";
+	const limit = await consumeRateLimit(prisma, RATE_LIMITS.registerIp, ip);
+	if (!limit.allowed) {
+		return {
+			error:
+				"Too many sign-up attempts from this network. Please try again later.",
+		};
 	}
 
 	const name =

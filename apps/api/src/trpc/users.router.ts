@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { RATE_LIMITS, enforceRateLimits } from "../lib/rate-limit";
 import { imageUrl } from "../lib/url-validation";
 import { authedProcedure, router } from "./trpc";
 
@@ -205,6 +206,11 @@ export const usersRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			// Limits guessing the current password with a stolen session.
+			await enforceRateLimits(ctx.prisma, [
+				{ rule: RATE_LIMITS.changePasswordUser, identifier: ctx.userId },
+			]);
+
 			const user = await ctx.prisma.user.findUnique({
 				where: { id: ctx.userId },
 				select: { id: true, passwordHash: true },
