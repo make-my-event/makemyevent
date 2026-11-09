@@ -628,3 +628,14 @@ model CheckinChainNode {
   @@unique([sessionId, issuedTicketId])
   @@index([sessionId])
 }
+
+// Fixed-window rate limiting (apps/api/src/lib/rate-limit.ts). Lives in
+// Postgres because serverless functions share no memory. The key is
+// "<scope>:<sha256 of the identifier>", so no raw email or IP is stored.
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
