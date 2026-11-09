@@ -1,6 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import type { MemberRole, PrismaClient } from "db";
 import { z } from "zod";
+import { sanitizeOptionalRichText } from "../lib/sanitize";
+import { imageUrl, linkUrl } from "../lib/url-validation";
 import { sendInviteEmail } from "../services/email.service";
 import { authedProcedure, publicProcedure, router } from "./trpc";
 
@@ -326,15 +328,10 @@ export const organizersRouter = router({
 				organizerId: z.string(),
 				title: z.string().min(1).max(100).optional(),
 				description: z.string().max(3000).optional().nullable(),
-				logoUrl: z
-					.string()
-					.url("Must be a valid URL")
-					.optional()
-					.nullable()
-					.or(z.literal("")),
+				logoUrl: imageUrl.optional().nullable(),
 				instagram: z.string().max(100).optional().nullable(),
 				twitter: z.string().max(100).optional().nullable(),
-				website: z.string().max(200).optional().nullable(),
+				website: linkUrl.optional().nullable(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -345,7 +342,7 @@ export const organizersRouter = router({
 				data: {
 					...(input.title !== undefined && { title: input.title.trim() }),
 					...(input.description !== undefined && {
-						description: input.description?.trim() || null,
+						description: sanitizeOptionalRichText(input.description) ?? null,
 					}),
 					...(input.logoUrl !== undefined && {
 						logoUrl: input.logoUrl?.trim() || null,

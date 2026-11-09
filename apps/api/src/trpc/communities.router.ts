@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import type { MemberRole, PrismaClient } from "db";
 import { z } from "zod";
+import { imageUrl } from "../lib/url-validation";
 import { sendInviteEmail } from "../services/email.service";
 import { authedProcedure, publicProcedure, router } from "./trpc";
 
@@ -255,8 +256,8 @@ export const communitiesRouter = router({
 				name: z.string().min(2, "Name must be at least 2 characters").max(100),
 				slug: z.string().min(2).max(100),
 				description: z.string().optional(),
-				logoUrl: z.string().optional(),
-				bannerUrl: z.string().optional(),
+				logoUrl: imageUrl.optional(),
+				bannerUrl: imageUrl.optional(),
 				category: z.string().default("tech"),
 			}),
 		)
@@ -315,8 +316,8 @@ export const communitiesRouter = router({
 				communityId: z.string(),
 				name: z.string().min(2).max(100).optional(),
 				description: z.string().optional().nullable(),
-				logoUrl: z.string().optional().nullable(),
-				bannerUrl: z.string().optional().nullable(),
+				logoUrl: imageUrl.optional().nullable(),
+				bannerUrl: imageUrl.optional().nullable(),
 				category: z.string().optional(),
 			}),
 		)

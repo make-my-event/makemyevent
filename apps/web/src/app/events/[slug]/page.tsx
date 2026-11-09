@@ -2,6 +2,7 @@
 
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { toJsonLd } from "@/lib/json-ld";
 import { trpc } from "@/lib/trpc";
 import {
 	AlertCircle,
@@ -146,7 +147,7 @@ export default function PublicEventPage(): JSX.Element {
 					type="application/ld+json"
 					/* biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD structured data */
 					dangerouslySetInnerHTML={{
-						__html: JSON.stringify({
+						__html: toJsonLd({
 							"@context": "https://schema.org",
 							"@type": "Event",
 							name: event.title,

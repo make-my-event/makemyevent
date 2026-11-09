@@ -3,6 +3,7 @@
 import { SiteHeader } from "@/components/layout/site-header";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Toast, useToast } from "@/components/ui/toast";
+import { toJsonLd } from "@/lib/json-ld";
 import { trpc } from "@/lib/trpc";
 import { X } from "lucide-react";
 import Image from "next/image";
@@ -378,7 +379,7 @@ export default function OrganizationOverviewPage(): JSX.Element {
 							type="application/ld+json"
 							/* biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD structured data */
 							dangerouslySetInnerHTML={{
-								__html: JSON.stringify({
+								__html: toJsonLd({
 									"@context": "https://schema.org",
 									"@type": "Organization",
 									name: org.title || org.name,
@@ -726,7 +727,7 @@ export default function OrganizationOverviewPage(): JSX.Element {
 									{org.description ? (
 										<div
 											className="rich-editor-content text-xs leading-relaxed"
-											// biome-ignore lint/security/noDangerouslySetInnerHtml: Sanitized rich text description rendered from organizer
+											// biome-ignore lint/security/noDangerouslySetInnerHtml: description is sanitized on save by sanitizeRichText (apps/api/src/lib/sanitize.ts); existing rows are cleaned by apps/api/src/scripts/sanitize-rich-text.ts
 											dangerouslySetInnerHTML={{ __html: org.description }}
 										/>
 									) : (
