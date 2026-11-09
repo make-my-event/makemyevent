@@ -473,6 +473,23 @@ export const eventsRouter = router({
 				});
 			}
 
+			// A sub-community can only host events for its own parent organizer.
+			// Without this, a lead of any community could create events under an
+			// unrelated organizer (or attach events to another org's community).
+			if (input.communityId) {
+				const community = await ctx.prisma.community.findUnique({
+					where: { id: input.communityId },
+					select: { organizerId: true },
+				});
+				if (!community || community.organizerId !== input.organizerId) {
+					throw new TRPCError({
+						code: "FORBIDDEN",
+						message:
+							"You do not have permission to create events for this organizer or community.",
+					});
+				}
+			}
+
 			let isAuthorized = organizer.ownerId === ctx.userId;
 
 			if (!isAuthorized) {
@@ -956,6 +973,18 @@ export const eventsRouter = router({
 					});
 			}
 
+			// The submission must belong to the event the caller was authorized for.
+			const submission = await ctx.prisma.rsvpSubmission.findFirst({
+				where: { id: input.submissionId, eventId: event.id },
+				select: { id: true },
+			});
+			if (!submission) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "RSVP submission not found.",
+				});
+			}
+
 			const today = new Date().toISOString().split("T")[0];
 
 			if (input.action === "checkin") {
@@ -999,9 +1028,30 @@ export const eventsRouter = router({
 		.query(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
+				select: {
+					id: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+
+			if (event.organizer.ownerId !== ctx.userId) {
+				const membership = await ctx.prisma.organizerMember.findFirst({
+					where: {
+						organizerId: event.organizerId,
+						userId: ctx.userId,
+						role: { in: ["ADMIN", "EDITOR", "COORDINATOR"] },
+					},
+					select: { id: true },
+				});
+				if (!membership)
+					throw new TRPCError({
+						code: "FORBIDDEN",
+						message: "Permission denied.",
+					});
+			}
 
 			const totalAccepted = await ctx.prisma.rsvpSubmission.count({
 				where: { eventId: event.id, confirmAttendance: true },
@@ -1314,6 +1364,28 @@ export const eventsRouter = router({
 				}
 			}
 
+			// Linked proposals must belong to this event. Checked before any write
+			// so a rejected request leaves the existing schedule untouched.
+			const linkedIds = [
+				...new Set(
+					input.items
+						.map((item) => item.linkedCfpSubmissionId)
+						.filter((id): id is string => Boolean(id)),
+				),
+			];
+			if (linkedIds.length > 0) {
+				const ownCount = await ctx.prisma.cfpSubmission.count({
+					where: { id: { in: linkedIds }, eventId: event.id },
+				});
+				if (ownCount !== linkedIds.length) {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message:
+							"A linked proposal in this schedule does not belong to this event.",
+					});
+				}
+			}
+
 			// Update showSchedule on Event
 			await ctx.prisma.event.update({
 				where: { id: event.id },
@@ -1529,6 +1601,25 @@ export const eventsRouter = router({
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+
+			// Staff only: this returns team and volunteer contact details and may
+			// seed default volunteer rows below.
+			if (event.organizer.ownerId !== ctx.userId) {
+				const membership = await ctx.prisma.organizerMember.findFirst({
+					where: {
+						organizerId: event.organizerId,
+						userId: ctx.userId,
+						role: { in: ["ADMIN", "EDITOR", "COORDINATOR"] },
+					},
+					select: { id: true },
+				});
+				if (!membership) {
+					throw new TRPCError({
+						code: "FORBIDDEN",
+						message: "You do not have permission to manage this event.",
+					});
+				}
+			}
 
 			let volunteers = await ctx.prisma.eventVolunteer.findMany({
 				where: { eventId: event.id },
@@ -2893,13 +2984,35 @@ export const eventsRouter = router({
 					});
 				}
 
-				const newStatus =
-					input.action === "checkin" ? "CHECKED_IN" : "CONFIRMED";
-				const checkedInAt = input.action === "checkin" ? new Date() : null;
+				if (input.action === "checkin") {
+					// Same rules as the scanner: only a CONFIRMED ticket can be checked
+					// in. Waitlisted, dropped and cancelled tickets are rejected; an
+					// already checked-in ticket is left as-is (original time kept).
+					const outcome = await checkInIssuedTicket(ctx.prisma, ticket);
+					if (!outcome.valid && !outcome.alreadyCheckedIn) {
+						throw new TRPCError({
+							code: "BAD_REQUEST",
+							message: outcome.message,
+						});
+					}
+				} else {
+					// Undo is only valid for a checked-in ticket. The status condition
+					// makes this atomic and stops "undo" from turning a waitlisted,
+					// dropped or cancelled ticket into a confirmed one.
+					const undone = await ctx.prisma.issuedTicket.updateMany({
+						where: { id: ticket.id, status: "CHECKED_IN" },
+						data: { status: "CONFIRMED", checkedInAt: null },
+					});
+					if (undone.count === 0 && ticket.status !== "CONFIRMED") {
+						throw new TRPCError({
+							code: "BAD_REQUEST",
+							message: `Cannot undo check-in for a ticket that is ${ticket.status.toLowerCase()}.`,
+						});
+					}
+				}
 
-				return ctx.prisma.issuedTicket.update({
+				return ctx.prisma.issuedTicket.findUniqueOrThrow({
 					where: { id: ticket.id },
-					data: { status: newStatus, checkedInAt },
 				});
 			}
 
