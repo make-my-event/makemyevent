@@ -394,9 +394,17 @@ export const communitiesRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			await assertCommunityAccess(ctx.prisma, input.communityId, ctx.userId);
 
-			await ctx.prisma.communityMember.delete({
-				where: { id: input.memberId },
+			// Scope the delete to the community the caller was authorized for, so a
+			// member of a different community can never be removed through it.
+			const removed = await ctx.prisma.communityMember.deleteMany({
+				where: { id: input.memberId, communityId: input.communityId },
 			});
+			if (removed.count === 0) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Member not found in this sub-community.",
+				});
+			}
 
 			return { success: true };
 		}),
