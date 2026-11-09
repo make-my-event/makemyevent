@@ -2,6 +2,7 @@
 
 import { registerUser } from "@/app/actions/auth";
 import { getClientDeviceId } from "@/lib/device";
+import { safeCallbackUrl } from "@/lib/safe-callback-url";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -38,7 +39,8 @@ export function LoginForm(): JSX.Element {
 		}
 	}, [urlError]);
 
-	const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+	// Attacker-controlled query parameter: only same-site paths are allowed.
+	const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
 
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();

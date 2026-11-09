@@ -1,6 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import type { EventStatus, PrismaClient } from "db";
 import { z } from "zod";
+import { sanitizeOptionalRichText } from "../lib/sanitize";
+import { imageUrl, linkUrl } from "../lib/url-validation";
 import { supabaseAdmin } from "../lib/supabase";
 import { sendInviteEmail, sendTicketEmail } from "../services/email.service";
 import { authedProcedure, publicProcedure, router } from "./trpc";
@@ -495,7 +497,7 @@ export const eventsRouter = router({
 				registrationEnd: z.string().optional(),
 				isOnline: z.boolean().default(false),
 				location: z.string().optional(),
-				onlineLink: z.string().optional(),
+				onlineLink: linkUrl.optional(),
 				capacity: z.number().int().positive().default(300),
 				tickets: z
 					.array(
@@ -649,9 +651,9 @@ export const eventsRouter = router({
 				topic: z.enum(EVENT_TOPICS),
 				isOnline: z.boolean(),
 				location: z.string().optional(),
-				onlineLink: z.string().optional(),
-				recordingLink: z.string().optional(),
-				mapLink: z.string().optional(),
+				onlineLink: linkUrl.optional(),
+				recordingLink: linkUrl.optional(),
+				mapLink: linkUrl.optional(),
 				isPaid: z.boolean().default(false),
 				ticketDescription: z.string().optional(),
 				showRsvp: z.boolean().default(false),
@@ -883,7 +885,7 @@ export const eventsRouter = router({
 					allowEdit: input.allowEdit,
 					requiresApproval: input.requiresApproval,
 					maxRsvpCount: input.maxRsvpCount,
-					description: input.description,
+					description: sanitizeOptionalRichText(input.description),
 				},
 				create: {
 					eventId: event.id,
@@ -891,7 +893,7 @@ export const eventsRouter = router({
 					allowEdit: input.allowEdit,
 					requiresApproval: input.requiresApproval,
 					maxRsvpCount: input.maxRsvpCount,
-					description: input.description,
+					description: sanitizeOptionalRichText(input.description),
 				},
 			});
 
@@ -1259,7 +1261,7 @@ export const eventsRouter = router({
 					onlyTalks: input.onlyTalks,
 					deadline: deadlineDate,
 					publicCustomResponses: input.publicCustomResponses,
-					guidelines: input.guidelines,
+					guidelines: sanitizeOptionalRichText(input.guidelines),
 				},
 				create: {
 					eventId: event.id,
@@ -1271,7 +1273,7 @@ export const eventsRouter = router({
 					onlyTalks: input.onlyTalks,
 					deadline: deadlineDate,
 					publicCustomResponses: input.publicCustomResponses,
-					guidelines: input.guidelines,
+					guidelines: sanitizeOptionalRichText(input.guidelines),
 				},
 			});
 
@@ -1552,7 +1554,7 @@ export const eventsRouter = router({
 					data: input.items.map((item) => ({
 						eventId: event.id,
 						title: item.title,
-						description: item.description,
+						description: sanitizeOptionalRichText(item.description),
 						scheduledDate: item.scheduledDate,
 						startTime: item.startTime,
 						endTime: item.endTime,
@@ -1635,8 +1637,8 @@ export const eventsRouter = router({
 						name: z.string(),
 						tier: z.string().nullable().optional(),
 						customTier: z.string().nullable().optional(),
-						logoUrl: z.string().nullable().optional(),
-						websiteUrl: z.string().nullable().optional(),
+						logoUrl: imageUrl.nullable().optional(),
+						websiteUrl: linkUrl.nullable().optional(),
 					}),
 				),
 			}),

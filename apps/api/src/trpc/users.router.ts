@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { imageUrl } from "../lib/url-validation";
 import { authedProcedure, router } from "./trpc";
 
 export const usersRouter = router({
@@ -107,12 +108,7 @@ export const usersRouter = router({
 				name: z.string().min(1, "Name cannot be empty").max(100),
 				username: z.string().max(30).optional().nullable(),
 				phone: z.string().max(30).optional().nullable(),
-				image: z
-					.string()
-					.url("Must be a valid URL")
-					.optional()
-					.nullable()
-					.or(z.literal("")),
+				image: imageUrl.optional().nullable(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {

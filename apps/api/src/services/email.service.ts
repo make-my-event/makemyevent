@@ -2,6 +2,7 @@ import * as path from "node:path";
 import { config } from "dotenv";
 import QRCode from "qrcode";
 import { Resend } from "resend";
+import { escapeHtml, toHeaderText } from "../lib/escape-html";
 
 export interface TicketEmailParams {
 	toEmail: string;
@@ -34,8 +35,20 @@ export async function sendTicketEmail(params: TicketEmailParams) {
 			process.env.NEXT_PUBLIC_APP_URL ||
 			process.env.APP_URL ||
 			"https://makemyevent.org";
-		const passUrl = `${appUrl}/tickets/${params.ticketCode}`;
+		const passUrl = `${appUrl}/tickets/${encodeURIComponent(params.ticketCode)}`;
 		const brandLogoUrl = `${appUrl}/makemyevent-symbol-467x512.svg`;
+
+		// Every value inserted into the HTML below is escaped: attendee names,
+		// event titles, tier names and locations are user/organizer input.
+		const html = {
+			attendeeName: escapeHtml(params.attendeeName),
+			eventTitle: escapeHtml(params.eventTitle),
+			tierName: escapeHtml(params.tierName),
+			location: escapeHtml(params.location || "Venue TBA"),
+			ticketCode: escapeHtml(params.ticketCode),
+			passUrl: escapeHtml(passUrl),
+			brandLogoUrl: escapeHtml(brandLogoUrl),
+		};
 
 		// 1. Render PNG Buffer for inline QR code verification token
 		const qrBuffer = await QRCode.toBuffer(params.qrToken, {
@@ -63,7 +76,9 @@ export async function sendTicketEmail(params: TicketEmailParams) {
 		const response = await resend.emails.send({
 			from: fromEmail,
 			to: [params.toEmail],
-			subject: `Your Entry Ticket for ${params.eventTitle} [${params.ticketCode}]`,
+			subject: toHeaderText(
+				`Your Entry Ticket for ${params.eventTitle} [${params.ticketCode}]`,
+			),
 			attachments: [
 				{
 					filename: "ticket-qr.png",
@@ -83,35 +98,35 @@ export async function sendTicketEmail(params: TicketEmailParams) {
 
 						<!-- Header Banner -->
 						<div style="background-color: #1f7a4d; padding: 24px; text-align: center; color: #ffffff;">
-							<img src="${brandLogoUrl}" alt="makemyevent logo" style="width: 48px; height: 48px; display: block; margin: 0 auto 10px; border-radius: 12px; background: rgba(255,255,255,0.12); padding: 6px;" />
+							<img src="${html.brandLogoUrl}" alt="makemyevent logo" style="width: 48px; height: 48px; display: block; margin: 0 auto 10px; border-radius: 12px; background: rgba(255,255,255,0.12); padding: 6px;" />
 							<h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">makemyevent</h1>
 							<p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9;">Your Event Pass is Confirmed!</p>
 						</div>
 
 						<!-- Body Content -->
 						<div style="padding: 24px;">
-							<p style="font-size: 15px; margin-top: 0;">Hi <strong>${params.attendeeName}</strong>,</p>
-							<p style="font-size: 14px; color: #444; line-height: 1.5;">You're registered for <strong>${params.eventTitle}</strong>. Present your entry QR code at the check-in desk for admission.</p>
+							<p style="font-size: 15px; margin-top: 0;">Hi <strong>${html.attendeeName}</strong>,</p>
+							<p style="font-size: 14px; color: #444; line-height: 1.5;">You're registered for <strong>${html.eventTitle}</strong>. Present your entry QR code at the check-in desk for admission.</p>
 
 							<!-- Pass Stub -->
 							<div style="background-color: #f9f8f5; border: 1px dashed #dad6cc; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
-								<span style="font-size: 11px; font-weight: bold; font-family: monospace; text-transform: uppercase; background-color: #e6f4ea; color: #1f7a4d; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-bottom: 10px;">${params.tierName}</span>
+								<span style="font-size: 11px; font-weight: bold; font-family: monospace; text-transform: uppercase; background-color: #e6f4ea; color: #1f7a4d; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-bottom: 10px;">${html.tierName}</span>
 
-								<h2 style="font-size: 18px; margin: 5px 0; color: #1b1a18;">${params.eventTitle}</h2>
-								<p style="font-size: 13px; color: #666; margin: 4px 0;">📅 ${formattedDate}</p>
-								<p style="font-size: 13px; color: #666; margin: 4px 0 16px 0;">📍 ${params.location || "Venue TBA"}</p>
+								<h2 style="font-size: 18px; margin: 5px 0; color: #1b1a18;">${html.eventTitle}</h2>
+								<p style="font-size: 13px; color: #666; margin: 4px 0;">Date: ${escapeHtml(formattedDate)}</p>
+								<p style="font-size: 13px; color: #666; margin: 4px 0 16px 0;">Venue: ${html.location}</p>
 
 								<!-- Embedded QR Code -->
 								<div style="background: #ffffff; padding: 12px; display: inline-block; border-radius: 8px; border: 1px solid #eee;">
 									<img src="cid:ticket_qr" alt="Entry QR Code" style="width: 180px; height: 180px; display: block;" />
 								</div>
 
-								<p style="font-family: monospace; font-size: 15px; font-weight: bold; letter-spacing: 2px; color: #1b1a18; margin: 12px 0 0 0;">${params.ticketCode}</p>
+								<p style="font-family: monospace; font-size: 15px; font-weight: bold; letter-spacing: 2px; color: #1b1a18; margin: 12px 0 0 0;">${html.ticketCode}</p>
 							</div>
 
 							<!-- Action Button -->
 							<div style="text-align: center; margin: 28px 0 10px 0;">
-								<a href="${passUrl}" style="background-color: #1f7a4d; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">View Digital Pass →</a>
+								<a href="${html.passUrl}" style="background-color: #1f7a4d; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">View Digital Pass →</a>
 							</div>
 						</div>
 
@@ -168,7 +183,20 @@ export async function sendInviteEmail(params: InviteEmailParams) {
 		const fromEmail =
 			process.env.EMAIL_FROM || "makemyevent <onboarding@resend.dev>";
 
-		const subject = `You've been added as ${params.role} for ${params.targetName} on makemyevent`;
+		const subject = toHeaderText(
+			`You've been added as ${params.role} for ${params.targetName} on makemyevent`,
+		);
+
+		// Role (custom roles are free text), target name and recipient name are
+		// user/organizer input; escape everything inserted into the HTML.
+		const html = {
+			subject: escapeHtml(subject),
+			recipient: escapeHtml(params.recipientName || params.toEmail),
+			role: escapeHtml(params.role),
+			targetName: escapeHtml(params.targetName),
+			toEmail: escapeHtml(params.toEmail),
+			actionUrl: escapeHtml(params.actionUrl),
+		};
 
 		const response = await resend.emails.send({
 			from: fromEmail,
@@ -177,7 +205,7 @@ export async function sendInviteEmail(params: InviteEmailParams) {
 			html: `
 				<!DOCTYPE html>
 				<html>
-				<head><meta charset="utf-8"><title>${subject}</title></head>
+				<head><meta charset="utf-8"><title>${html.subject}</title></head>
 				<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f7f6f2; margin: 0; padding: 20px; color: #1b1a18;">
 					<div style="max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #dad6cc; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
 						<div style="background-color: #1f7a4d; padding: 24px; text-align: center; color: #ffffff;">
@@ -185,11 +213,11 @@ export async function sendInviteEmail(params: InviteEmailParams) {
 							<p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9;">Team & Volunteer Invitation</p>
 						</div>
 						<div style="padding: 24px;">
-							<p style="font-size: 15px; margin-top: 0;">Hi <strong>${params.recipientName || params.toEmail}</strong>,</p>
-							<p style="font-size: 14px; color: #444; line-height: 1.5;">You have been assigned as <strong>${params.role}</strong> for <strong>${params.targetName}</strong>.</p>
-							<p style="font-size: 13px; color: #666; line-height: 1.5;">Sign in to your makemyevent account using <code>${params.toEmail}</code> to access your management tools, check-in scanner, and team privileges.</p>
+							<p style="font-size: 15px; margin-top: 0;">Hi <strong>${html.recipient}</strong>,</p>
+							<p style="font-size: 14px; color: #444; line-height: 1.5;">You have been assigned as <strong>${html.role}</strong> for <strong>${html.targetName}</strong>.</p>
+							<p style="font-size: 13px; color: #666; line-height: 1.5;">Sign in to your makemyevent account using <code>${html.toEmail}</code> to access your management tools, check-in scanner, and team privileges.</p>
 							<div style="text-align: center; margin: 28px 0 10px 0;">
-								<a href="${params.actionUrl}" style="background-color: #1f7a4d; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">Open Dashboard & Access →</a>
+								<a href="${html.actionUrl}" style="background-color: #1f7a4d; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">Open Dashboard & Access →</a>
 							</div>
 						</div>
 						<div style="border-top: 1px solid #f0eee8; padding: 16px 24px; background-color: #faf9f6; text-align: center; font-size: 12px; color: #888;">
