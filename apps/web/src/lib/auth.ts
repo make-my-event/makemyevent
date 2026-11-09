@@ -1,5 +1,4 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import bcrypt from "bcryptjs";
 import { type UserRole, prisma } from "db";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import type { Provider } from "next-auth/providers";
@@ -8,12 +7,23 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import { cookies, headers } from "next/headers";
 import { clientIpFromHeaders } from "@/../../api/src/lib/client-ip";
-import { RATE_LIMITS, consumeRateLimit } from "@/../../api/src/lib/rate-limit";
+import {
+	checkCredentials,
+	markOAuthUserVerified,
+	notifySignInMethodLinked,
+	prepareOAuthSignIn,
+} from "@/../../api/src/services/accounts";
+import { isVerifiedGitHubEmail } from "@/../../api/src/services/github-email";
 import { parseUserAgent } from "./device";
 
 /** Surfaces as `code: "rate_limited"` from signIn() in the login form. */
 class TooManySignInAttempts extends CredentialsSignin {
 	code = "rate_limited";
+}
+
+/** Surfaces as `code: "email_unverified"` from signIn() in the login form. */
+class EmailNotVerified extends CredentialsSignin {
+	code = "email_unverified";
 }
 
 const providers: Provider[] = [
@@ -28,53 +38,19 @@ const providers: Provider[] = [
 				return null;
 			}
 
-			const email = (credentials.email as string).trim().toLowerCase();
-
-			// Checked before the user lookup and bcrypt, so guessing is capped
-			// and cannot be used to burn CPU. Strict per email+IP, a looser
-			// per-email ceiling, and per IP (see RATE_LIMITS).
-			const ip = clientIpFromHeaders(request.headers) ?? "unknown";
-			const limits = await Promise.all([
-				consumeRateLimit(prisma, RATE_LIMITS.loginEmailIp, `${email}|${ip}`),
-				consumeRateLimit(prisma, RATE_LIMITS.loginEmail, email),
-				consumeRateLimit(prisma, RATE_LIMITS.loginIp, ip),
-			]);
-			if (limits.some((result) => !result.allowed)) {
-				throw new TooManySignInAttempts();
-			}
-
-			const user = await prisma.user.findUnique({
-				where: { email },
-				select: {
-					id: true,
-					email: true,
-					name: true,
-					image: true,
-					role: true,
-					passwordHash: true,
-				},
-			});
-
-			if (!user?.passwordHash) {
-				return null;
-			}
-
-			const isPasswordValid = await bcrypt.compare(
+			// Rate limits, constant-time handling of unknown emails and the
+			// email-verification rule live in apps/api/src/services/accounts.ts.
+			const result = await checkCredentials(
+				prisma,
+				credentials.email as string,
 				credentials.password as string,
-				user.passwordHash,
+				clientIpFromHeaders(request.headers),
 			);
-
-			if (!isPasswordValid) {
-				return null;
-			}
-
-			return {
-				id: user.id,
-				email: user.email,
-				name: user.name,
-				image: user.image,
-				role: user.role,
-			};
+			if (result.ok)
+				return { ...result.user, role: result.user.role as UserRole };
+			if (result.reason === "rate_limited") throw new TooManySignInAttempts();
+			if (result.reason === "unverified") throw new EmailNotVerified();
+			return null;
 		},
 	}),
 ];
@@ -90,8 +66,11 @@ if (
 			clientSecret:
 				process.env.AUTH_GITHUB_SECRET ||
 				(process.env.GITHUB_CLIENT_SECRET as string),
-			// Safe: GitHub verifies email ownership. Allows credential-registered
-			// users to later link their GitHub account without OAuthAccountNotLinked.
+			// Safe because the signIn callback confirms through GitHub's API that
+			// the email is verified (Auth.js alone does not check). Allows
+			// credential-registered users to link GitHub. If the password account's
+			// email was never verified, its password is removed on link
+			// (prepareOAuthSignIn), so a pre-planted password cannot survive.
 			allowDangerousEmailAccountLinking: true,
 		}),
 	);
@@ -108,8 +87,10 @@ if (
 			clientSecret:
 				process.env.AUTH_GOOGLE_SECRET ||
 				(process.env.GOOGLE_CLIENT_SECRET as string),
-			// Safe: Google verifies email ownership. Allows credential-registered
-			// users to later link their Google account without OAuthAccountNotLinked.
+			// Safe: Google verifies email ownership (and the signIn callback
+			// requires email_verified). Allows credential-registered users to link
+			// Google. If the password account's email was never verified, its
+			// password is removed on link (prepareOAuthSignIn).
 			allowDangerousEmailAccountLinking: true,
 		}),
 	);
@@ -133,6 +114,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 	},
 	providers,
 	events: {
+		async createUser({ user }) {
+			// Only adapter-created users reach this event, i.e. Google/GitHub
+			// sign-ups (password sign-ups are created by registerAccount).
+			if (!user.id) return;
+			try {
+				await markOAuthUserVerified(prisma, user.id);
+			} catch (err) {
+				console.error("[auth] Marking OAuth user verified failed:", err);
+			}
+		},
+		async linkAccount({ user, account }) {
+			// Tell the owner when a Google/GitHub sign-in is added to an account
+			// that already had another way in.
+			if (!user.id || account.type === "credentials") return;
+			try {
+				await notifySignInMethodLinked(prisma, user.id, account.provider);
+			} catch (err) {
+				console.error("[auth] Sign-in linked notice failed:", err);
+			}
+		},
 		async signOut(message) {
 			if ("token" in message && message.token?.sessionToken) {
 				try {
@@ -146,6 +147,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 		},
 	},
 	callbacks: {
+		async signIn({ user, account, profile }) {
+			if (!account || account.type === "credentials") return true;
+			try {
+				const email = user.email ?? (profile?.email as string | undefined);
+				// Google states verification in the ID token; for GitHub it must be
+				// checked explicitly (Auth.js does not), see github-email.ts.
+				const providerEmailVerified =
+					account.provider === "github"
+						? Boolean(email) &&
+							(await isVerifiedGitHubEmail(
+								account.access_token,
+								email as string,
+							))
+						: (profile as { email_verified?: boolean } | undefined)
+								?.email_verified;
+				return await prepareOAuthSignIn(prisma, {
+					provider: account.provider,
+					email,
+					providerEmailVerified,
+				});
+			} catch (err) {
+				// Fail closed: refuse the sign-in rather than link unsafely.
+				console.error("[auth] OAuth sign-in check failed:", err);
+				return false;
+			}
+		},
 		async jwt({ token, user, profile }) {
 			const userId = (user?.id || token.id || token.sub) as string | undefined;
 

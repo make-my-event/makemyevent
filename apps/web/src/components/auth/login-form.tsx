@@ -3,6 +3,7 @@
 import { registerUser } from "@/app/actions/auth";
 import { getClientDeviceId } from "@/lib/device";
 import { safeCallbackUrl } from "@/lib/safe-callback-url";
+import { trpc } from "@/lib/trpc";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -19,6 +20,17 @@ export function LoginForm(): JSX.Element {
 	const [password, setPassword] = useState<string>("");
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [error, setError] = useState<string | null>(null);
+	const [notice, setNotice] = useState<string | null>(null);
+	const [showResend, setShowResend] = useState<boolean>(false);
+
+	const resendVerification = trpc.account.resendVerification.useMutation({
+		onSuccess: (res) => {
+			setShowResend(false);
+			setError(null);
+			setNotice(res.message);
+		},
+		onError: (err) => setError(err.message),
+	});
 
 	// Ensure persistent device ID is initialized in cookies & localStorage
 	useEffect(() => {
@@ -26,7 +38,21 @@ export function LoginForm(): JSX.Element {
 	}, []);
 
 	useEffect(() => {
-		if (urlError === "OAuthAccountNotLinked") {
+		if (searchParams.get("verified") === "1") {
+			setNotice("Email verified. You can sign in now.");
+		} else if (searchParams.get("reset") === "1") {
+			setNotice(
+				"Password updated. Sign in with your new password. You were signed out on other devices.",
+			);
+		}
+	}, [searchParams]);
+
+	useEffect(() => {
+		if (urlError === "AccessDenied") {
+			setError(
+				"We couldn't confirm your email with that provider. Make sure the email on your Google or GitHub account is verified, then try again.",
+			);
+		} else if (urlError === "OAuthAccountNotLinked") {
 			setError(
 				"An account with this email already exists under another sign-in method. Email account linking is now enabled — please click Sign In with GitHub again to link your accounts.",
 			);
@@ -58,11 +84,18 @@ export function LoginForm(): JSX.Element {
 				});
 
 				if (res?.error) {
-					setError(
-						res.code === "rate_limited"
-							? "Too many sign-in attempts. Please wait 15 minutes and try again."
-							: "Invalid email or password",
-					);
+					if (res.code === "rate_limited") {
+						setError(
+							"Too many sign-in attempts. Please wait 15 minutes and try again.",
+						);
+					} else if (res.code === "email_unverified") {
+						setError(
+							"Verify your email before signing in. Check your inbox for the link we sent.",
+						);
+						setShowResend(true);
+					} else {
+						setError("Invalid email or password");
+					}
 					setIsLoading(false);
 				} else {
 					window.location.href = callbackUrl;
@@ -78,18 +111,15 @@ export function LoginForm(): JSX.Element {
 				const result = await registerUser(formData);
 				if (result.error) {
 					setError(result.error);
-					setIsLoading(false);
 				} else {
-					// Automatically log in after registration to complete onboarding,
-					// or return to the team invitation that brought them here.
-					await signIn("credentials", {
-						email: normalizedEmail,
-						password,
-						callbackUrl: callbackUrl.startsWith("/invite/")
-							? callbackUrl
-							: "/onboarding",
-					});
+					// New accounts verify their email before signing in, so there is
+					// no automatic sign-in here. The message is the same whether or
+					// not the email was already registered.
+					setNotice(result.message ?? null);
+					setPassword("");
+					setIsLogin(true);
 				}
+				setIsLoading(false);
 			}
 		} catch {
 			setError("Something went wrong. Please try again.");
@@ -173,9 +203,33 @@ export function LoginForm(): JSX.Element {
 			</div>
 
 			<form onSubmit={handleSubmit} className="space-y-4">
+				{notice && (
+					<div
+						role="status"
+						className="p-4 mb-4 text-sm text-ink bg-stamp/10 border border-stamp/30 rounded-md text-center"
+					>
+						{notice}
+					</div>
+				)}
 				{error && (
 					<div className="p-3 mb-4 text-sm text-alert bg-alert/10 border border-alert/20 rounded-md text-center">
 						{error}
+						{showResend && (
+							<button
+								type="button"
+								disabled={resendVerification.isPending}
+								onClick={() =>
+									resendVerification.mutate({
+										email: email.trim().toLowerCase(),
+									})
+								}
+								className="block mx-auto mt-2 underline text-ink disabled:opacity-50"
+							>
+								{resendVerification.isPending
+									? "Sending..."
+									: "Resend verification email"}
+							</button>
+						)}
 					</div>
 				)}
 				{!isLogin && (
@@ -221,6 +275,14 @@ export function LoginForm(): JSX.Element {
 						placeholder="••••••••"
 						className="w-full bg-paper border border-perforation rounded-md px-4 py-4 text-body focus:outline-none focus:border-stamp focus:ring-1 focus:ring-stamp"
 					/>
+					{isLogin && (
+						<Link
+							href="/forgot-password"
+							className="inline-block mt-2 text-sm underline hover:text-stamp"
+						>
+							Forgot password?
+						</Link>
+					)}
 				</div>
 				<button
 					type="submit"
@@ -237,6 +299,8 @@ export function LoginForm(): JSX.Element {
 					onClick={() => {
 						setIsLogin(!isLogin);
 						setError(null);
+						setNotice(null);
+						setShowResend(false);
 					}}
 					className="text-body text-sm underline hover:text-stamp transition-colors"
 				>

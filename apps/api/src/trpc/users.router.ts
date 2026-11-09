@@ -3,6 +3,12 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { RATE_LIMITS, enforceRateLimits } from "../lib/rate-limit";
 import { imageUrl } from "../lib/url-validation";
+import {
+	BCRYPT_COST,
+	assertAcceptableNewPassword,
+	notifyPasswordChanged,
+	passwordProblem,
+} from "../services/accounts";
 import { authedProcedure, router } from "./trpc";
 
 export const usersRouter = router({
@@ -202,7 +208,11 @@ export const usersRouter = router({
 				currentPassword: z.string().optional(),
 				newPassword: z
 					.string()
-					.min(8, "Password must be at least 8 characters"),
+					.min(8, "Password must be at least 8 characters")
+					// Same rules as sign-up and reset (bcrypt's 72-byte limit).
+					.refine((value) => passwordProblem(value) === null, {
+						message: "Password is too long.",
+					}),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -213,7 +223,7 @@ export const usersRouter = router({
 
 			const user = await ctx.prisma.user.findUnique({
 				where: { id: ctx.userId },
-				select: { id: true, passwordHash: true },
+				select: { id: true, email: true, passwordHash: true },
 			});
 
 			if (!user) {
@@ -243,13 +253,30 @@ export const usersRouter = router({
 				}
 			}
 
-			// Hash new password with bcrypt cost factor 12
-			const newHash = await bcrypt.hash(input.newPassword, 12);
+			// Length rules and the breached-password check (services/accounts.ts).
+			await assertAcceptableNewPassword(input.newPassword);
 
-			await ctx.prisma.user.update({
-				where: { id: ctx.userId },
-				data: { passwordHash: newHash },
-			});
+			const newHash = await bcrypt.hash(input.newPassword, BCRYPT_COST);
+
+			// Sign out every other session: whoever else may know the old password
+			// (or holds a stolen session) loses access. The current session stays.
+			await ctx.prisma.$transaction([
+				ctx.prisma.user.update({
+					where: { id: ctx.userId },
+					data: { passwordHash: newHash },
+					select: { id: true },
+				}),
+				ctx.prisma.session.deleteMany({
+					where: {
+						userId: ctx.userId,
+						...(ctx.sessionToken
+							? { sessionToken: { not: ctx.sessionToken } }
+							: {}),
+					},
+				}),
+			]);
+
+			notifyPasswordChanged(user.email);
 
 			return { success: true };
 		}),

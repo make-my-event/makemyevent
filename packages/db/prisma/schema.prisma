@@ -16,6 +16,10 @@ model User {
   image            String?
   passwordHash     String?
   emailVerified    DateTime?
+  // Password accounts created before email verification existed may sign in
+  // without verifying. Their password is still treated as unverified (e.g. it
+  // is removed when the owner signs in with Google/GitHub).
+  emailVerificationExempt Boolean @default(false)
   timeZone         String           @default("Asia/Kolkata")
   role             UserRole         @default(USER)
   identityProvider IdentityProvider @default(MAKEMYEVENT)
