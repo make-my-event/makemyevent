@@ -259,6 +259,11 @@ model IssuedTicket {
   userId        String?
   ticketCode    String         @unique // "OPT-XXXX-YYYY"
   qrToken       String         @unique // Verification token
+  // SHA-256 (hex) of the token in the holder's ticket link (/tickets/<token>).
+  // The raw token is only ever in that link. Null for tickets issued before links.
+  accessTokenHash  String?   @unique
+  // Last time the ticket link was emailed on request (resend cooldown).
+  accessLinkSentAt DateTime?
   attendeeName  String
   attendeeEmail String
   attendeePhone String?
