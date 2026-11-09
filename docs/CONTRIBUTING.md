@@ -28,7 +28,14 @@ pnpm --filter web dev
 
 ## Branches and commits
 
-- Branch off `main`, one branch per change.
+- `main` is production. `development` is the default branch and
+  staging, and it is protected.
+- Branch off `development`, one branch per change, and open your PR
+  against `development`. Maintainers release to production by merging
+  `development` into `main`. Don't open feature PRs against `main`.
+- Don't add AI-tool attribution (`Co-Authored-By` trailers,
+  "Generated with …" lines) to commits or PR descriptions. See
+  [`AGENTS.md`](../AGENTS.md).
 - Commit messages don't need to follow a strict format, but "fix
   bug" isn't useful to anyone six months from now — say what
   actually changed.

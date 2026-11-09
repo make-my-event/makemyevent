@@ -104,6 +104,18 @@ These rules are not suggestions.
   before enabling this flag — document the justification in a
   comment next to the flag.
 
+## Branches, commits & attribution
+
+- `main` is **production**. `development` is the default branch and
+  **staging**, and it is protected. Branch off `development`, open PRs
+  into `development`, and only promote `development` → `main` to
+  release. Never commit or push directly to `main` or `development`.
+- **No AI attribution in git history.** AI agents (Claude or any
+  other) must not add `Co-Authored-By` trailers, "Generated with …"
+  lines, or any other agent attribution to commit messages or PR
+  descriptions. Commits are authored by the human contributor's
+  configured git identity only.
+
 ## File & naming conventions
 
 - Files: `kebab-case.ts`. Components: `PascalCase` for the export,
