@@ -70,6 +70,7 @@ describe("email templates", () => {
 			ticketCode: "OPT-ABCD-EFGH",
 			qrToken: "qrv1_test",
 			tierName: INJECTED,
+			accessToken: "tok_test_access_token",
 		});
 
 		expect(sent).toHaveLength(1);
@@ -110,13 +111,16 @@ describe("email templates", () => {
 			ticketCode: "OPT-ABCD-EFGH",
 			qrToken: "qrv1_test",
 			tierName: "General Pass",
+			accessToken: "tok_test_access_token",
 		});
 
 		const { html } = sent[0];
 		expect(html).toContain("Hi <strong>Priya Nair</strong>");
 		expect(html).toContain("Venue: Venue TBA");
+		// The link carries the holder's access token, never the printed code.
 		expect(html).toContain(
-			'<a href="https://app.example.test/tickets/OPT-ABCD-EFGH"',
+			'<a href="https://app.example.test/tickets/tok_test_access_token"',
 		);
+		expect(html).not.toContain("/tickets/OPT-ABCD-EFGH");
 	});
 });

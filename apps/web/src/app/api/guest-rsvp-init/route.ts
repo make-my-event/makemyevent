@@ -1,5 +1,5 @@
-import { createHash, randomUUID } from "node:crypto";
-import { prisma } from "db";
+import { bindGuestCheckinToken } from "@/../../api/src/services/tickets";
+import { createContext } from "@/../../api/src/trpc/trpc";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -9,25 +9,25 @@ const COOKIE_NAME = "op-guest-rsvp";
 const COOKIE_MAX_AGE_SECONDS = 90 * 24 * 60 * 60;
 
 const bodySchema = z.object({
-	ticketCode: z.string().min(1),
+	// Token from the ticket link, returned to the booking (or claiming) browser.
+	accessToken: z.string().min(40).max(64),
 });
 
 /**
  * POST /api/guest-rsvp-init
  *
- * Called after a guest RSVP is completed.
+ * Called by the browser that just booked or claimed a ticket, so it can take
+ * part in QR chain check-in without an account.
  *
- * 1. Validates ticketCode belongs to an existing IssuedTicket.
- * 2. Generates a cryptographically secure UUID v4 (the raw secret — never stored in DB).
- * 3. Stores only the SHA-256 hash in PostgreSQL (GuestTicketToken).
- * 4. Sets the raw UUID as a persistent, HttpOnly, SameSite=Lax cookie.
+ * Requires the ticket's link token (proof of holding the ticket). A ticket code
+ * is not enough: codes are printed on passes and in email subjects.
  *
  * Security properties:
- * - Only the hash is stored in PostgreSQL.
+ * - Only the SHA-256 hash of the cookie value is stored (GuestTicketToken).
  * - HttpOnly prevents client-side JavaScript access.
  * - SameSite=Lax prevents cross-site request forgery.
  * - Secure in production.
- * - Browser-scoped: guest access is tied to this browser session.
+ * - Database access stays in apps/api (services/tickets.ts).
  */
 export async function POST(req: Request): Promise<NextResponse> {
 	let body: unknown;
@@ -40,33 +40,18 @@ export async function POST(req: Request): Promise<NextResponse> {
 	const parsed = bodySchema.safeParse(body);
 	if (!parsed.success) {
 		return NextResponse.json(
-			{ error: "ticketCode is required." },
+			{ error: "A ticket link token is required." },
 			{ status: 400 },
 		);
 	}
 
-	const { ticketCode } = parsed.data;
-
-	const ticket = await prisma.issuedTicket.findUnique({
-		where: { ticketCode },
-		select: { id: true },
-	});
-
-	if (!ticket) {
+	const rawUuid = await bindGuestCheckinToken(
+		createContext().prisma,
+		parsed.data.accessToken,
+	);
+	if (!rawUuid) {
 		return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
 	}
-
-	const rawUuid = randomUUID();
-	const tokenHash = createHash("sha256").update(rawUuid).digest("hex");
-
-	await prisma.guestTicketToken.upsert({
-		where: { issuedTicketId: ticket.id },
-		update: { tokenHash },
-		create: {
-			tokenHash,
-			issuedTicketId: ticket.id,
-		},
-	});
 
 	const response = NextResponse.json({ issued: true });
 	response.cookies.set({

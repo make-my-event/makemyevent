@@ -13,6 +13,11 @@ export interface TicketEmailParams {
 	ticketCode: string;
 	qrToken: string;
 	tierName: string;
+	/**
+	 * Raw token for the holder's ticket link (/tickets/<token>). The link is the
+	 * holder's proof of ownership; it is only ever sent to the attendee.
+	 */
+	accessToken: string;
 }
 
 export async function sendTicketEmail(params: TicketEmailParams) {
@@ -35,7 +40,7 @@ export async function sendTicketEmail(params: TicketEmailParams) {
 			process.env.NEXT_PUBLIC_APP_URL ||
 			process.env.APP_URL ||
 			"https://makemyevent.org";
-		const passUrl = `${appUrl}/tickets/${encodeURIComponent(params.ticketCode)}`;
+		const passUrl = `${appUrl}/tickets/${encodeURIComponent(params.accessToken)}`;
 		const brandLogoUrl = `${appUrl}/makemyevent-symbol-467x512.svg`;
 
 		// Every value inserted into the HTML below is escaped: attendee names,
@@ -255,6 +260,100 @@ export async function sendInviteEmail(params: InviteEmailParams) {
 		return response;
 	} catch (error) {
 		console.error("❌ Failed to send invitation email via Resend:", error);
+		return null;
+	}
+}
+
+export interface TransferEmailParams {
+	toEmail: string;
+	recipientName: string;
+	senderFirstName: string;
+	eventTitle: string;
+	tierName: string;
+	/** Raw transfer token; the link is only ever emailed to the recipient. */
+	transferToken: string;
+	expiresAt: Date;
+}
+
+export async function sendTransferEmail(params: TransferEmailParams) {
+	if (!process.env.RESEND_API_KEY) {
+		config({ path: path.resolve(process.cwd(), ".env") });
+		config({ path: path.resolve(process.cwd(), "../../.env") });
+	}
+	const apiKey = process.env.RESEND_API_KEY;
+	if (!apiKey) {
+		console.warn("[email] RESEND_API_KEY is not set. Skipping transfer email.");
+		return null;
+	}
+
+	try {
+		const resend = new Resend(apiKey);
+		const appUrl =
+			process.env.NEXT_PUBLIC_APP_URL ||
+			process.env.APP_URL ||
+			"https://makemyevent.org";
+		const claimUrl = `${appUrl}/tickets/transfer/${encodeURIComponent(params.transferToken)}`;
+		const fromEmail =
+			process.env.EMAIL_FROM || "makemyevent <onboarding@resend.dev>";
+		const expires = params.expiresAt.toLocaleString("en-US", {
+			weekday: "long",
+			month: "long",
+			day: "numeric",
+			hour: "numeric",
+			minute: "2-digit",
+			timeZone: "UTC",
+			timeZoneName: "short",
+		});
+		const subject = toHeaderText(
+			`${params.senderFirstName} sent you a ticket for ${params.eventTitle}`,
+		);
+		const html = {
+			recipientName: escapeHtml(params.recipientName),
+			senderFirstName: escapeHtml(params.senderFirstName),
+			eventTitle: escapeHtml(params.eventTitle),
+			tierName: escapeHtml(params.tierName),
+			claimUrl: escapeHtml(claimUrl),
+			expires: escapeHtml(expires),
+			subject: escapeHtml(subject),
+		};
+
+		const response = await resend.emails.send({
+			from: fromEmail,
+			to: [params.toEmail],
+			subject,
+			html: `
+				<!DOCTYPE html>
+				<html>
+				<head><meta charset="utf-8"><title>${html.subject}</title></head>
+				<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f7f6f2; margin: 0; padding: 20px; color: #1b1a18;">
+					<div style="max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #dad6cc; border-radius: 12px; overflow: hidden;">
+						<div style="background-color: #1f7a4d; padding: 24px; text-align: center; color: #ffffff;">
+							<h1 style="margin: 0; font-size: 22px; font-weight: 700;">makemyevent</h1>
+							<p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9;">Ticket transfer</p>
+						</div>
+						<div style="padding: 24px;">
+							<p style="font-size: 15px; margin-top: 0;">Hi <strong>${html.recipientName}</strong>,</p>
+							<p style="font-size: 14px; color: #444; line-height: 1.5;">${html.senderFirstName} is transferring their <strong>${html.tierName}</strong> ticket for <strong>${html.eventTitle}</strong> to you.</p>
+							<p style="font-size: 13px; color: #666; line-height: 1.5;">Open the link below to claim it with this email address. The link expires ${html.expires}.</p>
+							<div style="text-align: center; margin: 28px 0 10px 0;">
+								<a href="${html.claimUrl}" style="background-color: #1f7a4d; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">Claim ticket →</a>
+							</div>
+						</div>
+					</div>
+				</body>
+				</html>
+			`,
+		});
+
+		if (response.error) {
+			console.error(
+				"[email] Resend transfer error:",
+				response.error.message || response.error,
+			);
+		}
+		return response;
+	} catch (error) {
+		console.error("[email] Failed to send transfer email via Resend:", error);
 		return null;
 	}
 }
