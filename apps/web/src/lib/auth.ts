@@ -10,6 +10,7 @@ import { clientIpFromHeaders } from "@/../../api/src/lib/client-ip";
 import {
 	checkCredentials,
 	markOAuthUserVerified,
+	notifySignInMethodLinked,
 	prepareOAuthSignIn,
 } from "@/../../api/src/services/accounts";
 import { isVerifiedGitHubEmail } from "@/../../api/src/services/github-email";
@@ -121,6 +122,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 				await markOAuthUserVerified(prisma, user.id);
 			} catch (err) {
 				console.error("[auth] Marking OAuth user verified failed:", err);
+			}
+		},
+		async linkAccount({ user, account }) {
+			// Tell the owner when a Google/GitHub sign-in is added to an account
+			// that already had another way in.
+			if (!user.id || account.type === "credentials") return;
+			try {
+				await notifySignInMethodLinked(prisma, user.id, account.provider);
+			} catch (err) {
+				console.error("[auth] Sign-in linked notice failed:", err);
 			}
 		},
 		async signOut(message) {

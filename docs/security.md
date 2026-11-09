@@ -97,7 +97,18 @@ auth mechanism; the `Session` row is a supplementary record.
   SHA-256 hash stored (`VerificationToken`, identifier
   `<kind>:<email>`), 24 h / 1 h expiry. A reset verifies the email
   and signs out every session.
-- Passwords: at least 8 characters, at most 72 bytes (bcrypt).
+- Passwords: at least 8 characters, at most 72 bytes (bcrypt), and
+  not in known data breaches (`assertAcceptableNewPassword`). The
+  breach check uses Have I Been Pwned's k-anonymity range API: only
+  the first 5 hex characters of the SHA-1 are sent, with padding. If
+  the service is unreachable the check is skipped and logged, so
+  sign-up and reset do not depend on a third party being up.
+- Changing a password signs out every other session; a reset signs
+  out all of them.
+- The owner is emailed about security changes: password changed,
+  password reset, password removed by the OAuth rule, and a
+  Google/GitHub sign-in added to an account that already had
+  another way in. These emails contain no access links.
 
 ## Authorization — check on every request, not just at the UI layer
 

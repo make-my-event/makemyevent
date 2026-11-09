@@ -12,6 +12,7 @@ import { prisma } from "db";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	checkCredentials,
+	notifySignInMethodLinked,
 	passwordProblem,
 	prepareOAuthSignIn,
 	registerAccount,
@@ -21,9 +22,10 @@ import {
 } from "./accounts";
 
 type Sent = {
-	kind: "verify" | "reset" | "exists";
+	kind: "verify" | "reset" | "exists" | "notice";
 	toEmail: string;
 	token?: string;
+	event?: { kind: string };
 };
 const { sent } = vi.hoisted(() => ({ sent: [] as Sent[] }));
 vi.mock("./email.service", () => ({
@@ -39,6 +41,18 @@ vi.mock("./email.service", () => ({
 		sent.push({ kind: "exists", ...p });
 		return null;
 	},
+	sendSecurityNoticeEmail: async (p: {
+		toEmail: string;
+		event: { kind: string };
+	}) => {
+		sent.push({ kind: "notice", ...p });
+		return null;
+	},
+}));
+// No real Have I Been Pwned calls from tests: one fixed "breached" password.
+const BREACHED = "password123456";
+vi.mock("./breached-password", () => ({
+	isBreachedPassword: async (password: string) => password === "password123456",
 }));
 
 const describeWithDb =
@@ -67,6 +81,10 @@ describeWithDb("accounts (database)", { timeout: 30_000 }, () => {
 	const ip = () => randomUUID();
 	const lastSent = (to: string, kind: Sent["kind"]) =>
 		[...sent].reverse().find((m) => m.toEmail === to && m.kind === kind);
+	const noticesTo = (to: string) =>
+		sent
+			.filter((m) => m.toEmail === to && m.kind === "notice")
+			.map((m) => m.event?.kind);
 	const user = (address: string) =>
 		prisma.user.findUniqueOrThrow({
 			where: { email: address },
@@ -145,6 +163,21 @@ describeWithDb("accounts (database)", { timeout: 30_000 }, () => {
 			expect(lastSent(address, "exists")).toBeDefined();
 			const after = await user(address);
 			expect(after.passwordHash).toBe(before.passwordHash);
+		});
+
+		it("rejects passwords known from data breaches", async () => {
+			const address = email("breached");
+			await expect(
+				registerAccount(
+					prisma,
+					{ name: null, email: address, password: BREACHED },
+					ip(),
+				),
+			).rejects.toMatchObject({
+				code: "BAD_REQUEST",
+				message: expect.stringContaining("data breach"),
+			});
+			expect(await prisma.user.count({ where: { email: address } })).toBe(0);
 		});
 
 		it("rejects weak passwords", async () => {
@@ -339,7 +372,13 @@ describeWithDb("accounts (database)", { timeout: 30_000 }, () => {
 					code: "BAD_REQUEST",
 				},
 			);
+			await expect(
+				resetPassword(prisma, token, BREACHED),
+			).rejects.toMatchObject({
+				code: "BAD_REQUEST",
+			});
 			await resetPassword(prisma, token, "brand new password");
+			expect(noticesTo(address)).toContain("password-reset");
 
 			const row = await user(address);
 			expect(row.emailVerified).not.toBeNull();
@@ -422,9 +461,43 @@ describeWithDb("accounts (database)", { timeout: 30_000 }, () => {
 			expect(
 				await prisma.session.count({ where: { userId: planted.id } }),
 			).toBe(0);
+			expect(noticesTo(address)).toContain("password-removed");
 			await expect(
 				checkCredentials(prisma, address, "attacker secret", ip()),
 			).resolves.toEqual({ ok: false, reason: "invalid" });
+		});
+
+		it("notifies when a sign-in is added to an account that already had another way in", async () => {
+			const address = email("linked");
+			const withPassword = await prisma.user.create({
+				data: {
+					email: address,
+					passwordHash: await bcrypt.hash("owner password", 4),
+					emailVerified: new Date(),
+				},
+				select: { id: true },
+			});
+			await notifySignInMethodLinked(prisma, withPassword.id, "google");
+			expect(noticesTo(address)).toEqual(["sign-in-linked"]);
+		});
+
+		it("does not notify for a brand-new Google/GitHub account", async () => {
+			const address = email("fresh-oauth");
+			const fresh = await prisma.user.create({
+				data: {
+					email: address,
+					accounts: {
+						create: {
+							type: "oidc",
+							provider: "google",
+							providerAccountId: `g-${randomUUID()}`,
+						},
+					},
+				},
+				select: { id: true },
+			});
+			await notifySignInMethodLinked(prisma, fresh.id, "google");
+			expect(noticesTo(address)).toEqual([]);
 		});
 
 		it("leaves a verified password account alone", async () => {

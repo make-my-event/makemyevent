@@ -8,6 +8,7 @@ import {
 	registerAccount,
 } from "@/../../api/src/services/accounts";
 import { createContext } from "@/../../api/src/trpc/trpc";
+import { TRPCError } from "@trpc/server";
 import { headers } from "next/headers";
 
 export type RegisterResult = {
@@ -65,6 +66,10 @@ export async function registerUser(
 		);
 		return { success: true, message: GENERIC_SIGNUP_MESSAGE };
 	} catch (error) {
+		// Validation problems (e.g. a breached password) are safe to show.
+		if (error instanceof TRPCError && error.code === "BAD_REQUEST") {
+			return { error: error.message };
+		}
 		console.error("[auth] Registration error:", error);
 		return { error: "Something went wrong during registration" };
 	}

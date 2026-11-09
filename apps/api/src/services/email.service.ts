@@ -487,3 +487,73 @@ export function sendAccountExistsEmail(params: { toEmail: string }) {
 		buttonUrl: `${appBaseUrl()}/forgot-password`,
 	});
 }
+
+export type SecurityNoticeEvent =
+	| { kind: "password-changed" }
+	| { kind: "password-reset" }
+	| { kind: "password-removed"; provider: string }
+	| { kind: "sign-in-linked"; provider: string };
+
+const PROVIDER_NAMES: Record<string, string> = {
+	google: "Google",
+	github: "GitHub",
+};
+
+/**
+ * Tells the account owner about a security-relevant change, so an unexpected
+ * one is noticed (OWASP). Contains no secrets or links that grant access.
+ */
+export function sendSecurityNoticeEmail(params: {
+	toEmail: string;
+	event: SecurityNoticeEvent;
+}) {
+	const { event } = params;
+	const provider =
+		"provider" in event
+			? (PROVIDER_NAMES[event.provider] ?? event.provider)
+			: "";
+	const notYou =
+		"If this wasn't you, reset your password now and review your account.";
+	const content = {
+		"password-changed": {
+			subject: "Your makemyevent password was changed",
+			heading: "Password changed",
+			paragraphs: [
+				"The password for your makemyevent account was just changed. Other devices were signed out.",
+				notYou,
+			],
+		},
+		"password-reset": {
+			subject: "Your makemyevent password was reset",
+			heading: "Password reset",
+			paragraphs: [
+				"The password for your makemyevent account was reset using a link sent to this email. You were signed out on every device.",
+				notYou,
+			],
+		},
+		"password-removed": {
+			subject: "Your makemyevent password was removed",
+			heading: "Password removed",
+			paragraphs: [
+				`You signed in with ${provider}, which confirmed this email address. The account also had a password that was never verified, so it was removed and every other session was signed out. This protects you if someone set that password before you.`,
+				`Keep signing in with ${provider}, or use the link below to set a new password.`,
+			],
+		},
+		"sign-in-linked": {
+			subject: `${provider} sign-in was added to your makemyevent account`,
+			heading: "New sign-in method",
+			paragraphs: [
+				`${provider} sign-in was just added to your makemyevent account.`,
+				notYou,
+			],
+		},
+	}[event.kind];
+
+	return sendAccountEmail({
+		toEmail: params.toEmail,
+		...content,
+		buttonLabel:
+			event.kind === "password-removed" ? "Set a password" : "Reset password",
+		buttonUrl: `${appBaseUrl()}/forgot-password`,
+	});
+}

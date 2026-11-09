@@ -8,9 +8,11 @@ import {
 	peekAccountToken,
 	revokeAccountTokens,
 } from "./account-tokens";
+import { isBreachedPassword } from "./breached-password";
 import {
 	sendAccountExistsEmail,
 	sendPasswordResetEmail,
+	sendSecurityNoticeEmail,
 	sendVerificationEmail,
 } from "./email.service";
 
@@ -42,6 +44,24 @@ export function passwordProblem(password: string): string | null {
 		return "Password is too long.";
 	}
 	return null;
+}
+
+/**
+ * Full check for a password being set (sign-up, reset, change): the length
+ * rules above, then rejection of passwords known from data breaches.
+ */
+export async function assertAcceptableNewPassword(
+	password: string,
+): Promise<void> {
+	const problem = passwordProblem(password);
+	if (problem) throw new TRPCError({ code: "BAD_REQUEST", message: problem });
+	if (await isBreachedPassword(password)) {
+		throw new TRPCError({
+			code: "BAD_REQUEST",
+			message:
+				"This password has appeared in a known data breach. Choose a different one.",
+		});
+	}
 }
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
@@ -86,8 +106,7 @@ export async function registerAccount(
 	ip: string | null,
 ): Promise<void> {
 	const email = normalizeEmail(input.email);
-	const problem = passwordProblem(input.password);
-	if (problem) throw new TRPCError({ code: "BAD_REQUEST", message: problem });
+	await assertAcceptableNewPassword(input.password);
 
 	const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
 	const existing = await client.user.findUnique({
@@ -294,8 +313,7 @@ export async function resetPassword(
 	token: string,
 	newPassword: string,
 ): Promise<void> {
-	const problem = passwordProblem(newPassword);
-	if (problem) throw new TRPCError({ code: "BAD_REQUEST", message: problem });
+	await assertAcceptableNewPassword(newPassword);
 
 	const email = await consumeAccountToken(client, "reset-password", token);
 	if (!email) throw invalidLink();
@@ -320,6 +338,13 @@ export async function resetPassword(
 		client.session.deleteMany({ where: { userId: user.id } }),
 	]);
 	await revokeAccountTokens(client, "verify-email", email);
+	deliver(
+		sendSecurityNoticeEmail({
+			toEmail: email,
+			event: { kind: "password-reset" },
+		}),
+		"password reset notice",
+	);
 }
 
 /** OAuth providers whose sign-in proves the email (see auth.ts). */
@@ -371,6 +396,13 @@ export async function prepareOAuthSignIn(
 		]);
 		await revokeAccountTokens(client, "verify-email", email);
 		await revokeAccountTokens(client, "reset-password", email);
+		deliver(
+			sendSecurityNoticeEmail({
+				toEmail: email,
+				event: { kind: "password-removed", provider: input.provider },
+			}),
+			"password removed notice",
+		);
 	} else if (!user.emailVerified) {
 		await client.user.update({
 			where: { id: user.id },
@@ -390,4 +422,47 @@ export async function markOAuthUserVerified(
 		where: { id: userId, emailVerified: null },
 		data: { emailVerified: new Date() },
 	});
+}
+
+/**
+ * After a Google/GitHub sign-in is linked: tells the owner when it was added
+ * to an account that already had another way to sign in (a password or a
+ * different provider). A brand-new OAuth account gets no notice.
+ */
+export async function notifySignInMethodLinked(
+	client: PrismaClient,
+	userId: string,
+	provider: string,
+): Promise<void> {
+	const user = await client.user.findUnique({
+		where: { id: userId },
+		select: {
+			email: true,
+			passwordHash: true,
+			accounts: {
+				where: { provider: { not: provider } },
+				select: { id: true },
+				take: 1,
+			},
+		},
+	});
+	if (!user || (!user.passwordHash && user.accounts.length === 0)) return;
+	deliver(
+		sendSecurityNoticeEmail({
+			toEmail: user.email,
+			event: { kind: "sign-in-linked", provider },
+		}),
+		"sign-in linked notice",
+	);
+}
+
+/** Notice after a signed-in user changes (or first sets) their password. */
+export function notifyPasswordChanged(email: string): void {
+	deliver(
+		sendSecurityNoticeEmail({
+			toEmail: email,
+			event: { kind: "password-changed" },
+		}),
+		"password changed notice",
+	);
 }
