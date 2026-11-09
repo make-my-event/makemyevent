@@ -63,16 +63,41 @@ auth mechanism; the `Session` row is a supplementary record.
 ## OAuth provider safety
 
 - `allowDangerousEmailAccountLinking` is enabled for Google and
-  GitHub because both providers cryptographically verify email
-  ownership before returning it. This allows users who first
-  registered with credentials to link their OAuth accounts.
-- Before adding a new OAuth provider with this flag, verify that
-  the provider guarantees `email_verified: true`. Document the
-  justification in a comment next to the flag in `auth.ts`.
-- If a provider does NOT verify emails, do NOT enable
-  `allowDangerousEmailAccountLinking` -- an attacker could create
-  an account on that provider with someone else's email and
-  hijack their account.
+  GitHub so users who first registered with a password can link
+  them. It is only safe because the `signIn` callback
+  (`prepareOAuthSignIn` in `apps/api/src/services/accounts.ts`)
+  confirms the email is verified **for this sign-in**:
+  - Google: the `email_verified` claim must be `true`.
+  - GitHub: Auth.js does **not** check verification (it falls back
+    to the primary or first email). `isVerifiedGitHubEmail` asks
+    GitHub's API and requires `verified: true` for that exact
+    address. Any failure refuses the sign-in (fail closed).
+- When such a sign-in lands on a password account whose email was
+  never verified, the password is untrusted (it may have been
+  planted before the owner signed up): it is removed, the email is
+  marked verified and every session is signed out.
+- Before adding a new OAuth provider with this flag, add an explicit
+  verification check for it in the `signIn` callback, and document
+  the justification next to the flag in `auth.ts`.
+- If a provider cannot prove the email is verified, do NOT enable
+  `allowDangerousEmailAccountLinking`.
+
+## Email verification & password reset
+
+- New password accounts must verify their email before signing in.
+  Verifying asks for the account's password, so a verification link
+  for an account someone else created with your address can't
+  activate their password.
+- Accounts created before verification existed are grandfathered
+  (`emailVerificationExempt`) but their password counts as
+  unverified for the OAuth rule above.
+- Sign-up never reveals whether an email is registered: same
+  response, same hashing work; existing owners get a notice email.
+- Verification and reset links: 256-bit, single-use, only the
+  SHA-256 hash stored (`VerificationToken`, identifier
+  `<kind>:<email>`), 24 h / 1 h expiry. A reset verifies the email
+  and signs out every session.
+- Passwords: at least 8 characters, at most 72 bytes (bcrypt).
 
 ## Authorization — check on every request, not just at the UI layer
 

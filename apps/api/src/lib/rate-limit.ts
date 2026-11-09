@@ -127,6 +127,20 @@ export const RATE_LIMITS = {
 	loginEmail: { scope: "login:email", limit: 100, windowMs: HOUR },
 	loginIp: { scope: "login:ip", limit: 50, windowMs: 15 * MINUTE },
 	registerIp: { scope: "register:ip", limit: 10, windowMs: HOUR },
+	// Account emails (verification, reset, "account exists" notice) go to the
+	// address entered: limit per IP and per address (stops inbox flooding).
+	accountEmailAddress: {
+		scope: "account-email:address",
+		limit: 3,
+		windowMs: HOUR,
+	},
+	accountEmailIp: { scope: "account-email:ip", limit: 10, windowMs: HOUR },
+	// Using a verification or reset link involves a password: limit per IP.
+	accountTokenUseIp: {
+		scope: "account-token-use:ip",
+		limit: 20,
+		windowMs: 15 * MINUTE,
+	},
 	changePasswordUser: {
 		scope: "change-password:user",
 		limit: 10,

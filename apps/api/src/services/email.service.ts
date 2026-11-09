@@ -357,3 +357,133 @@ export async function sendTransferEmail(params: TransferEmailParams) {
 		return null;
 	}
 }
+
+interface AccountEmailParams {
+	toEmail: string;
+	subject: string;
+	heading: string;
+	/** Plain-text paragraphs; escaped before insertion. */
+	paragraphs: string[];
+	buttonLabel: string;
+	/** Built server-side from APP_URL and a raw token; escaped before insertion. */
+	buttonUrl: string;
+}
+
+/** Shared layout for account emails (verification, reset, notices). */
+async function sendAccountEmail(params: AccountEmailParams) {
+	if (!process.env.RESEND_API_KEY) {
+		config({ path: path.resolve(process.cwd(), ".env") });
+		config({ path: path.resolve(process.cwd(), "../../.env") });
+	}
+	const apiKey = process.env.RESEND_API_KEY;
+	if (!apiKey) {
+		console.warn("[email] RESEND_API_KEY is not set. Skipping account email.");
+		return null;
+	}
+
+	try {
+		const resend = new Resend(apiKey);
+		const fromEmail =
+			process.env.EMAIL_FROM || "makemyevent <onboarding@resend.dev>";
+		const subject = toHeaderText(params.subject);
+		const paragraphs = params.paragraphs
+			.map(
+				(text) =>
+					`<p style="font-size: 14px; color: #444; line-height: 1.5;">${escapeHtml(text)}</p>`,
+			)
+			.join("");
+
+		const response = await resend.emails.send({
+			from: fromEmail,
+			to: [params.toEmail],
+			subject,
+			html: `
+				<!DOCTYPE html>
+				<html>
+				<head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+				<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f7f6f2; margin: 0; padding: 20px; color: #1b1a18;">
+					<div style="max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #dad6cc; border-radius: 12px; overflow: hidden;">
+						<div style="background-color: #1f7a4d; padding: 24px; text-align: center; color: #ffffff;">
+							<h1 style="margin: 0; font-size: 22px; font-weight: 700;">makemyevent</h1>
+							<p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9;">${escapeHtml(params.heading)}</p>
+						</div>
+						<div style="padding: 24px;">
+							${paragraphs}
+							<div style="text-align: center; margin: 28px 0 10px 0;">
+								<a href="${escapeHtml(params.buttonUrl)}" style="background-color: #1f7a4d; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">${escapeHtml(params.buttonLabel)}</a>
+							</div>
+						</div>
+					</div>
+				</body>
+				</html>
+			`,
+		});
+		if (response.error) {
+			console.error(
+				"[email] Resend account email error:",
+				response.error.message || response.error,
+			);
+		}
+		return response;
+	} catch (error) {
+		console.error("[email] Failed to send account email via Resend:", error);
+		return null;
+	}
+}
+
+function appBaseUrl(): string {
+	return (
+		process.env.NEXT_PUBLIC_APP_URL ||
+		process.env.APP_URL ||
+		"https://makemyevent.org"
+	);
+}
+
+export function sendVerificationEmail(params: {
+	toEmail: string;
+	token: string;
+}) {
+	return sendAccountEmail({
+		toEmail: params.toEmail,
+		subject: "Verify your makemyevent email",
+		heading: "Verify your email",
+		paragraphs: [
+			"Confirm this email address to finish creating your makemyevent account. You'll be asked for the password you chose.",
+			"The link works once and expires in 24 hours. If you didn't create an account, ignore this email.",
+		],
+		buttonLabel: "Verify email",
+		buttonUrl: `${appBaseUrl()}/verify-email?token=${encodeURIComponent(params.token)}`,
+	});
+}
+
+export function sendPasswordResetEmail(params: {
+	toEmail: string;
+	token: string;
+}) {
+	return sendAccountEmail({
+		toEmail: params.toEmail,
+		subject: "Reset your makemyevent password",
+		heading: "Reset your password",
+		paragraphs: [
+			"Use the link below to choose a new password. Resetting it signs you out on every device.",
+			"The link works once and expires in 1 hour. If you didn't ask for this, ignore this email; your password stays the same.",
+		],
+		buttonLabel: "Choose a new password",
+		buttonUrl: `${appBaseUrl()}/reset-password?token=${encodeURIComponent(params.token)}`,
+	});
+}
+
+export function sendAccountExistsEmail(params: { toEmail: string }) {
+	return sendAccountEmail({
+		toEmail: params.toEmail,
+		subject: "Someone tried to create a makemyevent account with your email",
+		heading: "You already have an account",
+		paragraphs: [
+			"Someone tried to create a new makemyevent account with this email address, which already has an account.",
+			"If it was you, sign in instead. If you don't know your password, use the link below to set a new one.",
+			"If it wasn't you, you can ignore this email. Nothing has changed.",
+		],
+		buttonLabel: "Reset password",
+		buttonUrl: `${appBaseUrl()}/forgot-password`,
+	});
+}

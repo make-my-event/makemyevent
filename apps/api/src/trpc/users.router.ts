@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { RATE_LIMITS, enforceRateLimits } from "../lib/rate-limit";
 import { imageUrl } from "../lib/url-validation";
+import { passwordProblem } from "../services/accounts";
 import { authedProcedure, router } from "./trpc";
 
 export const usersRouter = router({
@@ -202,7 +203,11 @@ export const usersRouter = router({
 				currentPassword: z.string().optional(),
 				newPassword: z
 					.string()
-					.min(8, "Password must be at least 8 characters"),
+					.min(8, "Password must be at least 8 characters")
+					// Same rules as sign-up and reset (bcrypt's 72-byte limit).
+					.refine((value) => passwordProblem(value) === null, {
+						message: "Password is too long.",
+					}),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
