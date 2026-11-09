@@ -188,12 +188,25 @@ Rules for organizer, sub-community and volunteer invitations
 
 ## Cross-origin & transport
 
-- `apps/api`'s `app.enableCors()` is currently wide open (fine for
-  local dev). Before any real deployment, this needs to be locked to
-  known origins (the actual web/mobile app URLs) — an open CORS
-  policy on an authenticated API is a real vulnerability, not a
-  formality.
+- `apps/api` (standalone NestJS server) allows only the origins in
+  `ALLOWED_ORIGINS` (comma-separated) and refuses to start in
+  production without it. It allows no cross-origin credentials.
 - Everything runs over HTTPS outside local dev. No exceptions.
+- Security headers on every response (`apps/web/next.config.ts`):
+  HSTS, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`
+  (URLs can carry ticket/reset tokens), `X-Frame-Options: DENY`, and a
+  `Permissions-Policy` that allows only the camera (check-in scanner).
+  A future public embed route must allow framing for that path only
+  and must be read-only.
+- Content-Security-Policy (`src/proxy.ts`,
+  `lib/content-security-policy.ts`): per-request nonce with
+  `'strict-dynamic'`, no `'unsafe-inline'` scripts. It is sent as
+  **report-only**; violations go to `/api/csp-report`, which logs a
+  redacted summary (no query strings, token-like path segments
+  replaced). Before switching to enforcing: pages that Next.js renders
+  statically get no nonce, so they must render dynamically (for
+  example, read the nonce with `headers()` in the root layout), or
+  their scripts will be blocked.
 
 ## Database
 
@@ -219,6 +232,12 @@ Rules for organizer, sub-community and volunteer invitations
   the client-reported extension or content-type header.
 - Enforce a size limit before the file touches storage, not after.
 - Never construct a storage path from unsanitized user input.
+- Event banners: a banner URL is accepted, and its file deleted, only
+  if it points inside that event's own folder of the banner bucket
+  (`eventBannerKey` in `apps/api/src/lib/banner-storage.ts`). The
+  service-role storage client must never act on a client-supplied
+  path. Set the bucket's allowed MIME types (png, jpeg, webp) and
+  5 MB size limit in Supabase so direct uploads are bound too.
 
 ## If something looks like a real vulnerability
 

@@ -153,6 +153,8 @@ export const RATE_LIMITS = {
 	resendLinkIp: { scope: "ticket-resend:ip", limit: 10, windowMs: HOUR },
 	transferIp: { scope: "transfer:ip", limit: 20, windowMs: HOUR },
 	ticketLookupIp: { scope: "ticket-lookup:ip", limit: 60, windowMs: MINUTE },
+	// Content-Security-Policy violation reports (anyone can send them).
+	cspReportIp: { scope: "csp-report:ip", limit: 60, windowMs: MINUTE },
 	// Invitations email arbitrary addresses on behalf of a signed-in user.
 	inviteUser: { scope: "invite:user", limit: 50, windowMs: HOUR },
 } as const satisfies Record<string, RateLimitRule>;

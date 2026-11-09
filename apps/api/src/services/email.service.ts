@@ -28,9 +28,7 @@ export async function sendTicketEmail(params: TicketEmailParams) {
 	const apiKey = process.env.RESEND_API_KEY;
 
 	if (!apiKey) {
-		console.warn(
-			"⚠️ RESEND_API_KEY is not set. Skipping ticket email dispatch.",
-		);
+		console.warn("[email] RESEND_API_KEY is not set. Skipping ticket email.");
 		return null;
 	}
 
@@ -147,17 +145,18 @@ export async function sendTicketEmail(params: TicketEmailParams) {
 
 		if (response.error) {
 			console.error(
-				"❌ Resend API Error:",
+				"[email] Resend ticket email error:",
 				response.error.message || response.error,
 			);
 		} else {
+			// No address or ticket code in logs (L7): log the provider message id.
 			console.log(
-				`✅ Ticket email sent successfully to ${params.toEmail} [${params.ticketCode}]`,
+				`[email] Ticket email sent (id ${response.data?.id ?? "unknown"}).`,
 			);
 		}
 		return response;
 	} catch (error) {
-		console.error("❌ Failed to send ticket email via Resend:", error);
+		console.error("[email] Failed to send ticket email via Resend:", error);
 		return null;
 	}
 }
@@ -184,7 +183,9 @@ export async function sendInviteEmail(params: InviteEmailParams) {
 	const apiKey = process.env.RESEND_API_KEY;
 
 	if (!apiKey) {
-		console.warn("⚠️ RESEND_API_KEY is not set. Skipping invitation email.");
+		console.warn(
+			"[email] RESEND_API_KEY is not set. Skipping invitation email.",
+		);
 		return null;
 	}
 
@@ -249,17 +250,18 @@ export async function sendInviteEmail(params: InviteEmailParams) {
 
 		if (response.error) {
 			console.error(
-				"❌ Resend Invite Error:",
+				"[email] Resend invite email error:",
 				response.error.message || response.error,
 			);
 		} else {
+			// No address in logs (L7): log the provider message id.
 			console.log(
-				`✅ Invite email sent to ${params.toEmail} for ${params.targetName}`,
+				`[email] Invite email sent (id ${response.data?.id ?? "unknown"}).`,
 			);
 		}
 		return response;
 	} catch (error) {
-		console.error("❌ Failed to send invitation email via Resend:", error);
+		console.error("[email] Failed to send invitation email via Resend:", error);
 		return null;
 	}
 }
