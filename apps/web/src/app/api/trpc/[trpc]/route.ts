@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { appRouter } from "@/../../api/src/trpc/app.router";
+import { clientIpFromHeaders } from "@/../../api/src/lib/client-ip";
 import { createContext } from "@/../../api/src/trpc/trpc";
 import { auth } from "@/lib/auth";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
@@ -43,7 +44,13 @@ const handler = async (req: Request) => {
 		endpoint: "/api/trpc",
 		req,
 		router: appRouter,
-		createContext: () => createContext(userId, sessionToken, guestTokenHash),
+		createContext: () =>
+			createContext(
+				userId,
+				sessionToken,
+				guestTokenHash,
+				clientIpFromHeaders(req.headers),
+			),
 	});
 };
 

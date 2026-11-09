@@ -58,7 +58,11 @@ export function LoginForm(): JSX.Element {
 				});
 
 				if (res?.error) {
-					setError("Invalid email or password");
+					setError(
+						res.code === "rate_limited"
+							? "Too many sign-in attempts. Please wait 15 minutes and try again."
+							: "Invalid email or password",
+					);
 					setIsLoading(false);
 				} else {
 					window.location.href = callbackUrl;

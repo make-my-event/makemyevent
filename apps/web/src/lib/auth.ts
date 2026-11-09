@@ -1,13 +1,20 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { type UserRole, prisma } from "db";
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import type { Provider } from "next-auth/providers";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import { cookies, headers } from "next/headers";
+import { clientIpFromHeaders } from "@/../../api/src/lib/client-ip";
+import { RATE_LIMITS, consumeRateLimit } from "@/../../api/src/lib/rate-limit";
 import { parseUserAgent } from "./device";
+
+/** Surfaces as `code: "rate_limited"` from signIn() in the login form. */
+class TooManySignInAttempts extends CredentialsSignin {
+	code = "rate_limited";
+}
 
 const providers: Provider[] = [
 	CredentialsProvider({
@@ -16,12 +23,25 @@ const providers: Provider[] = [
 			email: { label: "Email", type: "email" },
 			password: { label: "Password", type: "password" },
 		},
-		async authorize(credentials) {
+		async authorize(credentials, request) {
 			if (!credentials?.email || !credentials?.password) {
 				return null;
 			}
 
 			const email = (credentials.email as string).trim().toLowerCase();
+
+			// Checked before the user lookup and bcrypt, so guessing is capped
+			// and cannot be used to burn CPU. Strict per email+IP, a looser
+			// per-email ceiling, and per IP (see RATE_LIMITS).
+			const ip = clientIpFromHeaders(request.headers) ?? "unknown";
+			const limits = await Promise.all([
+				consumeRateLimit(prisma, RATE_LIMITS.loginEmailIp, `${email}|${ip}`),
+				consumeRateLimit(prisma, RATE_LIMITS.loginEmail, email),
+				consumeRateLimit(prisma, RATE_LIMITS.loginIp, ip),
+			]);
+			if (limits.some((result) => !result.allowed)) {
+				throw new TooManySignInAttempts();
+			}
 
 			const user = await prisma.user.findUnique({
 				where: { email },

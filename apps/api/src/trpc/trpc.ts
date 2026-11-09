@@ -7,17 +7,21 @@ export interface Context {
 	sessionToken: string | null;
 	/** SHA-256 hash of the guest RSVP cookie UUID, or null if absent. */
 	guestTokenHash: string | null;
+	/** Client IP for rate limiting (lib/client-ip.ts), or null if unknown. */
+	clientIp: string | null;
 }
 
 export const createContext = (
 	userId?: string | null,
 	sessionToken?: string | null,
 	guestTokenHash?: string | null,
+	clientIp?: string | null,
 ): Context => ({
 	prisma,
 	userId: userId ?? null,
 	sessionToken: sessionToken ?? null,
 	guestTokenHash: guestTokenHash ?? null,
+	clientIp: clientIp ?? null,
 });
 
 const t = initTRPC.context<Context>().create();

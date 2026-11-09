@@ -24,7 +24,7 @@ describeWithDb("communities authorization (database)", () => {
 	let attackerCommunityId: string;
 
 	const as = (userId: string) =>
-		appRouter.createCaller(createContext(userId, null));
+		appRouter.createCaller(createContext(userId, null, null, randomUUID()));
 
 	const createOwnedCommunity = async (label: string) => {
 		const user = await prisma.user.create({

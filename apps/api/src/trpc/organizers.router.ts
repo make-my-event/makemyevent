@@ -3,6 +3,7 @@ import type { MemberRole, PrismaClient } from "db";
 import { z } from "zod";
 import { sanitizeOptionalRichText } from "../lib/sanitize";
 import { imageUrl, linkUrl } from "../lib/url-validation";
+import { RATE_LIMITS, enforceRateLimits } from "../lib/rate-limit";
 import { sendInviteEmail } from "../services/email.service";
 import { INVITE_TTL_DAYS, issueInviteToken } from "../services/invites";
 import { authedProcedure, publicProcedure, router } from "./trpc";
@@ -400,6 +401,11 @@ export const organizersRouter = router({
 						"The owner is already the primary organizer of this account.",
 				});
 			}
+
+			// Invitations email arbitrary addresses: limit per inviting user.
+			await enforceRateLimits(ctx.prisma, [
+				{ rule: RATE_LIMITS.inviteUser, identifier: ctx.userId },
+			]);
 
 			// Stored against the email only: no account is looked up or linked
 			// here, and neither the response nor the stored name says whether the
