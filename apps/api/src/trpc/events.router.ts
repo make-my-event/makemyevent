@@ -5,6 +5,7 @@ import { sanitizeOptionalRichText } from "../lib/sanitize";
 import { imageUrl, linkUrl } from "../lib/url-validation";
 import { supabaseAdmin } from "../lib/supabase";
 import { sendInviteEmail, sendTicketEmail } from "../services/email.service";
+import { INVITE_TTL_DAYS, issueInviteToken } from "../services/invites";
 import { authedProcedure, publicProcedure, router } from "./trpc";
 
 const BANNER_BUCKET = "event-banners";
@@ -1881,29 +1882,40 @@ export const eventsRouter = router({
 				}
 			}
 
-			// Check if a registered user exists with this email
-			// The invite is stored against the email only. It is never linked to
-			// an account here, and the response carries nothing about whether the
-			// address has one: the invitee's own sign-in or page load attaches it
-			// (services/invites.ts). An existing link is left untouched.
+			// Stored against the email only: no account is looked up or linked
+			// here, and the response says nothing about whether the address has
+			// one. A pending invitation gets a fresh single-use token and expiry
+			// (re-inviting replaces the previous link); the invitee accepts it
+			// explicitly (services/invites.ts). An accepted member is left linked
+			// and only their name/role change.
+			const email = input.email.toLowerCase();
+			const existing = await ctx.prisma.eventVolunteer.findUnique({
+				where: { eventId_email: { eventId: event.id, email } },
+				select: { userId: true },
+			});
+			const invite = existing?.userId ? null : issueInviteToken();
+
 			const volunteer = await ctx.prisma.eventVolunteer.upsert({
-				where: {
-					eventId_email: {
-						eventId: event.id,
-						email: input.email.toLowerCase(),
-					},
-				},
+				where: { eventId_email: { eventId: event.id, email } },
 				update: {
 					name: input.name,
 					role: input.role,
 					customRole: input.customRole,
+					...(invite
+						? {
+								inviteTokenHash: invite.tokenHash,
+								inviteExpiresAt: invite.expiresAt,
+							}
+						: {}),
 				},
 				create: {
 					eventId: event.id,
-					email: input.email.toLowerCase(),
+					email,
 					name: input.name,
 					role: input.role,
 					customRole: input.customRole,
+					inviteTokenHash: invite?.tokenHash ?? null,
+					inviteExpiresAt: invite?.expiresAt ?? null,
 				},
 				select: {
 					id: true,
@@ -1916,18 +1928,22 @@ export const eventsRouter = router({
 				},
 			});
 
-			// Dispatch transactional invitation email via Resend
 			const appUrl =
 				process.env.NEXT_PUBLIC_APP_URL ||
 				process.env.APP_URL ||
 				"http://localhost:3000";
 			sendInviteEmail({
-				toEmail: input.email.toLowerCase(),
+				toEmail: email,
 				recipientName: input.name,
 				role: input.customRole || input.role || "Volunteer",
 				targetName: event.title,
 				type: "event",
-				actionUrl: `${appUrl}/events/${event.slug}/manage/volunteers`,
+				...(invite
+					? {
+							actionUrl: `${appUrl}/invite/${invite.token}`,
+							expiresInDays: INVITE_TTL_DAYS,
+						}
+					: { actionUrl: `${appUrl}/events/${event.slug}` }),
 			}).catch((err) =>
 				console.error("Failed to send volunteer invite email:", err),
 			);

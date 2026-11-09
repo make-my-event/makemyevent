@@ -4,6 +4,7 @@ import { z } from "zod";
 import { sanitizeOptionalRichText } from "../lib/sanitize";
 import { imageUrl, linkUrl } from "../lib/url-validation";
 import { sendInviteEmail } from "../services/email.service";
+import { INVITE_TTL_DAYS, issueInviteToken } from "../services/invites";
 import { authedProcedure, publicProcedure, router } from "./trpc";
 
 /**
@@ -400,10 +401,23 @@ export const organizersRouter = router({
 				});
 			}
 
-			// The invite is stored against the email only. It is never linked to
-			// an account here, and neither the response nor the stored name says
-			// whether the address has one: the invitee's own sign-in or page load
-			// attaches it (services/invites.ts). An existing link is left untouched.
+			// Stored against the email only: no account is looked up or linked
+			// here, and neither the response nor the stored name says whether the
+			// address has one. A pending invitation gets a fresh single-use token
+			// and expiry (re-inviting replaces the previous link); the invitee
+			// accepts it explicitly (services/invites.ts). An accepted member is
+			// left linked and only their name/role change.
+			const existing = await ctx.prisma.organizerMember.findUnique({
+				where: {
+					organizerId_email: {
+						organizerId: input.organizerId,
+						email: normalizedEmail,
+					},
+				},
+				select: { userId: true },
+			});
+			const invite = existing?.userId ? null : issueInviteToken();
+
 			const member = await ctx.prisma.organizerMember.upsert({
 				where: {
 					organizerId_email: {
@@ -414,12 +428,20 @@ export const organizersRouter = router({
 				update: {
 					role: input.role as MemberRole,
 					...(input.name ? { name: input.name } : {}),
+					...(invite
+						? {
+								inviteTokenHash: invite.tokenHash,
+								inviteExpiresAt: invite.expiresAt,
+							}
+						: {}),
 				},
 				create: {
 					organizerId: input.organizerId,
 					email: normalizedEmail,
 					name: input.name || null,
 					role: input.role as MemberRole,
+					inviteTokenHash: invite?.tokenHash ?? null,
+					inviteExpiresAt: invite?.expiresAt ?? null,
 				},
 				select: {
 					id: true,
@@ -431,7 +453,6 @@ export const organizersRouter = router({
 				},
 			});
 
-			// Dispatch transactional invitation email via Resend
 			const appUrl =
 				process.env.NEXT_PUBLIC_APP_URL ||
 				process.env.APP_URL ||
@@ -442,7 +463,12 @@ export const organizersRouter = router({
 				role: input.role,
 				targetName: org.name,
 				type: "organization",
-				actionUrl: `${appUrl}/organization/${org.slug}`,
+				...(invite
+					? {
+							actionUrl: `${appUrl}/invite/${invite.token}`,
+							expiresInDays: INVITE_TTL_DAYS,
+						}
+					: { actionUrl: `${appUrl}/organization/${org.slug}` }),
 			}).catch((err) => console.error("Failed to send org invite email:", err));
 
 			return member;

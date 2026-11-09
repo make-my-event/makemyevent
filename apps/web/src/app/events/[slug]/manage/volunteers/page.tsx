@@ -415,7 +415,8 @@ export default function ManageVolunteersPage() {
 						</div>
 
 						<p className="text-xs text-ink/60">
-							They will get access when they sign in with this email address.
+							They get a link to accept the invitation. It can be used once and
+							expires in 7 days.
 						</p>
 
 						<form onSubmit={handleAddSubmit} className="space-y-4">

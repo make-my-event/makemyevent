@@ -2,20 +2,9 @@ import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { imageUrl } from "../lib/url-validation";
-import { linkPendingInvites } from "../services/invites";
 import { authedProcedure, router } from "./trpc";
 
 export const usersRouter = router({
-	/**
-	 * Attach invitations sent to the signed-in user's (verified) email. Called by
-	 * the web app on page load, so someone who is already signed in when they
-	 * are invited gets access after a refresh. Takes no input: the email comes
-	 * from the user's own record. See services/invites.ts.
-	 */
-	claimPendingInvites: authedProcedure.mutation(({ ctx }) =>
-		linkPendingInvites(ctx.prisma, ctx.userId),
-	),
-
 	getProfile: authedProcedure.query(async ({ ctx }) => {
 		const now = new Date();
 

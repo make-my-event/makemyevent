@@ -1,24 +1,41 @@
 /**
- * Invitation flow integration tests: inviting an email reveals nothing about
- * whether it has an account, and an invitation only becomes access when the
- * invitee (with a verified email) claims it. They run against a real Postgres
- * database, so they are skipped unless RUN_DB_TESTS=1 and DATABASE_URL points
- * at a disposable database that already has the schema applied. Every row the
- * tests create is removed afterwards.
+ * Invitation flow integration tests. Inviting an email reveals nothing about
+ * whether it has an account; invitations are single-use, hashed, expiring
+ * links that must be accepted explicitly; in-app invitations only match a
+ * verified email. They run against a real Postgres database, so they are
+ * skipped unless RUN_DB_TESTS=1 and DATABASE_URL points at a disposable
+ * database that already has the schema applied. Every row the tests create is
+ * removed afterwards.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "db";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { InviteEmailParams } from "../services/email.service";
 import { appRouter } from "./app.router";
 import { createContext } from "./trpc";
+
+// Capture invitation emails instead of sending them: the link in the email is
+// the only place the raw token exists, exactly as for a real invitee.
+const { sentInvites } = vi.hoisted(() => ({
+	sentInvites: [] as InviteEmailParams[],
+}));
+vi.mock("../services/email.service", () => ({
+	sendInviteEmail: async (params: InviteEmailParams) => {
+		sentInvites.push(params);
+		return null;
+	},
+	sendTicketEmail: async () => null,
+}));
 
 const describeWithDb =
 	process.env.RUN_DB_TESTS === "1" ? describe : describe.skip;
 
+const sha256 = (value: string) =>
+	createHash("sha256").update(value).digest("hex");
+
 describeWithDb("invitations (database)", () => {
 	const suffix = randomUUID().slice(0, 8);
 	const userIds: string[] = [];
-	const organizerIds: string[] = [];
 
 	let ownerId: string;
 	let organizerId: string;
@@ -26,26 +43,23 @@ describeWithDb("invitations (database)", () => {
 	let eventId: string;
 	const slug = `invites-${suffix}`;
 
-	// Invitees
-	let oauthUserId: string; // signed up with Google: email verified
-	let unverifiedUserId: string; // password account, email never verified
-	let verifiedPasswordUserId: string; // password account, email verified
+	let oauthUserId: string; // Google sign-in: email verified
+	let passwordUserId: string; // password account, email not verified
 	const oauthEmail = `oauth-${suffix}@example.com`;
-	const unverifiedEmail = `unverified-${suffix}@example.com`;
-	const verifiedPasswordEmail = `verified-${suffix}@example.com`;
+	const passwordEmail = `password-${suffix}@example.com`;
 
 	const as = (userId: string) =>
 		appRouter.createCaller(createContext(userId, null));
+	const anonymous = () => appRouter.createCaller(createContext(null, null));
 
 	const createUser = async (
 		email: string,
-		opts: { name?: string; emailVerified?: Date; oauth?: boolean } = {},
+		opts: { name?: string; oauth?: boolean } = {},
 	) => {
 		const user = await prisma.user.create({
 			data: {
 				email,
 				name: opts.name ?? null,
-				emailVerified: opts.emailVerified ?? null,
 				...(opts.oauth
 					? {
 							accounts: {
@@ -64,13 +78,19 @@ describeWithDb("invitations (database)", () => {
 		return user.id;
 	};
 
-	const volunteerUserId = async (email: string) =>
-		(
-			await prisma.eventVolunteer.findUniqueOrThrow({
-				where: { eventId_email: { eventId, email } },
-				select: { userId: true },
-			})
-		).userId;
+	/** Raw token from the most recent invitation email sent to `email`. */
+	const lastTokenFor = (email: string): string => {
+		const mail = [...sentInvites].reverse().find((m) => m.toEmail === email);
+		const match = mail?.actionUrl.match(/\/invite\/([A-Za-z0-9_-]+)$/);
+		if (!match) throw new Error(`no invitation link sent to ${email}`);
+		return match[1];
+	};
+
+	const volunteer = (email: string) =>
+		prisma.eventVolunteer.findUnique({
+			where: { eventId_email: { eventId, email } },
+			select: { userId: true, inviteTokenHash: true, inviteExpiresAt: true },
+		});
 
 	const inviteVolunteer = (email: string, name = "Invitee") =>
 		as(ownerId).events.volunteersAdd({ slug, name, email, role: "Volunteer" });
@@ -83,13 +103,7 @@ describeWithDb("invitations (database)", () => {
 			name: "Real Account Name",
 			oauth: true,
 		});
-		unverifiedUserId = await createUser(unverifiedEmail, {
-			name: "Unverified",
-		});
-		verifiedPasswordUserId = await createUser(verifiedPasswordEmail, {
-			name: "Verified",
-			emailVerified: new Date(),
-		});
+		passwordUserId = await createUser(passwordEmail, { name: "Password" });
 
 		const org = await prisma.organizer.create({
 			data: {
@@ -101,7 +115,6 @@ describeWithDb("invitations (database)", () => {
 			select: { id: true },
 		});
 		organizerId = org.id;
-		organizerIds.push(organizerId);
 
 		const community = await prisma.community.create({
 			data: {
@@ -132,10 +145,8 @@ describeWithDb("invitations (database)", () => {
 		await prisma.event.deleteMany({ where: { id: eventId } });
 		await prisma.communityMember.deleteMany({ where: { communityId } });
 		await prisma.community.deleteMany({ where: { id: communityId } });
-		await prisma.organizerMember.deleteMany({
-			where: { organizerId: { in: organizerIds } },
-		});
-		await prisma.organizer.deleteMany({ where: { id: { in: organizerIds } } });
+		await prisma.organizerMember.deleteMany({ where: { organizerId } });
+		await prisma.organizer.deleteMany({ where: { id: organizerId } });
 		await prisma.account.deleteMany({ where: { userId: { in: userIds } } });
 		await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 		await prisma.$disconnect();
@@ -148,22 +159,19 @@ describeWithDb("invitations (database)", () => {
 				`nobody-${suffix}@example.com`,
 				"Typed Name",
 			);
-
 			expect(Object.keys(existing).sort()).toEqual(Object.keys(unknown).sort());
 			expect(existing).not.toHaveProperty("userId");
 			expect(existing).not.toHaveProperty("user");
 			expect(existing.name).toBe("Typed Name");
-			// Not linked to the account at invite time.
-			expect(await volunteerUserId(oauthEmail)).toBeNull();
+			expect((await volunteer(oauthEmail))?.userId).toBeNull();
 		});
 
-		it("the volunteer list shows no account details for an unclaimed invite", async () => {
+		it("the volunteer list shows no account details for a pending invitation", async () => {
 			const { volunteers } = await as(ownerId).events.volunteersGet({ slug });
-			const row = volunteers.find((v) => v.email === oauthEmail);
-			expect(row?.user).toBeNull();
+			expect(volunteers.find((v) => v.email === oauthEmail)?.user).toBeNull();
 		});
 
-		it("organizers.addMember neither links nor uses the account's own name", async () => {
+		it("organizers.addMember neither links nor copies the account's name", async () => {
 			const member = await as(ownerId).organizers.addMember({
 				organizerId,
 				email: oauthEmail,
@@ -171,14 +179,9 @@ describeWithDb("invitations (database)", () => {
 			});
 			expect(member).not.toHaveProperty("userId");
 			expect(member.name).toBeNull();
-			const row = await prisma.organizerMember.findUniqueOrThrow({
-				where: { organizerId_email: { organizerId, email: oauthEmail } },
-				select: { userId: true, name: true },
-			});
-			expect(row).toEqual({ userId: null, name: null });
 		});
 
-		it("communities.addMember neither links nor uses the account's own name", async () => {
+		it("communities.addMember neither links nor copies the account's name", async () => {
 			const member = await as(ownerId).communities.addMember({
 				communityId,
 				email: oauthEmail,
@@ -186,80 +189,214 @@ describeWithDb("invitations (database)", () => {
 			});
 			expect(member).not.toHaveProperty("userId");
 			expect(member.name).toBeNull();
-			const row = await prisma.communityMember.findUniqueOrThrow({
-				where: { communityId_email: { communityId, email: oauthEmail } },
-				select: { userId: true },
-			});
-			expect(row.userId).toBeNull();
 		});
 	});
 
-	describe("claiming invitations", () => {
-		it("gives a verified invitee access after they claim (page load)", async () => {
-			// Before claiming: no access to the guest list as a volunteer.
+	describe("invitation links", () => {
+		it("stores only a hash of the emailed token, with a 7-day expiry", async () => {
+			await inviteVolunteer(passwordEmail);
+			const token = lastTokenFor(passwordEmail);
+			const row = await volunteer(passwordEmail);
+
+			expect(token.length).toBeGreaterThanOrEqual(43);
+			expect(row?.inviteTokenHash).toBe(sha256(token));
+			expect(row?.inviteTokenHash).not.toContain(token);
+			const days =
+				((row?.inviteExpiresAt?.getTime() ?? 0) - Date.now()) / 864e5;
+			expect(days).toBeGreaterThan(6.9);
+			expect(days).toBeLessThanOrEqual(7);
+		});
+
+		it("previews the invitation without exposing the full email", async () => {
+			const preview = await anonymous().invites.getByToken({
+				token: lastTokenFor(passwordEmail),
+			});
+			expect(preview).toMatchObject({
+				kind: "event",
+				targetName: "Invites event",
+				expired: false,
+			});
+			expect(preview.emailHint).toBe(`p***@example.com`);
+			expect(JSON.stringify(preview)).not.toContain(passwordEmail);
+		});
+
+		it("does nothing until the invitee accepts", async () => {
+			expect((await volunteer(passwordEmail))?.userId).toBeNull();
 			await expect(
-				as(oauthUserId).events.manageGuestsList({ slug }),
+				as(passwordUserId).events.manageGuestsList({ slug }),
 			).rejects.toMatchObject({ code: "FORBIDDEN" });
+		});
 
-			const result = await as(oauthUserId).users.claimPendingInvites();
-			// Volunteer + organizer member + community member invites.
-			expect(result).toEqual({ linked: 3, requiresVerification: false });
-			expect(await volunteerUserId(oauthEmail)).toBe(oauthUserId);
-
+		it("can be accepted once, by any signed-in account (the link proves inbox access)", async () => {
+			const token = lastTokenFor(passwordEmail);
+			// passwordUserId's email is unverified: the link itself is the proof.
 			await expect(
-				as(oauthUserId).events.manageGuestsList({ slug }),
+				as(passwordUserId).invites.acceptByToken({ token }),
+			).resolves.toEqual({ targetPath: `/events/${slug}` });
+
+			const row = await volunteer(passwordEmail);
+			expect(row).toEqual({
+				userId: passwordUserId,
+				inviteTokenHash: null,
+				inviteExpiresAt: null,
+			});
+			await expect(
+				as(passwordUserId).events.manageGuestsList({ slug }),
 			).resolves.toHaveProperty("issuedTickets");
+
+			// Single use.
+			await expect(
+				as(oauthUserId).invites.acceptByToken({ token }),
+			).rejects.toMatchObject({ code: "NOT_FOUND" });
 		});
 
-		it("is idempotent", async () => {
+		it("re-inviting a pending address replaces the previous link", async () => {
+			const email = `reinvite-${suffix}@example.com`;
+			await inviteVolunteer(email);
+			const first = lastTokenFor(email);
+			await inviteVolunteer(email);
+			const second = lastTokenFor(email);
+
+			expect(second).not.toBe(first);
 			await expect(
-				as(oauthUserId).users.claimPendingInvites(),
-			).resolves.toEqual({ linked: 0, requiresVerification: false });
+				anonymous().invites.getByToken({ token: first }),
+			).rejects.toMatchObject({ code: "NOT_FOUND" });
+			await expect(
+				anonymous().invites.getByToken({ token: second }),
+			).resolves.toHaveProperty("kind", "event");
 		});
 
-		it("does not link invites for an unverified email", async () => {
-			await inviteVolunteer(unverifiedEmail);
+		it("rejects an expired link and does not link the account", async () => {
+			const email = `expired-${suffix}@example.com`;
+			await inviteVolunteer(email);
+			const token = lastTokenFor(email);
+			await prisma.eventVolunteer.update({
+				where: { eventId_email: { eventId, email } },
+				data: { inviteExpiresAt: new Date(Date.now() - 1000) },
+			});
 
 			await expect(
-				as(unverifiedUserId).users.claimPendingInvites(),
-			).resolves.toEqual({ linked: 0, requiresVerification: true });
-			expect(await volunteerUserId(unverifiedEmail)).toBeNull();
+				anonymous().invites.getByToken({ token }),
+			).resolves.toHaveProperty("expired", true);
 			await expect(
-				as(unverifiedUserId).events.manageGuestsList({ slug }),
-			).rejects.toMatchObject({ code: "FORBIDDEN" });
+				as(oauthUserId).invites.acceptByToken({ token }),
+			).rejects.toMatchObject({ code: "BAD_REQUEST" });
+			expect((await volunteer(email))?.userId).toBeNull();
 		});
 
-		it("links invites for a password account whose email is verified", async () => {
-			await inviteVolunteer(verifiedPasswordEmail);
+		it("can be declined, which removes the pending invitation", async () => {
+			const email = `decline-${suffix}@example.com`;
+			await inviteVolunteer(email);
 			await expect(
-				as(verifiedPasswordUserId).users.claimPendingInvites(),
-			).resolves.toEqual({ linked: 1, requiresVerification: false });
-			expect(await volunteerUserId(verifiedPasswordEmail)).toBe(
-				verifiedPasswordUserId,
+				anonymous().invites.declineByToken({ token: lastTokenFor(email) }),
+			).resolves.toEqual({ declined: true });
+			expect(await volunteer(email)).toBeNull();
+		});
+
+		it("rejects unknown tokens", async () => {
+			await expect(
+				anonymous().invites.getByToken({ token: "x".repeat(43) }),
+			).rejects.toMatchObject({ code: "NOT_FOUND" });
+		});
+
+		it("re-inviting an accepted member keeps the link and sends no new token", async () => {
+			await inviteVolunteer(passwordEmail, "Renamed");
+			const row = await volunteer(passwordEmail);
+			expect(row?.userId).toBe(passwordUserId);
+			expect(row?.inviteTokenHash).toBeNull();
+			const last = [...sentInvites]
+				.reverse()
+				.find((m) => m.toEmail === passwordEmail);
+			expect(last?.actionUrl).not.toContain("/invite/");
+			expect(last?.expiresInDays).toBeUndefined();
+		});
+	});
+
+	describe("in-app invitations", () => {
+		it("lists pending invitations for a verified email without joining automatically", async () => {
+			const mine = await as(oauthUserId).invites.listMine();
+			expect(mine.map((i) => i.kind).sort()).toEqual([
+				"community",
+				"event",
+				"organization",
+			]);
+			expect((await volunteer(oauthEmail))?.userId).toBeNull();
+		});
+
+		it("accepts one explicitly", async () => {
+			const event = (await as(oauthUserId).invites.listMine()).find(
+				(i) => i.kind === "event",
 			);
+			await expect(
+				as(oauthUserId).invites.respond({
+					kind: "event",
+					id: event?.id ?? "",
+					accept: true,
+				}),
+			).resolves.toEqual({ targetPath: `/events/${slug}` });
+			expect((await volunteer(oauthEmail))?.userId).toBe(oauthUserId);
 		});
 
-		it("never claims an invite sent to a different email", async () => {
-			// The verified user claiming again must not pick up the unverified
-			// user's pending invite.
-			await as(verifiedPasswordUserId).users.claimPendingInvites();
-			expect(await volunteerUserId(unverifiedEmail)).toBeNull();
-		});
-
-		it("matches the account email case-insensitively", async () => {
-			const mixedId = await createUser(`Mixed.Case-${suffix}@Example.com`, {
-				oauth: true,
+		it("declines one explicitly", async () => {
+			const org = (await as(oauthUserId).invites.listMine()).find(
+				(i) => i.kind === "organization",
+			);
+			await as(oauthUserId).invites.respond({
+				kind: "organization",
+				id: org?.id ?? "",
+				accept: false,
 			});
-			await inviteVolunteer(`mixed.case-${suffix}@example.com`);
-			await expect(as(mixedId).users.claimPendingInvites()).resolves.toEqual({
-				linked: 1,
-				requiresVerification: false,
+			const row = await prisma.organizerMember.findUnique({
+				where: { organizerId_email: { organizerId, email: oauthEmail } },
+				select: { id: true },
 			});
+			expect(row).toBeNull();
 		});
 
-		it("re-inviting an already linked volunteer keeps the link", async () => {
-			await inviteVolunteer(oauthEmail, "Renamed");
-			expect(await volunteerUserId(oauthEmail)).toBe(oauthUserId);
+		it("shows nothing to an unverified email and refuses to accept for it", async () => {
+			const email = `unverified-match-${suffix}@example.com`;
+			const userId = await createUser(email);
+			await inviteVolunteer(email);
+			const pendingId = (
+				await prisma.eventVolunteer.findUniqueOrThrow({
+					where: { eventId_email: { eventId, email } },
+					select: { id: true },
+				})
+			).id;
+
+			await expect(as(userId).invites.listMine()).resolves.toEqual([]);
+			await expect(
+				as(userId).invites.respond({
+					kind: "event",
+					id: pendingId,
+					accept: true,
+				}),
+			).rejects.toMatchObject({ code: "NOT_FOUND" });
+			expect((await volunteer(email))?.userId).toBeNull();
+		});
+
+		it("refuses to accept an invitation addressed to someone else", async () => {
+			const email = `someone-else-${suffix}@example.com`;
+			await inviteVolunteer(email);
+			const id = (
+				await prisma.eventVolunteer.findUniqueOrThrow({
+					where: { eventId_email: { eventId, email } },
+					select: { id: true },
+				})
+			).id;
+			await expect(
+				as(oauthUserId).invites.respond({ kind: "event", id, accept: true }),
+			).rejects.toMatchObject({ code: "NOT_FOUND" });
+			expect((await volunteer(email))?.userId).toBeNull();
+		});
+
+		it("does not list expired invitations", async () => {
+			await prisma.communityMember.update({
+				where: { communityId_email: { communityId, email: oauthEmail } },
+				data: { inviteExpiresAt: new Date(Date.now() - 1000) },
+			});
+			const mine = await as(oauthUserId).invites.listMine();
+			expect(mine.find((i) => i.kind === "community")).toBeUndefined();
 		});
 	});
 });

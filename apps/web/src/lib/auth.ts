@@ -7,7 +7,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import { cookies, headers } from "next/headers";
-import { linkPendingInvites } from "@/../../api/src/services/invites";
 import { parseUserAgent } from "./device";
 
 const providers: Provider[] = [
@@ -241,18 +240,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 					}
 				}
 
-				// Attach pending team / volunteer invitations sent to this user's
-				// email. Linked only when that email is verified; see
-				// linkPendingInvites for why. Also runs on page load via
-				// users.claimPendingInvites, so already signed-in invitees get
-				// access after a refresh.
-				if (userId) {
-					try {
-						await linkPendingInvites(prisma, userId);
-					} catch (err) {
-						console.error("[auth] Linking pending invitations failed:", err);
-					}
-				}
+				// Team invitations are never joined automatically at sign-in. The
+				// invitee accepts explicitly, from the emailed link or the in-app
+				// notice (see apps/api/src/services/invites.ts).
 
 				// If user exists in DB but name or image is null, sync from OAuth profile
 				if (userId && profile) {
