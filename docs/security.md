@@ -32,7 +32,19 @@ rather than assuming it's fine because it works.
   `.env`, which is already gitignored. If it leaks, every session
   everywhere is compromised until it's rotated.
 - Session/JWT expiry is finite. No infinite sessions "for
-  convenience."
+  convenience." The JWT rolls for 30 days, and its `Session` row
+  expires 30 days after sign-in, so sign-in is required again at
+  least every 30 days.
+- The session object returned to the browser (`useSession()`,
+  `/api/auth/session`) carries display fields only
+  (`lib/client-session.ts`). The revocation key (`sessionToken`)
+  and sign-in time (`authTime`) stay in the signed JWT and are read
+  on the server (`lib/session-claims.ts`).
+- Fail closed: a signed-in request without a session key is treated
+  as signed out, so every authenticated call is checked against
+  revocation.
+- Actions with no current secret to prove (setting a first password)
+  require a sign-in within the last 10 minutes (`authTime`).
 
 ## Session revocation & self-healing
 

@@ -14,6 +14,7 @@ import {
 	prepareOAuthSignIn,
 } from "@/../../api/src/services/accounts";
 import { isVerifiedGitHubEmail } from "@/../../api/src/services/github-email";
+import { toClientSession } from "./client-session";
 import { parseUserAgent } from "./device";
 
 /** Surfaces as `code: "rate_limited"` from signIn() in the login form. */
@@ -98,7 +99,10 @@ if (
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
 	adapter: PrismaAdapter(prisma),
-	session: { strategy: "jwt" },
+	// Rolling 30-day JWT. The Session row (device tracking, revocation) also
+	// expires 30 days after sign-in, and the jwt callback rejects a token whose
+	// row has expired, so sign-in is required again at least every 30 days.
+	session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
 	trustHost: true,
 	secret: (() => {
 		const s = process.env.AUTH_SECRET;
@@ -140,8 +144,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 					await prisma.session.deleteMany({
 						where: { sessionToken: message.token.sessionToken as string },
 					});
-				} catch {
+				} catch (err) {
 					// session cleanup ignore
+					console.error(
+						"[auth] Deleting the session row at sign-out failed:",
+						err,
+					);
 				}
 			}
 		},
@@ -189,6 +197,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 					token.picture;
 				token.role = user.role || token.role;
 
+				// Time of this actual sign-in (not refreshed later). Sensitive
+				// actions such as setting a first password require it to be recent.
+				token.authTime = Date.now();
+
 				// Generate persistent session token
 				const sessionToken =
 					(token.sessionToken as string) || crypto.randomUUID();
@@ -206,8 +218,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 						reqHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
 						reqHeaders.get("x-real-ip") ||
 						null;
-				} catch {
+				} catch (err) {
 					// safe fallback in environments where headers() is not available
+					console.error(
+						"[auth] Reading request headers for device tracking failed:",
+						err,
+					);
 				}
 
 				try {
@@ -216,8 +232,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 						cookieStore.get("makemyevent_device_id")?.value ||
 						cookieStore.get("openevents_device_id")?.value ||
 						null;
-				} catch {
+				} catch (err) {
 					// safe fallback in environments where cookies() is not available
+					console.error("[auth] Reading the device cookie failed:", err);
 				}
 
 				const { browser, os, deviceType } = parseUserAgent(userAgent);
@@ -313,8 +330,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 								data: updateData,
 							});
 						}
-					} catch {
+					} catch (err) {
 						// background sync ignore
+						console.error(
+							"[auth] Syncing OAuth profile name/image failed:",
+							err,
+						);
 					}
 				}
 			} else if (userId) {
@@ -372,8 +393,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 									reqHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
 									reqHeaders.get("x-real-ip") ||
 									null;
-							} catch {
+							} catch (err) {
 								// safe fallback
+								console.error(
+									"[auth] Reading request headers for session healing failed:",
+									err,
+								);
 							}
 
 							try {
@@ -382,8 +407,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 									cookieStore.get("makemyevent_device_id")?.value ||
 									cookieStore.get("openevents_device_id")?.value ||
 									null;
-							} catch {
+							} catch (err) {
 								// safe fallback
+								console.error(
+									"[auth] Reading the device cookie for session healing failed:",
+									err,
+								);
 							}
 
 							const { browser, os, deviceType } = parseUserAgent(userAgent);
@@ -407,8 +436,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 								// Persist flag so future missing-record checks correctly
 								// treat the absence as explicit revocation, not creation failure
 								token.sessionRecordedAt = Date.now();
-							} catch {
+							} catch (err) {
 								// Heal failed — will retry on next request
+								console.error(
+									"[auth] Re-creating a missing session record failed (will retry):",
+									err,
+								);
 							}
 
 							if (dbUser.name) token.name = dbUser.name;
@@ -456,34 +489,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 								token.role = dbUser.role;
 							}
 						}
-					} catch {
+					} catch (err) {
 						// ignore
+						console.error(
+							"[auth] Refreshing name/image from the database failed:",
+							err,
+						);
 					}
 				}
 			}
 			return token;
 		},
 		async session({ session, token }) {
-			if (token && session.user) {
-				const userId = (token.id || token.sub) as string | undefined;
-				if (userId) {
-					session.user.id = userId;
-				}
-				if (typeof token.name === "string") {
-					session.user.name = token.name;
-				}
-				if (typeof token.picture === "string") {
-					session.user.image = token.picture;
-				}
-				if (typeof token.role === "string") {
-					session.user.role = token.role as UserRole;
-				}
-				if (typeof token.sessionToken === "string") {
-					(session as unknown as { sessionToken: string }).sessionToken =
-						token.sessionToken;
-				}
-			}
-			return session;
+			// Display fields only; server-only claims stay in the JWT
+			// (see lib/client-session.ts).
+			return token ? toClientSession(session, token) : session;
 		},
 	},
 });

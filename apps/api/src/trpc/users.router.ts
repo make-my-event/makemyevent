@@ -11,6 +11,9 @@ import {
 } from "../services/accounts";
 import { authedProcedure, router } from "./trpc";
 
+/** How recent a sign-in must be to set a first password. */
+const RECENT_SIGN_IN_MS = 10 * 60 * 1000;
+
 export const usersRouter = router({
 	getProfile: authedProcedure.query(async ({ ctx }) => {
 		const now = new Date();
@@ -249,6 +252,20 @@ export const usersRouter = router({
 					throw new TRPCError({
 						code: "UNAUTHORIZED",
 						message: "Incorrect current password.",
+					});
+				}
+			} else {
+				// No current password to prove: setting a first password (e.g. on a
+				// Google/GitHub account) requires a recent sign-in, so a stolen or
+				// left-open session cannot quietly add a password and keep access.
+				const recent =
+					ctx.authTime !== null &&
+					Date.now() - ctx.authTime <= RECENT_SIGN_IN_MS;
+				if (!recent) {
+					throw new TRPCError({
+						code: "FORBIDDEN",
+						message:
+							"For your security, sign out and sign in again, then set your password within 10 minutes.",
 					});
 				}
 			}
