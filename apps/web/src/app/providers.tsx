@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingInvitesNotice } from "@/components/auth/pending-invites-notice";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { trpc } from "@/lib/trpc";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -42,6 +43,7 @@ export function Providers({ children }: ProvidersProps): JSX.Element {
 			<SessionProvider refetchInterval={60} refetchOnWindowFocus={true}>
 				<trpc.Provider client={trpcClient} queryClient={queryClient}>
 					<QueryClientProvider client={queryClient}>
+						<PendingInvitesNotice />
 						{children}
 					</QueryClientProvider>
 				</trpc.Provider>

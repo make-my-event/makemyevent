@@ -240,28 +240,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 					}
 				}
 
-				// Auto-link any pending team invitations or volunteer assignments matching user's email
-				if (user.email) {
-					try {
-						const normalizedEmail = user.email.toLowerCase();
-						await Promise.all([
-							prisma.organizerMember.updateMany({
-								where: { email: normalizedEmail, userId: null },
-								data: { userId: userId as string },
-							}),
-							prisma.communityMember.updateMany({
-								where: { email: normalizedEmail, userId: null },
-								data: { userId: userId as string },
-							}),
-							prisma.eventVolunteer.updateMany({
-								where: { email: normalizedEmail, userId: null },
-								data: { userId: userId as string },
-							}),
-						]);
-					} catch {
-						// background link ignore
-					}
-				}
+				// Team invitations are never joined automatically at sign-in. The
+				// invitee accepts explicitly, from the emailed link or the in-app
+				// notice (see apps/api/src/services/invites.ts).
 
 				// If user exists in DB but name or image is null, sync from OAuth profile
 				if (userId && profile) {

@@ -8,7 +8,6 @@ import {
 	Plus,
 	Search,
 	Shield,
-	Sparkles,
 	Trash2,
 	UserCheck,
 	Users,
@@ -32,14 +31,6 @@ export interface VolunteerData {
 		email: string;
 		image?: string | null;
 	} | null;
-}
-
-interface UserSearchResult {
-	id: string;
-	name?: string | null;
-	username?: string | null;
-	email: string;
-	image?: string | null;
 }
 
 const VOLUNTEER_ROLES = [
@@ -101,43 +92,21 @@ export default function ManageVolunteersPage() {
 	const [removingVolunteer, setRemovingVolunteer] =
 		useState<VolunteerData | null>(null);
 
-	// Add Form & Autocomplete State
-	const [userSearchQuery, setUserSearchQuery] = useState("");
-	const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(
-		null,
-	);
+	// Add Form State
 	const [formName, setFormName] = useState("");
 	const [formEmail, setFormEmail] = useState("");
 	const [formRole, setFormRole] = useState("Volunteer");
 	const [formCustomRole, setFormCustomRole] = useState("");
-
-	// Registered-user lookup by exact email only (no directory browsing).
-	const lookupEmail = userSearchQuery.trim();
-	const isCompleteEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lookupEmail);
-	const { data: searchResults, isFetching: isSearching } =
-		trpc.events.usersSearch.useQuery(
-			{ slug, query: lookupEmail },
-			{ enabled: !!slug && isCompleteEmail },
-		);
 
 	const volunteers = useMemo(() => {
 		return (data?.volunteers as unknown as VolunteerData[] | undefined) ?? [];
 	}, [data?.volunteers]);
 
 	const resetForm = () => {
-		setUserSearchQuery("");
-		setSelectedUser(null);
 		setFormName("");
 		setFormEmail("");
 		setFormRole("Volunteer");
 		setFormCustomRole("");
-	};
-
-	const handleSelectUser = (u: UserSearchResult) => {
-		setSelectedUser(u);
-		setFormName(u.name || u.username || u.email.split("@")[0]);
-		setFormEmail(u.email);
-		setUserSearchQuery("");
 	};
 
 	const openEditModal = (volunteer: VolunteerData) => {
@@ -423,7 +392,7 @@ export default function ManageVolunteersPage() {
 				</div>
 			)}
 
-			{/* Add Volunteer Modal with Live User Search */}
+			{/* Add Volunteer Modal */}
 			{showAddModal && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-sm">
 					<div className="bg-paper border border-perforation rounded-xl shadow-xl w-full max-w-md p-6 space-y-5">
@@ -433,7 +402,7 @@ export default function ManageVolunteersPage() {
 									Add Event Volunteer
 								</h3>
 								<p className="text-xs text-ink/60 mt-0.5">
-									Search registered users or invite directly by email.
+									Invite by email. An invitation is sent to that address.
 								</p>
 							</div>
 							<button
@@ -445,131 +414,10 @@ export default function ManageVolunteersPage() {
 							</button>
 						</div>
 
-						{/* Live User Search Autocomplete */}
-						{!selectedUser ? (
-							<div className="space-y-2">
-								<label
-									htmlFor="user-search-input"
-									className="text-xs font-medium text-ink flex items-center gap-1.5"
-								>
-									<Sparkles className="w-3.5 h-3.5 text-stamp" />
-									Find Registered User by Email
-								</label>
-								<div className="relative">
-									<Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
-									<input
-										id="user-search-input"
-										type="email"
-										value={userSearchQuery}
-										onChange={(e) => setUserSearchQuery(e.target.value)}
-										placeholder="Enter their full email address"
-										className="w-full pl-9 pr-4 py-2 bg-paper border border-perforation rounded-md text-xs text-ink focus:outline-none focus:ring-1 focus:ring-ink placeholder:text-ink/40 font-mono"
-									/>
-									{isSearching && (
-										<span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-ink/40 font-mono">
-											Searching...
-										</span>
-									)}
-								</div>
-
-								{/* Autocomplete Dropdown */}
-								{userSearchQuery.trim().length > 0 && (
-									<div className="border border-perforation rounded-lg bg-paper shadow-md max-h-48 overflow-y-auto divide-y divide-perforation/40">
-										{!isCompleteEmail ? (
-											<div className="p-3 text-center text-xs text-ink/50 font-mono">
-												Type the person's full email address to check if they
-												have an account.
-											</div>
-										) : searchResults && searchResults.length > 0 ? (
-											searchResults.map((u) => (
-												<button
-													key={u.id}
-													type="button"
-													onClick={() => handleSelectUser(u)}
-													className="w-full p-2.5 text-left hover:bg-perforation/20 transition-colors flex items-center gap-3 cursor-pointer"
-												>
-													{u.image ? (
-														// biome-ignore lint/performance/noImgElement: avatar
-														<img
-															src={u.image}
-															alt={u.name || "Avatar"}
-															className="w-7 h-7 rounded-full object-cover border border-perforation shrink-0"
-														/>
-													) : (
-														<div className="w-7 h-7 rounded-full bg-perforation/40 text-ink/70 flex items-center justify-center font-display font-semibold text-xs shrink-0 border border-perforation">
-															{u.name?.[0]?.toUpperCase() || "U"}
-														</div>
-													)}
-													<div className="flex-1 min-w-0">
-														<div className="flex items-center gap-1.5">
-															<span className="text-xs font-semibold text-ink truncate">
-																{u.name || "MakeMyEvent User"}
-															</span>
-															{u.username && (
-																<span className="text-[11px] font-mono text-stamp">
-																	@{u.username}
-																</span>
-															)}
-														</div>
-														<p className="text-[10px] font-mono text-ink/50 truncate">
-															{u.email}
-														</p>
-													</div>
-													<span className="text-[10px] font-mono text-stamp shrink-0">
-														Select
-													</span>
-												</button>
-											))
-										) : !isSearching ? (
-											<div className="p-3 text-center text-xs text-ink/50 font-mono">
-												No matching user found. Fill form below to invite by
-												email.
-											</div>
-										) : null}
-									</div>
-								)}
-							</div>
-						) : (
-							/* Selected User Pill */
-							<div className="p-3 bg-stamp/10 border border-stamp/30 rounded-lg flex items-center justify-between gap-3">
-								<div className="flex items-center gap-2.5 min-w-0">
-									{selectedUser.image ? (
-										// biome-ignore lint/performance/noImgElement: avatar
-										<img
-											src={selectedUser.image}
-											alt={selectedUser.name || "Avatar"}
-											className="w-8 h-8 rounded-full object-cover border border-stamp/40"
-										/>
-									) : (
-										<div className="w-8 h-8 rounded-full bg-stamp/20 text-stamp flex items-center justify-center font-display font-semibold text-xs">
-											{selectedUser.name?.[0]?.toUpperCase() || "U"}
-										</div>
-									)}
-									<div className="min-w-0">
-										<div className="flex items-center gap-1.5">
-											<span className="text-xs font-semibold text-ink truncate">
-												{selectedUser.name}
-											</span>
-											{selectedUser.username && (
-												<span className="text-[11px] font-mono text-stamp">
-													@{selectedUser.username}
-												</span>
-											)}
-										</div>
-										<p className="text-[10px] font-mono text-ink/60 truncate">
-											{selectedUser.email}
-										</p>
-									</div>
-								</div>
-								<button
-									type="button"
-									onClick={() => setSelectedUser(null)}
-									className="text-xs text-ink/60 hover:text-ink p-1 font-mono underline"
-								>
-									Change
-								</button>
-							</div>
-						)}
+						<p className="text-xs text-ink/60">
+							They get a link to accept the invitation. It can be used once and
+							expires in 7 days.
+						</p>
 
 						<form onSubmit={handleAddSubmit} className="space-y-4">
 							<div className="space-y-1.5">

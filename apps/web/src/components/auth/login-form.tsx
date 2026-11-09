@@ -76,11 +76,14 @@ export function LoginForm(): JSX.Element {
 					setError(result.error);
 					setIsLoading(false);
 				} else {
-					// Automatically log in after registration to complete onboarding
+					// Automatically log in after registration to complete onboarding,
+					// or return to the team invitation that brought them here.
 					await signIn("credentials", {
 						email: normalizedEmail,
 						password,
-						callbackUrl: "/onboarding",
+						callbackUrl: callbackUrl.startsWith("/invite/")
+							? callbackUrl
+							: "/onboarding",
 					});
 				}
 			}

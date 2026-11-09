@@ -96,6 +96,38 @@ auth mechanism; the `Session` row is a supplementary record.
 - Never trust an ID from the client without checking it belongs to
   the resource being acted on (see Authorization above).
 
+## Rich text, URLs and HTML
+
+- Any field rendered as HTML (`dangerouslySetInnerHTML`) must be
+  sanitized on save with `sanitizeRichText`
+  (`apps/api/src/lib/sanitize.ts`). Today that is the organizer
+  description, RSVP description, CFP guidelines and schedule item
+  descriptions.
+- Event descriptions are **not** sanitized because they are also written
+  as plain text and only ever rendered as escaped text. Before rendering
+  them (or any other field) as HTML, add sanitization on save and clean
+  existing rows (`apps/api/src/scripts/sanitize-rich-text.ts`).
+- User-supplied links and images use `linkUrl` / `imageUrl`
+  (`apps/api/src/lib/url-validation.ts`), never bare `z.string().url()`,
+  which accepts `javascript:` URLs.
+- Values inserted into HTML emails go through `escapeHtml`.
+
+## Team invitations
+
+Rules for organizer, sub-community and volunteer invitations
+(`apps/api/src/services/invites.ts`):
+
+- Inviting an email never looks up or links an account, and nothing in
+  the response or in team lists reveals whether the address has one.
+- The emailed link holds a random 256-bit token. Store only its SHA-256
+  hash. Links are single-use, expire after 7 days, and re-inviting
+  replaces the previous link.
+- Nothing is joined automatically. The invitee accepts explicitly, from
+  the link (any signed-in account: the link proves inbox access) or from
+  the in-app notice, which only matches a **verified** email.
+- Never reintroduce auto-linking by email at sign-in: an unverified
+  account could inherit someone else's invitations.
+
 ## Data exposure
 
 - Public queries (`events.list`, anything unauthenticated) select

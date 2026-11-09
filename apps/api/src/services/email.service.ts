@@ -164,6 +164,11 @@ export interface InviteEmailParams {
 	targetName: string;
 	type: "organization" | "community" | "event";
 	actionUrl: string;
+	/**
+	 * Set when actionUrl is a single-use invitation link (the email then asks
+	 * the recipient to accept it). Unset for notices to existing members.
+	 */
+	expiresInDays?: number;
 }
 
 export async function sendInviteEmail(params: InviteEmailParams) {
@@ -196,6 +201,14 @@ export async function sendInviteEmail(params: InviteEmailParams) {
 			targetName: escapeHtml(params.targetName),
 			toEmail: escapeHtml(params.toEmail),
 			actionUrl: escapeHtml(params.actionUrl),
+			instructions:
+				params.expiresInDays !== undefined
+					? `Open the link below and sign in to accept. This invitation can be used once and expires in ${params.expiresInDays} days.`
+					: `Sign in to your makemyevent account using <code>${escapeHtml(params.toEmail)}</code> to access your management tools, check-in scanner, and team privileges.`,
+			buttonLabel:
+				params.expiresInDays !== undefined
+					? "Accept invitation"
+					: "Open Dashboard &amp; Access",
 		};
 
 		const response = await resend.emails.send({
@@ -215,9 +228,9 @@ export async function sendInviteEmail(params: InviteEmailParams) {
 						<div style="padding: 24px;">
 							<p style="font-size: 15px; margin-top: 0;">Hi <strong>${html.recipient}</strong>,</p>
 							<p style="font-size: 14px; color: #444; line-height: 1.5;">You have been assigned as <strong>${html.role}</strong> for <strong>${html.targetName}</strong>.</p>
-							<p style="font-size: 13px; color: #666; line-height: 1.5;">Sign in to your makemyevent account using <code>${html.toEmail}</code> to access your management tools, check-in scanner, and team privileges.</p>
+							<p style="font-size: 13px; color: #666; line-height: 1.5;">${html.instructions}</p>
 							<div style="text-align: center; margin: 28px 0 10px 0;">
-								<a href="${html.actionUrl}" style="background-color: #1f7a4d; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">Open Dashboard & Access →</a>
+								<a href="${html.actionUrl}" style="background-color: #1f7a4d; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">${html.buttonLabel} →</a>
 							</div>
 						</div>
 						<div style="border-top: 1px solid #f0eee8; padding: 16px 24px; background-color: #faf9f6; text-align: center; font-size: 12px; color: #888;">

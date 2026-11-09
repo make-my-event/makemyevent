@@ -116,6 +116,10 @@ model OrganizerMember {
   email       String
   name        String?
   role        MemberRole @default(VOLUNTEER)
+  // Pending invitation: SHA-256 (hex) of the token emailed to the invitee.
+  // Cleared when the invitation is accepted. Never store the raw token.
+  inviteTokenHash String?   @unique
+  inviteExpiresAt DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   organizer   Organizer  @relation(fields: [organizerId], references: [id], onDelete: Cascade)
@@ -154,6 +158,10 @@ model CommunityMember {
   email       String
   name        String?
   role        MemberRole @default(ADMIN)
+  // Pending invitation: SHA-256 (hex) of the token emailed to the invitee.
+  // Cleared when the invitation is accepted. Never store the raw token.
+  inviteTokenHash String?   @unique
+  inviteExpiresAt DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -563,6 +571,10 @@ model EventVolunteer {
   email       String
   role        String   @default("Volunteer") // "Core Team Member", "Volunteer", "Registration Desk", "Stage Manager", "Custom"
   customRole  String?
+  // Pending invitation: SHA-256 (hex) of the token emailed to the invitee.
+  // Cleared when the invitation is accepted. Never store the raw token.
+  inviteTokenHash String?   @unique
+  inviteExpiresAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

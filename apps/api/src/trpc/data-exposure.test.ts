@@ -273,37 +273,6 @@ describeWithDb("data exposure (database)", () => {
 		});
 	});
 
-	describe("events.usersSearch", () => {
-		it("rejects users who are not staff of the event", async () => {
-			await expect(
-				as(strangerId).events.usersSearch({
-					slug: publishedSlug,
-					query: email("speaker"),
-				}),
-			).rejects.toMatchObject({ code: "FORBIDDEN" });
-		});
-
-		it("does not match names or partial emails", async () => {
-			const caller = as(ownerId).events;
-			await expect(
-				caller.usersSearch({ slug: publishedSlug, query: "Speaker" }),
-			).resolves.toEqual([]);
-			await expect(
-				caller.usersSearch({ slug: publishedSlug, query: `speaker-${suffix}` }),
-			).resolves.toEqual([]);
-		});
-
-		it("finds a user by their exact email, case-insensitively", async () => {
-			const result = await as(ownerId).events.usersSearch({
-				slug: publishedSlug,
-				query: email("speaker").toUpperCase(),
-			});
-			expect(result).toHaveLength(1);
-			expect(result[0].id).toBe(speakerId);
-			expect(result[0].email).toBe(email("speaker"));
-		});
-	});
-
 	describe("events.manageGuestsList", () => {
 		it("never returns check-in QR tokens", async () => {
 			const result = await as(ownerId).events.manageGuestsList({
