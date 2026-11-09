@@ -111,6 +111,7 @@ export const organizersRouter = router({
 
 			const userExists = await ctx.prisma.user.findUnique({
 				where: { id: ctx.userId },
+				select: { id: true },
 			});
 
 			if (!userExists) {
@@ -282,8 +283,39 @@ export const organizersRouter = router({
 				}
 			}
 
+			// Member emails are for people who manage the team (owner, ADMIN).
+			// Draft and cancelled events are for anyone who manages events
+			// (owner, ADMIN, EDITOR, COORDINATOR). Everyone else gets the public view.
+			const canSeeMemberContacts =
+				currentUserRole === "OWNER" || currentUserRole === "ADMIN";
+			const canSeeAllEvents =
+				canSeeMemberContacts ||
+				currentUserRole === "EDITOR" ||
+				currentUserRole === "COORDINATOR";
+
+			const members = canSeeMemberContacts
+				? org.members
+				: org.members.map((m) => ({
+						...m,
+						// Empty string, not undefined: the page reads `email` as a string.
+						email: "",
+						name: m.name || m.user?.name || "Team member",
+					}));
+
+			const events = canSeeAllEvents
+				? org.events
+				: org.events.filter(
+						(e) => e.status === "published" || e.status === "completed",
+					);
+
 			return {
 				...org,
+				members,
+				events,
+				_count: {
+					...org._count,
+					events: canSeeAllEvents ? org._count.events : events.length,
+				},
 				currentUserRole,
 			};
 		}),

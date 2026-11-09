@@ -59,7 +59,9 @@ export async function assertCommunityAccess(
 ) {
 	const community = await client.community.findUnique({
 		where: { id: communityId },
-		include: {
+		select: {
+			id: true,
+			organizerId: true,
 			organizer: {
 				select: { id: true, ownerId: true },
 			},
@@ -73,10 +75,34 @@ export async function assertCommunityAccess(
 		});
 	}
 
-	// 1. Parent Org Owner
-	if (community.organizer.ownerId === userId) {
+	if (await canManageCommunity(client, community, userId, allowedRoles)) {
 		return community;
 	}
+
+	throw new TRPCError({
+		code: "FORBIDDEN",
+		message: "You do not have permission to manage this sub-community.",
+	});
+}
+
+/**
+ * Non-throwing form of the rule in `assertCommunityAccess`: parent org owner,
+ * parent org ADMIN/OWNER member, or a community member with an allowed role.
+ */
+async function canManageCommunity(
+	client: PrismaClient,
+	community: {
+		id: string;
+		organizerId: string;
+		organizer: { ownerId: string };
+	},
+	userId: string | null,
+	allowedRoles: MemberRole[] = ["OWNER", "ADMIN"],
+): Promise<boolean> {
+	if (!userId) return false;
+
+	// 1. Parent Org Owner
+	if (community.organizer.ownerId === userId) return true;
 
 	// 2. Parent Org Admin
 	const orgMembership = await client.organizerMember.findFirst({
@@ -85,27 +111,20 @@ export async function assertCommunityAccess(
 			userId,
 			role: { in: ["ADMIN", "OWNER"] },
 		},
+		select: { id: true },
 	});
-	if (orgMembership) {
-		return community;
-	}
+	if (orgMembership) return true;
 
 	// 3. Community-specific Lead / Admin
 	const commMembership = await client.communityMember.findFirst({
 		where: {
-			communityId,
+			communityId: community.id,
 			userId,
 			role: { in: allowedRoles },
 		},
+		select: { id: true },
 	});
-	if (commMembership) {
-		return community;
-	}
-
-	throw new TRPCError({
-		code: "FORBIDDEN",
-		message: "You do not have permission to manage this sub-community.",
-	});
+	return commMembership !== null;
 }
 
 export const communitiesRouter = router({
@@ -163,6 +182,7 @@ export const communitiesRouter = router({
 							logoUrl: true,
 							type: true,
 							category: true,
+							ownerId: true,
 						},
 					},
 					members: {
@@ -174,6 +194,7 @@ export const communitiesRouter = router({
 							role: true,
 							user: {
 								select: {
+									name: true,
 									image: true,
 								},
 							},
@@ -207,7 +228,20 @@ export const communitiesRouter = router({
 				});
 			}
 
-			return community;
+			// Member emails only for people who can manage this community.
+			if (await canManageCommunity(ctx.prisma, community, ctx.userId)) {
+				return community;
+			}
+
+			return {
+				...community,
+				members: community.members.map((m) => ({
+					...m,
+					// Empty string, not undefined: the page reads `email` as a string.
+					email: "",
+					name: m.name || m.user?.name || "Team member",
+				})),
+			};
 		}),
 
 	/**

@@ -25,6 +25,14 @@ const providers: Provider[] = [
 
 			const user = await prisma.user.findUnique({
 				where: { email },
+				select: {
+					id: true,
+					email: true,
+					name: true,
+					image: true,
+					role: true,
+					passwordHash: true,
+				},
 			});
 
 			if (!user?.passwordHash) {

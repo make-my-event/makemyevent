@@ -32,6 +32,7 @@ export async function registerUser(
 	try {
 		const existingUser = await prisma.user.findUnique({
 			where: { email },
+			select: { id: true },
 		});
 
 		if (existingUser) {

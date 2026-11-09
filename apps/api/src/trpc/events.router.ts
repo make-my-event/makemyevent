@@ -55,7 +55,13 @@ export async function assertEventAccess(
 		where: {
 			OR: [{ id: slugOrId }, { slug: slugOrId }],
 		},
-		include: {
+		select: {
+			id: true,
+			title: true,
+			slug: true,
+			capacity: true,
+			organizerId: true,
+			communityId: true,
 			organizer: {
 				select: { id: true, ownerId: true },
 			},
@@ -85,6 +91,7 @@ export async function assertEventAccess(
 			userId,
 			role: { in: allowedRoles },
 		},
+		select: { id: true },
 	});
 	if (membership) {
 		return event;
@@ -98,6 +105,7 @@ export async function assertEventAccess(
 				userId,
 				role: { in: allowedRoles },
 			},
+			select: { id: true },
 		});
 		if (commMembership) {
 			return event;
@@ -113,6 +121,47 @@ export async function assertEventAccess(
 		code: "FORBIDDEN",
 		message: "You do not have permission to manage or scan for this event.",
 	});
+}
+
+/**
+ * Event statuses anyone may see. Drafts and cancelled events are visible only to
+ * the event's staff. Matches the public policy already used by `byOrganizer`.
+ */
+const PUBLIC_EVENT_STATUSES: readonly EventStatus[] = [
+	"published",
+	"completed",
+];
+
+/** Staff roles that may manage an event (in addition to the organizer owner). */
+const EVENT_STAFF_ROLES = ["ADMIN", "EDITOR", "COORDINATOR"] as const;
+
+/**
+ * Non-throwing staff check for public procedures that return more to staff
+ * (drafts, unpublished tiers, contact details). Staff = organizer owner or an
+ * organizer member with ADMIN/EDITOR/COORDINATOR, the same set that may manage
+ * the event elsewhere in this router.
+ */
+async function isEventStaff(
+	client: PrismaClient,
+	event: { organizerId: string; organizer: { ownerId: string } },
+	userId: string | null,
+): Promise<boolean> {
+	if (!userId) return false;
+	if (event.organizer.ownerId === userId) return true;
+	const membership = await client.organizerMember.findFirst({
+		where: {
+			organizerId: event.organizerId,
+			userId,
+			role: { in: [...EVENT_STAFF_ROLES] },
+		},
+		select: { id: true },
+	});
+	return membership !== null;
+}
+
+/** NOT_FOUND (not FORBIDDEN) so outsiders cannot tell a hidden event exists. */
+function hiddenEventNotFound(): TRPCError {
+	return new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
 }
 
 export interface CheckInOutcome {
@@ -620,7 +669,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { id: input.id },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 
 			if (!event) {
@@ -686,7 +741,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { id: input.id },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 
 			if (!event) {
@@ -725,7 +786,13 @@ export const eventsRouter = router({
 		.query(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -782,7 +849,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -852,7 +925,13 @@ export const eventsRouter = router({
 		.query(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -913,7 +992,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -953,7 +1038,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -1076,14 +1167,27 @@ export const eventsRouter = router({
 		.query(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
+				select: {
+					id: true,
+					status: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
-			if (!event)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+			if (!event) throw hiddenEventNotFound();
+
+			const staff = await isEventStaff(ctx.prisma, event, ctx.userId);
+			if (!staff && !PUBLIC_EVENT_STATUSES.includes(event.status)) {
+				throw hiddenEventNotFound();
+			}
 
 			const cfpForm = await ctx.prisma.cfpForm.findUnique({
 				where: { eventId: event.id },
 				include: { customQuestions: { orderBy: { order: "asc" } } },
 			});
+
+			// Outsiders only see a form the organizer has published.
+			if (!staff && !cfpForm?.isPublished) return null;
 
 			return cfpForm;
 		}),
@@ -1115,7 +1219,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -1195,7 +1305,13 @@ export const eventsRouter = router({
 		.query(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -1241,7 +1357,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -1280,11 +1402,19 @@ export const eventsRouter = router({
 					eventStart: true,
 					eventEnd: true,
 					showSchedule: true,
+					status: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
 				},
 			});
-			if (!event)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+			if (!event) throw hiddenEventNotFound();
 
+			const staff = await isEventStaff(ctx.prisma, event, ctx.userId);
+			if (!staff && !PUBLIC_EVENT_STATUSES.includes(event.status)) {
+				throw hiddenEventNotFound();
+			}
+
+			// Speaker emails are for the organizing team only.
 			const items = await ctx.prisma.scheduleItem.findMany({
 				where: { eventId: event.id },
 				include: {
@@ -1294,7 +1424,7 @@ export const eventsRouter = router({
 							title: true,
 							sessionType: true,
 							speaker: {
-								select: { id: true, name: true, email: true, image: true },
+								select: { id: true, name: true, email: staff, image: true },
 							},
 						},
 					},
@@ -1302,18 +1432,32 @@ export const eventsRouter = router({
 				orderBy: [{ scheduledDate: "asc" }, { startTime: "asc" }],
 			});
 
-			const acceptedProposals = await ctx.prisma.cfpSubmission.findMany({
-				where: { eventId: event.id, status: "Accepted" },
-				include: {
-					speaker: {
-						select: { id: true, name: true, email: true, image: true },
-					},
-				},
-				orderBy: { title: "asc" },
-			});
+			// Accepted proposals feed the schedule editor; outsiders get none.
+			const acceptedProposals = staff
+				? await ctx.prisma.cfpSubmission.findMany({
+						where: { eventId: event.id, status: "Accepted" },
+						select: {
+							id: true,
+							title: true,
+							sessionType: true,
+							abstract: true,
+							speaker: {
+								select: { id: true, name: true, email: true, image: true },
+							},
+						},
+						orderBy: { title: "asc" },
+					})
+				: [];
 
 			return {
-				event,
+				event: {
+					id: event.id,
+					title: event.title,
+					slug: event.slug,
+					eventStart: event.eventStart,
+					eventEnd: event.eventEnd,
+					showSchedule: event.showSchedule,
+				},
 				items,
 				acceptedProposals,
 			};
@@ -1343,7 +1487,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -1442,10 +1592,19 @@ export const eventsRouter = router({
 					title: true,
 					slug: true,
 					showPartners: true,
+					status: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
 				},
 			});
-			if (!event)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+			if (!event) throw hiddenEventNotFound();
+
+			if (
+				!PUBLIC_EVENT_STATUSES.includes(event.status) &&
+				!(await isEventStaff(ctx.prisma, event, ctx.userId))
+			) {
+				throw hiddenEventNotFound();
+			}
 
 			const partners = await ctx.prisma.eventPartner.findMany({
 				where: { eventId: event.id },
@@ -1453,7 +1612,12 @@ export const eventsRouter = router({
 			});
 
 			return {
-				event,
+				event: {
+					id: event.id,
+					title: event.title,
+					slug: event.slug,
+					showPartners: event.showPartners,
+				},
 				sponsors: partners.filter((p) => p.type === "sponsor"),
 				communityPartners: partners.filter((p) => p.type === "community"),
 			};
@@ -1480,7 +1644,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -1539,61 +1709,70 @@ export const eventsRouter = router({
 			};
 		}),
 
+	/**
+	 * Look up a registered user by their exact email address, for an event's
+	 * staff adding a volunteer. Deliberately not a directory search: matching by
+	 * name or partial email would let anyone who creates an event enumerate users
+	 * and their addresses. The caller already knows the email they typed, so
+	 * returning it discloses nothing new.
+	 */
 	usersSearch: authedProcedure
-		.input(z.object({ query: z.string().min(1) }))
+		.input(
+			z.object({
+				slug: z.string(),
+				query: z.string().trim().max(254),
+			}),
+		)
 		.query(async ({ ctx, input }) => {
-			const q = input.query.trim().toLowerCase().replace(/^@/, "");
-			if (!q) return [];
-
-			const users = await ctx.prisma.user.findMany({
-				where: {
-					OR: [
-						{ name: { contains: q, mode: "insensitive" } },
-						{ username: { contains: q, mode: "insensitive" } },
-						{ email: { contains: q, mode: "insensitive" } },
-					],
+			const event = await ctx.prisma.event.findUnique({
+				where: { slug: input.slug },
+				select: {
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
 				},
+			});
+			if (!event) throw hiddenEventNotFound();
+			if (!(await isEventStaff(ctx.prisma, event, ctx.userId))) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "You do not have permission to manage this event.",
+				});
+			}
+
+			const parsedEmail = z.string().email().safeParse(input.query);
+			if (!parsedEmail.success) return [];
+			const email = parsedEmail.data.toLowerCase();
+
+			const user = await ctx.prisma.user.findUnique({
+				where: { email },
 				select: {
 					id: true,
 					name: true,
 					username: true,
-					email: true,
 					image: true,
 				},
-				take: 8,
 			});
 
-			return users;
+			return user ? [{ ...user, email }] : [];
 		}),
 
 	volunteersGet: authedProcedure
 		.input(z.object({ slug: z.string() }))
 		.query(async ({ ctx, input }) => {
+			// Only what the staff check and default-volunteer seeding below read.
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: {
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
 					organizer: {
-						include: {
-							owner: {
-								select: {
-									id: true,
-									name: true,
-									email: true,
-									image: true,
-								},
-							},
+						select: {
+							ownerId: true,
+							owner: { select: { name: true, email: true } },
 							members: {
-								include: {
-									user: {
-										select: {
-											id: true,
-											name: true,
-											username: true,
-											email: true,
-											image: true,
-										},
-									},
-								},
+								select: { name: true, email: true, role: true, userId: true },
 							},
 						},
 					},
@@ -1700,7 +1879,7 @@ export const eventsRouter = router({
 			}
 
 			return {
-				event,
+				event: { id: event.id, title: event.title, slug: event.slug },
 				volunteers,
 				isOwner: event.organizer.ownerId === ctx.userId,
 			};
@@ -1719,7 +1898,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -1813,7 +1998,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -1865,7 +2056,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -1921,11 +2118,11 @@ export const eventsRouter = router({
 							id: true,
 							name: true,
 							ownerId: true,
+							// Used only to build the public team list below; no emails.
 							owner: {
 								select: {
 									id: true,
 									name: true,
-									email: true,
 									image: true,
 								},
 							},
@@ -1933,9 +2130,8 @@ export const eventsRouter = router({
 								select: {
 									id: true,
 									name: true,
-									email: true,
 									role: true,
-									user: { select: { image: true } },
+									user: { select: { name: true, image: true } },
 								},
 							},
 						},
@@ -1962,12 +2158,21 @@ export const eventsRouter = router({
 				},
 			});
 
-			if (!event) {
-				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+			if (!event) throw hiddenEventNotFound();
+
+			// Staff see drafts (the event page shows them a preview banner) and
+			// unpublished tiers (the tickets editor). Everyone else sees public
+			// events and published tiers only.
+			const staff = await isEventStaff(ctx.prisma, event, ctx.userId);
+			if (!staff && !PUBLIC_EVENT_STATUSES.includes(event.status)) {
+				throw hiddenEventNotFound();
 			}
+			const visibleTickets = staff
+				? event.tickets
+				: event.tickets.filter((t) => t.isPublished);
 
 			// Format tiers with real counts
-			const tiers = event.tickets.map((t) => {
+			const tiers = visibleTickets.map((t) => {
 				const confirmedCount = t.issuedTickets.filter(
 					(i) => i.status === "CONFIRMED" || i.status === "CHECKED_IN",
 				).length;
@@ -2038,7 +2243,8 @@ export const eventsRouter = router({
 					: []),
 				...event.organizer.members.map((m) => ({
 					id: m.id,
-					name: m.name || m.email.split("@")[0],
+					// Never derive a public display name from an email address.
+					name: m.name || m.user?.name || "Team member",
 					role: m.role || "Volunteer",
 					user: m.user?.image ? { image: m.user.image } : null,
 				})),
@@ -2068,9 +2274,28 @@ export const eventsRouter = router({
 				},
 			});
 
+			// Explicit public shape: no organizer owner/member records and no
+			// per-ticket rows (previously spread in via `...event`).
 			return {
 				event: {
-					...event,
+					id: event.id,
+					title: event.title,
+					slug: event.slug,
+					description: event.description,
+					format: event.format,
+					bannerUrl: event.bannerUrl,
+					status: event.status,
+					capacity: event.capacity,
+					eventStart: event.eventStart,
+					eventEnd: event.eventEnd,
+					location: event.location,
+					isOnline: event.isOnline,
+					organizerId: event.organizerId,
+					organizer: {
+						id: event.organizer.id,
+						name: event.organizer.name,
+						ownerId: event.organizer.ownerId,
+					},
 					volunteers: effectiveVolunteers,
 				},
 				tiers,
@@ -2111,7 +2336,13 @@ export const eventsRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const event = await ctx.prisma.event.findUnique({
 				where: { slug: input.slug },
-				include: { organizer: true },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					organizerId: true,
+					organizer: { select: { ownerId: true } },
+				},
 			});
 			if (!event)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
@@ -2919,9 +3150,20 @@ export const eventsRouter = router({
 			);
 
 			const [issuedTickets, rsvpSubmissions, rsvpForm] = await Promise.all([
+				// Explicit select: never return qrToken (it is a check-in credential)
+				// to the guest list, which volunteers can also open.
 				ctx.prisma.issuedTicket.findMany({
 					where: { eventId: event.id },
-					include: {
+					select: {
+						id: true,
+						attendeeName: true,
+						attendeeEmail: true,
+						attendeePhone: true,
+						ticketCode: true,
+						status: true,
+						answers: true,
+						createdAt: true,
+						checkedInAt: true,
 						ticket: { select: { id: true, name: true, price: true } },
 						user: { select: { id: true, name: true, image: true } },
 					},
@@ -2976,6 +3218,7 @@ export const eventsRouter = router({
 			if (input.guestType === "ticket") {
 				const ticket = await ctx.prisma.issuedTicket.findUnique({
 					where: { id: input.id, eventId: event.id },
+					select: { id: true, status: true, checkedInAt: true },
 				});
 				if (!ticket) {
 					throw new TRPCError({
@@ -3013,6 +3256,7 @@ export const eventsRouter = router({
 
 				return ctx.prisma.issuedTicket.findUniqueOrThrow({
 					where: { id: ticket.id },
+					select: { id: true, status: true, checkedInAt: true },
 				});
 			}
 
