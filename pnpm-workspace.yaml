@@ -6,3 +6,10 @@ onlyBuiltDependencies:
   - '@prisma/engines'
   - prisma
   - unrs-resolver
+
+# Security overrides for transitive deps that upstream still pins to
+# vulnerable versions. Remove each once the parent package ships the fix.
+overrides:
+  '@nestjs/platform-express>express': ^5.3.0
+  '@nestjs/platform-express>multer': ^2.5.0
+  'postcss-selector-parser@<6.1.5': ^6.1.5
