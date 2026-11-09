@@ -28,16 +28,31 @@ vi.mock("resend", () => ({
 const INJECTED =
 	'Sam</strong><a href="https://evil.example/login">Verify your account</a><img src=x onerror=alert(1)>';
 
+// Pin every environment value the templates read, so results do not depend on
+// the machine (CI sets NEXT_PUBLIC_APP_URL=http://localhost:3000).
+const TEST_ENV = {
+	RESEND_API_KEY: "test-key",
+	NEXT_PUBLIC_APP_URL: "https://app.example.test",
+	APP_URL: "https://app.example.test",
+} as const;
+
 describe("email templates", () => {
-	const originalKey = process.env.RESEND_API_KEY;
+	const originalEnv: Record<string, string | undefined> = {};
 
 	beforeAll(() => {
-		process.env.RESEND_API_KEY = "test-key";
+		for (const [key, value] of Object.entries(TEST_ENV)) {
+			originalEnv[key] = process.env[key];
+			process.env[key] = value;
+		}
 		vi.spyOn(console, "log").mockImplementation(() => {});
 	});
 
 	afterAll(() => {
-		process.env.RESEND_API_KEY = originalKey;
+		for (const [key, value] of Object.entries(originalEnv)) {
+			// Assigning undefined would store the string "undefined".
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+		}
 		vi.restoreAllMocks();
 	});
 
@@ -100,7 +115,8 @@ describe("email templates", () => {
 		const { html } = sent[0];
 		expect(html).toContain("Hi <strong>Priya Nair</strong>");
 		expect(html).toContain("Venue: Venue TBA");
-		expect(html).toContain('href="https://');
-		expect(html).toContain("/tickets/OPT-ABCD-EFGH");
+		expect(html).toContain(
+			'<a href="https://app.example.test/tickets/OPT-ABCD-EFGH"',
+		);
 	});
 });
