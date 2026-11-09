@@ -362,11 +362,11 @@ export const communitiesRouter = router({
 			await assertCommunityAccess(ctx.prisma, input.communityId, ctx.userId);
 
 			const normalizedEmail = input.email.trim().toLowerCase();
-			const matchedUser = await ctx.prisma.user.findUnique({
-				where: { email: normalizedEmail },
-				select: { id: true, name: true },
-			});
 
+			// The invite is stored against the email only. It is never linked to
+			// an account here, and neither the response nor the stored name says
+			// whether the address has one: the invitee's own sign-in or page load
+			// attaches it (services/invites.ts). An existing link is left untouched.
 			const member = await ctx.prisma.communityMember.upsert({
 				where: {
 					communityId_email: {
@@ -376,17 +376,21 @@ export const communitiesRouter = router({
 				},
 				update: {
 					role: input.role as MemberRole,
-					userId: matchedUser?.id || undefined,
-					name: input.name || matchedUser?.name || undefined,
+					...(input.name ? { name: input.name } : {}),
 				},
 				create: {
 					communityId: input.communityId,
 					email: normalizedEmail,
-					name: input.name || matchedUser?.name || null,
-					userId: matchedUser?.id || null,
+					name: input.name || null,
 					role: input.role as MemberRole,
 				},
-				include: {
+				select: {
+					id: true,
+					communityId: true,
+					email: true,
+					name: true,
+					role: true,
+					createdAt: true,
 					community: {
 						select: {
 							name: true,
@@ -404,7 +408,7 @@ export const communitiesRouter = router({
 				"http://localhost:3000";
 			sendInviteEmail({
 				toEmail: normalizedEmail,
-				recipientName: input.name || matchedUser?.name,
+				recipientName: input.name,
 				role: input.role,
 				targetName: member.community.name,
 				type: "community",

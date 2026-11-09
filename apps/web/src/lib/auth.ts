@@ -7,6 +7,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import { cookies, headers } from "next/headers";
+import { linkPendingInvites } from "@/../../api/src/services/invites";
 import { parseUserAgent } from "./device";
 
 const providers: Provider[] = [
@@ -240,26 +241,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 					}
 				}
 
-				// Auto-link any pending team invitations or volunteer assignments matching user's email
-				if (user.email) {
+				// Attach pending team / volunteer invitations sent to this user's
+				// email. Linked only when that email is verified; see
+				// linkPendingInvites for why. Also runs on page load via
+				// users.claimPendingInvites, so already signed-in invitees get
+				// access after a refresh.
+				if (userId) {
 					try {
-						const normalizedEmail = user.email.toLowerCase();
-						await Promise.all([
-							prisma.organizerMember.updateMany({
-								where: { email: normalizedEmail, userId: null },
-								data: { userId: userId as string },
-							}),
-							prisma.communityMember.updateMany({
-								where: { email: normalizedEmail, userId: null },
-								data: { userId: userId as string },
-							}),
-							prisma.eventVolunteer.updateMany({
-								where: { email: normalizedEmail, userId: null },
-								data: { userId: userId as string },
-							}),
-						]);
-					} catch {
-						// background link ignore
+						await linkPendingInvites(prisma, userId);
+					} catch (err) {
+						console.error("[auth] Linking pending invitations failed:", err);
 					}
 				}
 

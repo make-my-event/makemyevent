@@ -1711,53 +1711,6 @@ export const eventsRouter = router({
 			};
 		}),
 
-	/**
-	 * Look up a registered user by their exact email address, for an event's
-	 * staff adding a volunteer. Deliberately not a directory search: matching by
-	 * name or partial email would let anyone who creates an event enumerate users
-	 * and their addresses. The caller already knows the email they typed, so
-	 * returning it discloses nothing new.
-	 */
-	usersSearch: authedProcedure
-		.input(
-			z.object({
-				slug: z.string(),
-				query: z.string().trim().max(254),
-			}),
-		)
-		.query(async ({ ctx, input }) => {
-			const event = await ctx.prisma.event.findUnique({
-				where: { slug: input.slug },
-				select: {
-					organizerId: true,
-					organizer: { select: { ownerId: true } },
-				},
-			});
-			if (!event) throw hiddenEventNotFound();
-			if (!(await isEventStaff(ctx.prisma, event, ctx.userId))) {
-				throw new TRPCError({
-					code: "FORBIDDEN",
-					message: "You do not have permission to manage this event.",
-				});
-			}
-
-			const parsedEmail = z.string().email().safeParse(input.query);
-			if (!parsedEmail.success) return [];
-			const email = parsedEmail.data.toLowerCase();
-
-			const user = await ctx.prisma.user.findUnique({
-				where: { email },
-				select: {
-					id: true,
-					name: true,
-					username: true,
-					image: true,
-				},
-			});
-
-			return user ? [{ ...user, email }] : [];
-		}),
-
 	volunteersGet: authedProcedure
 		.input(z.object({ slug: z.string() }))
 		.query(async ({ ctx, input }) => {
@@ -1929,11 +1882,10 @@ export const eventsRouter = router({
 			}
 
 			// Check if a registered user exists with this email
-			const existingUser = await ctx.prisma.user.findUnique({
-				where: { email: input.email.toLowerCase() },
-				select: { id: true },
-			});
-
+			// The invite is stored against the email only. It is never linked to
+			// an account here, and the response carries nothing about whether the
+			// address has one: the invitee's own sign-in or page load attaches it
+			// (services/invites.ts). An existing link is left untouched.
 			const volunteer = await ctx.prisma.eventVolunteer.upsert({
 				where: {
 					eventId_email: {
@@ -1945,7 +1897,6 @@ export const eventsRouter = router({
 					name: input.name,
 					role: input.role,
 					customRole: input.customRole,
-					userId: existingUser?.id || null,
 				},
 				create: {
 					eventId: event.id,
@@ -1953,18 +1904,15 @@ export const eventsRouter = router({
 					name: input.name,
 					role: input.role,
 					customRole: input.customRole,
-					userId: existingUser?.id || null,
 				},
-				include: {
-					user: {
-						select: {
-							id: true,
-							name: true,
-							username: true,
-							email: true,
-							image: true,
-						},
-					},
+				select: {
+					id: true,
+					eventId: true,
+					name: true,
+					email: true,
+					role: true,
+					customRole: true,
+					createdAt: true,
 				},
 			});
 

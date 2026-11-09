@@ -400,12 +400,10 @@ export const organizersRouter = router({
 				});
 			}
 
-			// Check if target user already has an account
-			const existingUser = await ctx.prisma.user.findUnique({
-				where: { email: normalizedEmail },
-				select: { id: true, name: true },
-			});
-
+			// The invite is stored against the email only. It is never linked to
+			// an account here, and neither the response nor the stored name says
+			// whether the address has one: the invitee's own sign-in or page load
+			// attaches it (services/invites.ts). An existing link is left untouched.
 			const member = await ctx.prisma.organizerMember.upsert({
 				where: {
 					organizerId_email: {
@@ -415,15 +413,21 @@ export const organizersRouter = router({
 				},
 				update: {
 					role: input.role as MemberRole,
-					name: input.name || existingUser?.name || undefined,
-					userId: existingUser?.id || undefined,
+					...(input.name ? { name: input.name } : {}),
 				},
 				create: {
 					organizerId: input.organizerId,
 					email: normalizedEmail,
-					name: input.name || existingUser?.name || null,
+					name: input.name || null,
 					role: input.role as MemberRole,
-					userId: existingUser?.id || null,
+				},
+				select: {
+					id: true,
+					organizerId: true,
+					email: true,
+					name: true,
+					role: true,
+					createdAt: true,
 				},
 			});
 
@@ -434,7 +438,7 @@ export const organizersRouter = router({
 				"http://localhost:3000";
 			sendInviteEmail({
 				toEmail: normalizedEmail,
-				recipientName: input.name || existingUser?.name,
+				recipientName: input.name,
 				role: input.role,
 				targetName: org.name,
 				type: "organization",
