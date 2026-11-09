@@ -111,11 +111,13 @@ export default function ManageVolunteersPage() {
 	const [formRole, setFormRole] = useState("Volunteer");
 	const [formCustomRole, setFormCustomRole] = useState("");
 
-	// Live User Search Query
+	// Registered-user lookup by exact email only (no directory browsing).
+	const lookupEmail = userSearchQuery.trim();
+	const isCompleteEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lookupEmail);
 	const { data: searchResults, isFetching: isSearching } =
 		trpc.events.usersSearch.useQuery(
-			{ query: userSearchQuery },
-			{ enabled: userSearchQuery.trim().length > 0 },
+			{ slug, query: lookupEmail },
+			{ enabled: !!slug && isCompleteEmail },
 		);
 
 	const volunteers = useMemo(() => {
@@ -451,16 +453,16 @@ export default function ManageVolunteersPage() {
 									className="text-xs font-medium text-ink flex items-center gap-1.5"
 								>
 									<Sparkles className="w-3.5 h-3.5 text-stamp" />
-									Find Registered User
+									Find Registered User by Email
 								</label>
 								<div className="relative">
 									<Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
 									<input
 										id="user-search-input"
-										type="text"
+										type="email"
 										value={userSearchQuery}
 										onChange={(e) => setUserSearchQuery(e.target.value)}
-										placeholder="Search name, @username, or email..."
+										placeholder="Enter their full email address"
 										className="w-full pl-9 pr-4 py-2 bg-paper border border-perforation rounded-md text-xs text-ink focus:outline-none focus:ring-1 focus:ring-ink placeholder:text-ink/40 font-mono"
 									/>
 									{isSearching && (
@@ -473,7 +475,12 @@ export default function ManageVolunteersPage() {
 								{/* Autocomplete Dropdown */}
 								{userSearchQuery.trim().length > 0 && (
 									<div className="border border-perforation rounded-lg bg-paper shadow-md max-h-48 overflow-y-auto divide-y divide-perforation/40">
-										{searchResults && searchResults.length > 0 ? (
+										{!isCompleteEmail ? (
+											<div className="p-3 text-center text-xs text-ink/50 font-mono">
+												Type the person's full email address to check if they
+												have an account.
+											</div>
+										) : searchResults && searchResults.length > 0 ? (
 											searchResults.map((u) => (
 												<button
 													key={u.id}
