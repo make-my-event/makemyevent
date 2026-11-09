@@ -5,6 +5,7 @@ import { z } from "zod";
 import { RATE_LIMITS, enforceRateLimits } from "../lib/rate-limit";
 import { sanitizeOptionalRichText } from "../lib/sanitize";
 import { imageUrl, linkUrl } from "../lib/url-validation";
+import { BANNER_BUCKET, eventBannerKey } from "../lib/banner-storage";
 import { supabaseAdmin } from "../lib/supabase";
 import {
 	sendInviteEmail,
@@ -27,7 +28,6 @@ import {
 } from "../services/tickets";
 import { authedProcedure, publicProcedure, router } from "./trpc";
 
-const BANNER_BUCKET = "event-banners";
 const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 const MAX_BANNER_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -695,6 +695,7 @@ export const eventsRouter = router({
 					id: true,
 					title: true,
 					slug: true,
+					bannerUrl: true,
 					organizerId: true,
 					organizer: { select: { ownerId: true } },
 				},
@@ -722,6 +723,20 @@ export const eventsRouter = router({
 						message: "You do not have permission to edit this event.",
 					});
 				}
+			}
+
+			// A banner may only be cleared, left unchanged, or set to a file in
+			// this event's own storage folder (uploaded via bannerUploadUrl).
+			if (
+				input.bannerUrl !== undefined &&
+				input.bannerUrl !== null &&
+				input.bannerUrl !== event.bannerUrl &&
+				!eventBannerKey(input.bannerUrl, event.id)
+			) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Upload the banner image through the banner uploader.",
+				});
 			}
 
 			return ctx.prisma.event.update({
@@ -3629,9 +3644,10 @@ export const eventsRouter = router({
 				.createSignedUploadUrl(storagePath);
 
 			if (error || !data) {
+				console.error("[banner] Creating a signed upload URL failed:", error);
 				throw new TRPCError({
 					code: "INTERNAL_SERVER_ERROR",
-					message: `Storage error: ${error?.message || "Unknown error"}`,
+					message: "Could not prepare the upload. Please try again.",
 				});
 			}
 
@@ -3680,6 +3696,14 @@ export const eventsRouter = router({
 				}
 			}
 
+			// Only a file in this event's own banner folder can be confirmed.
+			if (!eventBannerKey(input.publicUrl, event.id)) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Upload the banner image through the banner uploader.",
+				});
+			}
+
 			return ctx.prisma.event.update({
 				where: { id: input.eventId },
 				data: { bannerUrl: input.publicUrl },
@@ -3721,22 +3745,19 @@ export const eventsRouter = router({
 				}
 			}
 
-			// Delete file from storage if bannerUrl exists
-			if (event.bannerUrl) {
-				try {
-					// Extract path from URL: .../event-banners/<eventId>/<file>
-					const url = new URL(event.bannerUrl);
-					const pathParts = url.pathname.split(`/${BANNER_BUCKET}/`);
-					if (pathParts[1]) {
-						await supabaseAdmin.storage
-							.from(BANNER_BUCKET)
-							.remove([pathParts[1]]);
-					}
-				} catch {
-					// Non-fatal: DB update still proceeds
-					console.warn(
-						"[banner] Failed to delete storage file:",
-						event.bannerUrl,
+			// Remove the stored file only if the banner URL points inside this
+			// event's own folder. A banner set elsewhere (older data) is just
+			// cleared below; the service-role client never touches other files.
+			const key = eventBannerKey(event.bannerUrl, event.id);
+			if (key) {
+				const { error } = await supabaseAdmin.storage
+					.from(BANNER_BUCKET)
+					.remove([key]);
+				if (error) {
+					// Non-fatal: the banner is still cleared from the event.
+					console.error(
+						`[banner] Deleting the stored banner for event ${event.id} failed:`,
+						error,
 					);
 				}
 			}
