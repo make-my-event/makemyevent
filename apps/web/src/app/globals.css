@@ -1,30 +1,40 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* `dark:` utilities follow the theme toggle, which sets the .dark class on
+   <html> (components/theme/theme-provider.tsx), not just the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Brand colors (makemyevent-design skill). Source variables: light by
+   default, dark under .dark. */
 :root {
-	--color-paper: #f7f6f2;
-	--color-ink: #1b1a18;
-	--color-stamp: #1f7a4d;
-	--color-perforation: #dad6cc;
-	--color-alert: #c0432a;
+	--paper: #f7f6f2;
+	--ink: #1b1a18;
+	--stamp: #1f7a4d;
+	--perforation: #dad6cc;
+	--alert: #c0432a;
 }
 
-.dark,
-[data-theme="dark"] {
-	--color-paper: #131211;
-	--color-ink: #f4f3ee;
-	--color-stamp: #2d9b5e;
-	--color-perforation: #2a2925;
-	--color-alert: #ef4444;
+.dark {
+	--paper: #131211;
+	--ink: #f4f3ee;
+	--stamp: #2d9b5e;
+	--perforation: #2a2925;
+	--alert: #ef4444;
+}
+
+/* `inline`: utilities such as bg-paper read the live source variable, so dark
+   mode switches them. --color-* are still emitted (rules below use them), so
+   CSS and SVG may keep using var(--color-*). */
+@theme inline {
+	--color-paper: var(--paper);
+	--color-ink: var(--ink);
+	--color-stamp: var(--stamp);
+	--color-perforation: var(--perforation);
+	--color-alert: var(--alert);
 }
 
 @theme {
-	--color-paper: var(--color-paper);
-	--color-ink: var(--color-ink);
-	--color-stamp: var(--color-stamp);
-	--color-perforation: var(--color-perforation);
-	--color-alert: var(--color-alert);
-
 	--font-display: var(--font-display);
 	--font-body: var(--font-body);
 	--font-mono: var(--font-mono);
