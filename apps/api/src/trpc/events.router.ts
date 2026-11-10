@@ -287,7 +287,11 @@ export const eventsRouter = router({
 				eventEnd: true,
 				location: true,
 				isOnline: true,
+				// Public endpoint: never expose tiers the organizer has hidden.
+				// Cheapest first, so `tickets[0]` is the "from" price.
 				tickets: {
+					where: { isPublished: true },
+					orderBy: [{ price: "asc" }, { order: "asc" }],
 					select: { id: true, name: true, price: true, quantity: true },
 				},
 				organizer: {

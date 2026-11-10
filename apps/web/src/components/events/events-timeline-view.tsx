@@ -1,5 +1,7 @@
 "use client";
 
+import { EventsEmptyState } from "@/components/events/events-empty-state";
+import { getCardPriceLabel } from "@/lib/event-format";
 import { Clock, MapPin } from "lucide-react";
 import Link from "next/link";
 import type { JSX } from "react";
@@ -9,32 +11,28 @@ export interface EventsTimelineViewProps {
 	events: EventItem[];
 }
 
+const monthFormatter = new Intl.DateTimeFormat("en-IN", {
+	month: "long",
+	year: "numeric",
+});
+const weekdayFormatter = new Intl.DateTimeFormat("en-IN", { weekday: "short" });
+const timeFormatter = new Intl.DateTimeFormat("en-IN", {
+	hour: "numeric",
+	minute: "2-digit",
+	hour12: true,
+});
+
 export function EventsTimelineView({
 	events,
 }: EventsTimelineViewProps): JSX.Element {
 	if (events.length === 0) {
-		return (
-			<div className="py-24 text-center border border-perforation rounded-lg bg-paper my-8">
-				<h3 className="font-display font-medium text-h3 mb-2 text-ink">
-					No events found
-				</h3>
-				<p className="opacity-60 text-body max-w-md mx-auto">
-					Try changing your search terms or adjusting active filters to discover
-					more events.
-				</p>
-			</div>
-		);
+		return <EventsEmptyState />;
 	}
 
-	// Group events by Month and Year
+	// Group events by month and year
 	const groupedEvents: Record<string, EventItem[]> = {};
-
 	for (const event of events) {
-		const date = new Date(event.eventStart);
-		const monthYear = date.toLocaleDateString("en-IN", {
-			month: "long",
-			year: "numeric",
-		});
+		const monthYear = monthFormatter.format(new Date(event.eventStart));
 		if (!groupedEvents[monthYear]) {
 			groupedEvents[monthYear] = [];
 		}
@@ -42,120 +40,120 @@ export function EventsTimelineView({
 	}
 
 	return (
-		<div className="space-y-12 my-8">
+		<div className="flex flex-col gap-12">
 			{Object.entries(groupedEvents).map(([monthYear, monthEvents]) => (
-				<section key={monthYear} className="space-y-6">
-					{/* Month Heading */}
+				<section key={monthYear} className="flex flex-col gap-6">
 					<div className="flex items-center gap-4">
-						<h2 className="font-display font-semibold text-h2 text-ink">
+						<h2 className="font-display text-h2 font-semibold text-ink">
 							{monthYear}
 						</h2>
-						<div className="flex-1 border-b border-perforation" />
-						<span className="label text-xs opacity-50 font-mono">
+						<div
+							aria-hidden="true"
+							className="flex-1 border-b border-perforation"
+						/>
+						<span className="label font-mono tabular-nums text-ink/70">
 							{monthEvents.length}{" "}
-							{monthEvents.length === 1 ? "EVENT" : "EVENTS"}
+							{monthEvents.length === 1 ? "event" : "events"}
 						</span>
 					</div>
 
-					{/* Timeline Rail & List */}
-					<div className="relative pl-6 md:pl-8 border-l border-perforation space-y-8 ml-3 md:ml-4">
+					{/* Timeline rail */}
+					<ul className="ml-3 flex flex-col gap-8 border-l border-perforation pl-6 md:ml-4 md:pl-8">
 						{monthEvents.map((event) => {
-							const ticket = event.tickets[0];
 							const eventDate = new Date(event.eventStart);
-							const dayOfMonth = eventDate.getDate();
-							const dayOfWeek = eventDate.toLocaleDateString("en-IN", {
-								weekday: "short",
-							});
-							const timeStr = eventDate.toLocaleTimeString("en-IN", {
-								hour: "numeric",
-								minute: "2-digit",
-								hour12: true,
-							});
+							const price = getCardPriceLabel(event.tickets);
+							const href = `/events/${event.slug}`;
+							const location =
+								event.location ||
+								(event.isOnline ? "Online" : "Location to be announced");
 
 							return (
-								<div key={event.id} className="relative group">
-									{/* Timeline Bullet Node */}
-									<div className="absolute -left-6 md:-left-8 -translate-x-1/2 top-6 w-3 h-3 rounded-full bg-paper border-2 border-stamp group-hover:scale-125 transition-transform" />
+								<li key={event.id} className="group relative">
+									{/* Timeline dot */}
+									<div
+										aria-hidden="true"
+										className="absolute top-6 -left-6 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-stamp bg-paper transition-transform duration-150 motion-safe:group-hover:scale-125 md:-left-8"
+									/>
 
-									{/* Event Item Container */}
-									<div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6 border border-perforation rounded-lg bg-paper hover:border-ink/20 transition-all shadow-sm">
-										<div className="flex items-start gap-4">
-											{/* Date Box */}
-											<div className="flex flex-col items-center justify-center p-3 rounded-md bg-perforation/20 min-w-16 text-center border border-perforation/40">
-												<span className="label text-xs text-stamp">
-													{dayOfWeek}
+									<article className="flex flex-col items-start justify-between gap-6 rounded-md border border-perforation bg-paper p-4 transition-colors duration-150 hover:border-stamp/40 md:flex-row md:items-center md:p-6">
+										<div className="flex min-w-0 items-start gap-4">
+											<time
+												dateTime={eventDate.toISOString()}
+												className="flex min-w-16 flex-col items-center justify-center rounded-md border border-perforation bg-perforation/20 p-3 text-center"
+											>
+												<span className="label text-stamp">
+													{weekdayFormatter.format(eventDate)}
 												</span>
-												<span className="font-display font-semibold text-2xl text-ink leading-tight">
-													{dayOfMonth}
+												<span className="font-display text-2xl font-semibold leading-tight text-ink tabular-nums">
+													{eventDate.getDate()}
 												</span>
-											</div>
+											</time>
 
-											{/* Event Info */}
-											<div className="space-y-1.5">
+											<div className="flex min-w-0 flex-col gap-2">
 												<div className="flex flex-wrap items-center gap-2">
-													<span className="label text-xs bg-paper border border-perforation px-2 py-0.5 rounded">
+													<span className="label max-w-full truncate rounded-sm border border-perforation bg-paper px-2 py-1">
 														{event.organizer.name}
 													</span>
-													<span className="label text-xs text-stamp">
+													<span className="label text-stamp">
 														{event.format}
 													</span>
 													{event.isOnline && (
-														<span className="label text-xs opacity-60">
-															Online
-														</span>
+														<span className="label text-ink/70">Online</span>
 													)}
 												</div>
 
-												<h3 className="font-display font-medium text-h3 text-ink">
-													<Link
-														href={`/events/${event.slug}`}
-														className="hover:underline"
-													>
+												<h3 className="break-words font-display text-h3 font-medium text-ink">
+													<Link href={href} className="hover:underline">
 														{event.title}
 													</Link>
 												</h3>
 
 												{event.description && (
-													<p className="text-body text-sm opacity-70 max-w-2xl line-clamp-2">
+													<p className="line-clamp-2 max-w-prose text-sm text-ink/70">
 														{event.description}
 													</p>
 												)}
 
-												<div className="font-mono text-ticket opacity-60 flex flex-wrap items-center gap-3 pt-1 text-xs">
-													<span className="flex items-center gap-1">
-														<Clock className="w-3.5 h-3.5 text-stamp" />
-														{timeStr}
+												<div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-sm text-ink/70">
+													<span className="flex items-center gap-1 tabular-nums">
+														<Clock
+															className="h-4 w-4 shrink-0 text-stamp"
+															aria-hidden="true"
+														/>
+														{timeFormatter.format(eventDate)}
 													</span>
-													<span>·</span>
-													<span className="flex items-center gap-1">
-														<MapPin className="w-3.5 h-3.5 text-stamp" />
-														{event.location}
+													<span className="flex min-w-0 items-center gap-1">
+														<MapPin
+															className="h-4 w-4 shrink-0 text-stamp"
+															aria-hidden="true"
+														/>
+														<span className="truncate">{location}</span>
 													</span>
 												</div>
 											</div>
 										</div>
 
-										{/* Action & Ticket info */}
-										<div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-perforation pt-4 md:pt-0">
+										<div className="flex w-full items-center justify-between gap-4 border-t border-perforation pt-4 md:w-auto md:justify-end md:border-t-0 md:pt-0">
 											<div className="text-right">
-												<div className="label text-xs opacity-50">PRICE</div>
-												<div className="font-mono text-ticket font-medium text-ink">
-													{ticket?.price ? `₹${ticket.price}` : "Free"}
+												<div className="label text-ink/70">Price</div>
+												<div className="font-mono text-ticket font-medium tabular-nums text-ink">
+													{price ?? "See details"}
 												</div>
 											</div>
 
 											<Link
-												href={`/events/${event.slug}`}
-												className="label px-4 py-2 rounded-md transition-all whitespace-nowrap bg-stamp text-paper hover:opacity-90"
+												href={href}
+												aria-label={`Register for ${event.title}`}
+												className="label inline-flex h-11 items-center whitespace-nowrap rounded-md bg-stamp px-4 text-paper transition-opacity duration-150 hover:opacity-90 active:opacity-80"
 											>
 												Register
 											</Link>
 										</div>
-									</div>
-								</div>
+									</article>
+								</li>
 							);
 						})}
-					</div>
+					</ul>
 				</section>
 			))}
 		</div>

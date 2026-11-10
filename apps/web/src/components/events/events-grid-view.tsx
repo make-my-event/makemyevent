@@ -1,5 +1,8 @@
 "use client";
 
+import { EventsEmptyState } from "@/components/events/events-empty-state";
+import { getCardPriceLabel } from "@/lib/event-format";
+import { CalendarDays } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { JSX } from "react";
@@ -15,13 +18,13 @@ export interface EventItem {
 	tags: string[];
 	eventStart: string | Date;
 	eventEnd: string | Date;
-	location: string;
+	location: string | null;
 	isOnline: boolean;
 	tickets: Array<{
 		id: string;
 		name: string;
 		price: number;
-		quantity: number;
+		quantity: number | null;
 	}>;
 	organizer: {
 		id: string;
@@ -35,122 +38,105 @@ export interface EventsGridViewProps {
 	events: EventItem[];
 }
 
+const dateFormatter = new Intl.DateTimeFormat("en-IN", {
+	month: "short",
+	day: "numeric",
+	year: "numeric",
+});
+
 export function EventsGridView({ events }: EventsGridViewProps): JSX.Element {
 	if (events.length === 0) {
-		return (
-			<div className="py-24 text-center border border-perforation rounded-lg bg-paper my-8">
-				<h3 className="font-display font-medium text-h3 mb-2 text-ink">
-					No events found
-				</h3>
-				<p className="opacity-60 text-body max-w-md mx-auto">
-					Try changing your search terms or adjusting active filters to discover
-					more events.
-				</p>
-			</div>
-		);
+		return <EventsEmptyState />;
 	}
 
 	return (
-		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 my-6">
-			{events.map((event) => {
-				const ticket = event.tickets[0];
-				const eventDate = new Date(event.eventStart);
+		<section aria-labelledby="events-grid-heading">
+			<h2 id="events-grid-heading" className="sr-only">
+				Events
+			</h2>
+			<ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3">
+				{events.map((event) => {
+					const href = `/events/${event.slug}`;
+					const price = getCardPriceLabel(event.tickets);
+					const location =
+						event.location ||
+						(event.isOnline ? "Online" : "Location to be announced");
 
-				return (
-					<article
-						key={event.id}
-						className="flex flex-col justify-between border border-perforation rounded-lg overflow-hidden bg-paper hover:border-ink/20 transition-all shadow-sm hover:shadow-md"
-					>
-						<div>
-							{/* Ticket Header Graphic / Banner */}
-							<div className="h-32 bg-perforation/40 relative flex items-end p-4 border-b border-perforation overflow-hidden">
-								{event.bannerUrl && (
-									<Image
-										src={event.bannerUrl}
-										alt={`Banner for ${event.title}`}
-										fill
-										sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-										className="object-cover"
-									/>
-								)}
-								<span className="label relative z-10 bg-paper/90 backdrop-blur-xs text-ink px-2.5 py-1 rounded shadow-sm border border-perforation">
-									{event.organizer.name}
-								</span>
-							</div>
-
-							<div className="p-5">
-								<div className="flex items-center justify-between gap-2 mb-2">
-									<span className="label text-stamp">{event.format}</span>
-									{event.isOnline && (
-										<span className="label text-xs opacity-60">Online</span>
+					return (
+						<li key={event.id}>
+							<article className="flex h-full flex-col overflow-hidden rounded-md border border-perforation bg-paper transition-colors duration-150 hover:border-stamp/40">
+								<div className="relative flex aspect-video items-end overflow-hidden border-b border-perforation bg-perforation/40 p-4">
+									{event.bannerUrl && (
+										<Image
+											src={event.bannerUrl}
+											// Decorative: the title below names the event.
+											alt=""
+											fill
+											sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+											className="object-cover"
+										/>
 									)}
+									<span className="label relative max-w-full truncate rounded-sm border border-perforation bg-paper/90 px-2 py-1 text-ink">
+										{event.organizer.name}
+									</span>
 								</div>
 
-								<h3 className="font-display font-medium text-h3 mb-2 text-ink line-clamp-2">
-									<Link
-										href={`/events/${event.slug}`}
-										className="hover:underline"
-									>
-										{event.title}
-									</Link>
-								</h3>
+								<div className="flex flex-1 flex-col gap-2 p-4 md:p-6">
+									<div className="flex items-center justify-between gap-2">
+										<span className="label text-stamp">{event.format}</span>
+										{event.isOnline && (
+											<span className="label text-ink/70">Online</span>
+										)}
+									</div>
 
-								{event.description && (
-									<p className="text-body text-sm opacity-70 mb-4 line-clamp-2">
-										{event.description}
+									<h3 className="line-clamp-2 break-words font-display text-h3 font-medium text-ink">
+										<Link href={href} className="hover:underline">
+											{event.title}
+										</Link>
+									</h3>
+
+									{event.description && (
+										<p className="line-clamp-2 text-sm text-ink/70">
+											{event.description}
+										</p>
+									)}
+
+									<p className="flex min-w-0 items-center gap-2 font-mono text-sm text-ink/70">
+										<CalendarDays
+											width={16}
+											height={16}
+											className="shrink-0"
+											aria-hidden="true"
+										/>
+										<span className="truncate">
+											{dateFormatter.format(new Date(event.eventStart))} ·{" "}
+											{location}
+										</span>
 									</p>
-								)}
-
-								<div className="font-mono text-ticket opacity-60 flex items-center gap-2">
-									<svg
-										aria-hidden="true"
-										xmlns="http://www.w3.org/2000/svg"
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-										<line x1="16" x2="16" y1="2" y2="6" />
-										<line x1="8" x2="8" y1="2" y2="6" />
-										<line x1="3" x2="21" y1="10" y2="10" />
-									</svg>
-									<span>
-										{eventDate.toLocaleDateString("en-IN", {
-											month: "short",
-											day: "numeric",
-											year: "numeric",
-										})}{" "}
-										· {event.location}
-									</span>
 								</div>
-							</div>
-						</div>
 
-						{/* Signature Ticket Stub Tear-Line */}
-						<div className="p-5 pt-0">
-							<div className="tear-line pt-4 flex justify-between items-center">
-								<div className="flex flex-col">
-									<span className="label text-xs opacity-50">TICKET</span>
-									<span className="font-mono text-ticket font-medium text-ink">
-										{ticket?.price ? `₹${ticket.price}` : "Free"}
-									</span>
+								<div className="px-4 pb-4 md:px-6 md:pb-6">
+									<div className="tear-line flex items-center justify-between gap-4 pt-4">
+										<div className="flex flex-col">
+											<span className="label text-ink/70">Ticket</span>
+											<span className="font-mono text-ticket font-medium tabular-nums text-ink">
+												{price ?? "See details"}
+											</span>
+										</div>
+										<Link
+											href={href}
+											aria-label={`View event: ${event.title}`}
+											className="label inline-flex h-11 items-center rounded-md bg-stamp px-4 text-paper transition-opacity duration-150 hover:opacity-90 active:opacity-80"
+										>
+											View Event
+										</Link>
+									</div>
 								</div>
-								<Link
-									href={`/events/${event.slug}`}
-									className="label bg-stamp text-paper px-4 py-2 rounded text-xs hover:opacity-90 transition-opacity"
-								>
-									View Event
-								</Link>
-							</div>
-						</div>
-					</article>
-				);
-			})}
-		</div>
+							</article>
+						</li>
+					);
+				})}
+			</ul>
+		</section>
 	);
 }
