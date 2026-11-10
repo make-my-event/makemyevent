@@ -1,10 +1,18 @@
 "use client";
 
 import { useTheme } from "./theme-provider";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { JSX } from "react";
 
-export function ThemeToggle(): JSX.Element {
+export interface ThemeToggleProps {
+	/** "pill": round landing-page style. Default: the app's square button. */
+	variant?: "default" | "pill";
+}
+
+export function ThemeToggle({
+	variant = "default",
+}: ThemeToggleProps = {}): JSX.Element {
 	const { resolvedTheme, toggleTheme } = useTheme();
 	const [mounted, setMounted] = useState<boolean>(false);
 
@@ -12,10 +20,27 @@ export function ThemeToggle(): JSX.Element {
 		setMounted(true);
 	}, []);
 
+	// The pill picks its icon with `dark:` (ThemeScript has already set the
+	// class before paint), so it renders the right icon on the server too and
+	// needs no mount placeholder.
+	if (variant === "pill") {
+		return (
+			<button
+				type="button"
+				onClick={toggleTheme}
+				aria-label="Switch color theme"
+				className="inline-flex size-11 shrink-0 items-center justify-center rounded-pill border border-ink/15 text-ink transition-colors duration-150 hover:border-ink motion-reduce:transition-none"
+			>
+				<Moon aria-hidden="true" className="size-5 dark:hidden" />
+				<Sun aria-hidden="true" className="hidden size-5 dark:block" />
+			</button>
+		);
+	}
+
 	if (!mounted) {
 		return (
 			<div
-				className="w-8 h-8 rounded-full border border-perforation/40 bg-paper/50"
+				className="h-11 w-11 rounded-md border border-ink/50"
 				aria-hidden="true"
 			/>
 		);
@@ -27,7 +52,7 @@ export function ThemeToggle(): JSX.Element {
 		<button
 			type="button"
 			onClick={toggleTheme}
-			className="p-2 rounded-full border border-perforation text-ink opacity-70 hover:opacity-100 hover:bg-perforation/20 transition-all focus:outline-none focus:border-stamp focus:ring-1 focus:ring-stamp flex items-center justify-center cursor-pointer"
+			className="flex h-11 w-11 items-center justify-center rounded-md border border-ink/50 text-ink/70 transition-colors duration-150 hover:bg-perforation/20 hover:text-ink"
 			aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
 			title={isDark ? "Switch to light mode" : "Switch to dark mode"}
 		>

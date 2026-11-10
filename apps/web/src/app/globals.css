@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
 /* `dark:` utilities follow the theme toggle, which sets the .dark class on
@@ -8,6 +9,7 @@
 /* Brand colors (makemyevent-design skill). Source variables: light by
    default, dark under .dark. */
 :root {
+	color-scheme: light;
 	--paper: #f7f6f2;
 	--ink: #1b1a18;
 	--stamp: #1f7a4d;
@@ -15,7 +17,9 @@
 	--alert: #c0432a;
 }
 
-.dark {
+.dark,
+[data-theme="dark"] {
+	color-scheme: dark;
 	--paper: #131211;
 	--ink: #f4f3ee;
 	--stamp: #2d9b5e;
@@ -44,6 +48,198 @@
 	--text-h3: clamp(1.15rem, 3vw, 1.56rem);
 	--text-body: 1rem;
 	--text-ticket: 0.875rem;
+
+	/* Landing hero: a rubber stamp pressed onto the ticket once at load.
+	   Animates `scale`/`opacity` only, so the element's `rotate` utility is
+	   untouched. Apply with `motion-safe:` so reduced-motion users get the
+	   final state with no animation. */
+	--animate-stamp-press: stamp-press 300ms cubic-bezier(0.2, 0.8, 0.2, 1) 600ms
+		both;
+
+	@keyframes stamp-press {
+		0% {
+			opacity: 0;
+			scale: 1.6;
+		}
+		60% {
+			opacity: 1;
+			scale: 0.95;
+		}
+		100% {
+			opacity: 1;
+			scale: 1;
+		}
+	}
+}
+
+/* Landing page (marketing) tokens. Use these only in components/landing and
+   the landing variants of the site header/footer; app pages keep the standard
+   radius and type rules from the makemyevent-design skill. Values come from
+   the approved landing spec (makemyevent-landing-v4). */
+@theme {
+	/* Radius: pill buttons and larger, softer surfaces. */
+	--radius-pill: 9999px;
+	--radius-card: 0.75rem; /* 12px: large certificate */
+	--radius-ticket: 1rem; /* 16px: ticket, account menu, demo form card */
+	--radius-tile: 1.25rem; /* 20px: bento tiles, demo stage, scanner */
+	--radius-panel: 1.75rem; /* 28px: closing CTA panel, phone frame */
+
+	/* Fluid display sizes. clamp() is the one place the spec needs arbitrary
+	   values; keeping them here gives them names instead of text-[...]. */
+	--text-display: clamp(2.5rem, 1rem + 6.4vw, 5.5rem);
+	--text-display--line-height: 0.98;
+	--text-display--letter-spacing: -0.035em;
+	--text-section: clamp(2rem, 1.2rem + 3.4vw, 3.75rem);
+	--text-section--line-height: 1.02;
+	--text-section--letter-spacing: -0.035em;
+	--text-ticket-title: clamp(2rem, 1.2rem + 3.6vw, 4.25rem);
+	--text-ticket-title--line-height: 1;
+	--text-ticket-title--letter-spacing: -0.035em;
+	--text-marquee: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+	--text-marquee--line-height: 1.1;
+	--text-marquee--letter-spacing: -0.02em;
+	/* Feedback status text in compact bento tiles (spec v5). */
+	--text-tile-status-compact: 0.9375rem;
+	--text-tile-status-compact--line-height: 1.5;
+	--text-tab: clamp(1.375rem, 1rem + 1.6vw, 2.5rem);
+	--text-tab--line-height: 1.05;
+	--text-tab--letter-spacing: -0.03em;
+	--text-wordmark: clamp(2.5rem, 11.5vw, 10rem);
+	--text-wordmark--line-height: 0.85;
+	--text-wordmark--letter-spacing: -0.05em;
+
+	/* Floating layer only (account menu); derived from ink, no new color. */
+	--shadow-menu: 0 12px 32px color-mix(in srgb, var(--ink) 14%, transparent);
+
+	--ease-landing: cubic-bezier(0.2, 0, 0, 1);
+
+	/* Motion. Every use pairs with `motion-reduce:animate-none` (or a static
+	   fallback) in the component. */
+	--animate-line-up: line-up 0.8s var(--ease-landing) both;
+	--animate-ticket-rise: ticket-rise 0.9s var(--ease-landing) 0.3s both;
+	/* Animates `scale` and `opacity` only, so the stamp's `rotate` utility
+	   is kept. */
+	--animate-stamp-in: stamp-in 0.35s var(--ease-landing) 1.2s both;
+	--animate-marquee: marquee 45s linear infinite;
+	--animate-menu-pop: menu-pop 0.15s var(--ease-landing);
+	/* Must match TAB_DURATION_MS in components/landing/how-it-works-demo.tsx. */
+	--animate-tab-fill: tab-fill 5s linear forwards;
+	--animate-scan-sweep: scan-sweep 2s ease-in-out infinite alternate;
+	--animate-caret-blink: caret-blink 1s steps(2, start) infinite;
+	--animate-swap-out: swap-out 0.01s linear 1.2s forwards;
+	--animate-swap-in: swap-in 0.01s linear 1.2s forwards;
+	--animate-qr-in: qr-in 0.4s var(--ease-landing) 1.4s both;
+
+	@keyframes line-up {
+		from {
+			transform: translateY(110%);
+		}
+	}
+	@keyframes ticket-rise {
+		from {
+			transform: translateY(40px);
+			opacity: 0;
+		}
+	}
+	@keyframes stamp-in {
+		from {
+			opacity: 0;
+			scale: 1.6;
+		}
+		to {
+			opacity: 1;
+			scale: 1;
+		}
+	}
+	@keyframes marquee {
+		to {
+			transform: translateX(-50%);
+		}
+	}
+	@keyframes menu-pop {
+		from {
+			opacity: 0;
+			transform: scale(0.96) translateY(-4px);
+		}
+	}
+	@keyframes tab-fill {
+		from {
+			transform: scaleX(0);
+		}
+		to {
+			transform: scaleX(1);
+		}
+	}
+	@keyframes scan-sweep {
+		to {
+			top: calc(100% - 14px);
+		}
+	}
+	@keyframes caret-blink {
+		to {
+			visibility: hidden;
+		}
+	}
+	@keyframes swap-out {
+		to {
+			opacity: 0;
+		}
+	}
+	@keyframes swap-in {
+		to {
+			opacity: 1;
+		}
+	}
+	@keyframes qr-in {
+		from {
+			opacity: 0;
+			transform: scale(0.9);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+}
+
+/* Landing marquee: fades the strip's edges and pauses on hover. The mask
+   gradient is the one value the spec needs that Tailwind has no utility for;
+   `black` here is mask alpha, not a rendered color. */
+@utility marquee-mask {
+	-webkit-mask-image: linear-gradient(
+		90deg,
+		transparent,
+		black 6%,
+		black 94%,
+		transparent
+	);
+	mask-image: linear-gradient(
+		90deg,
+		transparent,
+		black 6%,
+		black 94%,
+		transparent
+	);
+
+	&:hover > * {
+		animation-play-state: paused;
+	}
+}
+
+/* Landing bento breakpoints (spec v5). 360px is not on Tailwind's scale, so
+   it gets a name here instead of repeated min-[360px] values. Landing only.
+   - bento-2col: two-column grid from 360px up to lg, where the 12-column
+     layout takes over. Capped at 64rem because custom variants sort after
+     lg: and would otherwise override lg:grid-cols-12.
+   - bento-compact: half-width tiles 360-639px, where tiles shrink their
+     illustration and keep the subtext for screen readers only. */
+@custom-variant bento-2col (@media (width >= 360px) and (width < 64rem));
+@custom-variant bento-compact (@media (width >= 360px) and (width < 40rem));
+
+/* Landing display type uses Archivo's width axis (loaded with axes: ["wdth"]
+   in app/layout.tsx). */
+@utility font-stretch-wide {
+	font-stretch: 112%;
 }
 
 body {
@@ -176,8 +372,48 @@ body {
 
 /* Multi-device Performance & Touch Optimization */
 html {
-	scroll-behavior: smooth;
 	-webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		scroll-behavior: smooth;
+	}
+}
+
+/* Base interaction styles. Components may override these with utilities
+   (utilities win over base). */
+@layer base {
+	/* Tailwind v4 preflight gives buttons `cursor: default` (v3 used pointer).
+	   Restore the pointer for every enabled button site-wide, as Tailwind's
+	   v4 upgrade guide recommends, instead of adding cursor-pointer per use. */
+	button:not(:disabled),
+	[role="button"]:not(:disabled) {
+		cursor: pointer;
+	}
+
+	/* Visible keyboard focus for every interactive element. */
+	:focus-visible {
+		outline: 2px solid var(--color-stamp);
+		outline-offset: 2px;
+	}
+}
+
+/* Respect the OS "reduce motion" setting site-wide, including third-party
+   animation utilities (tw-animate-css) and hover transforms. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		/* biome-ignore lint/complexity/noImportantStyles: must override component utilities when the user asks for reduced motion */
+		animation-duration: 0.01ms !important;
+		/* biome-ignore lint/complexity/noImportantStyles: must override component utilities when the user asks for reduced motion */
+		animation-iteration-count: 1 !important;
+		/* biome-ignore lint/complexity/noImportantStyles: must override component utilities when the user asks for reduced motion */
+		transition-duration: 0.01ms !important;
+		/* biome-ignore lint/complexity/noImportantStyles: must override component utilities when the user asks for reduced motion */
+		scroll-behavior: auto !important;
+	}
 }
 
 .scrollbar-none {

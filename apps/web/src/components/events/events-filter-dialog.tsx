@@ -1,5 +1,7 @@
 "use client";
 
+import { X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import type { JSX } from "react";
 
 export interface FilterState {
@@ -18,6 +20,9 @@ export interface EventsFilterDialogProps {
 	availableLocations: string[];
 }
 
+const selectClass =
+	"h-11 w-full rounded-md border border-ink/50 bg-paper px-4 text-base text-ink transition-colors duration-150 focus-visible:border-stamp";
+
 export function EventsFilterDialog({
 	isOpen,
 	onClose,
@@ -27,6 +32,31 @@ export function EventsFilterDialog({
 	availableFormats,
 	availableLocations,
 }: EventsFilterDialogProps): JSX.Element | null {
+	const closeButtonRef = useRef<HTMLButtonElement>(null);
+	// Callers often pass an inline arrow; keep the latest one in a ref so the
+	// effect below runs only on open/close, not on every filter change.
+	const onCloseRef = useRef(onClose);
+	useEffect(() => {
+		onCloseRef.current = onClose;
+	}, [onClose]);
+
+	// Move focus into the dialog on open, close on Escape, and return focus to
+	// whatever opened it when it closes.
+	useEffect(() => {
+		if (!isOpen) return;
+		const previouslyFocused = document.activeElement;
+		closeButtonRef.current?.focus();
+
+		function handleKeyDown(event: KeyboardEvent): void {
+			if (event.key === "Escape") onCloseRef.current();
+		}
+		document.addEventListener("keydown", handleKeyDown);
+		return () => {
+			document.removeEventListener("keydown", handleKeyDown);
+			if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
+		};
+	}, [isOpen]);
+
 	if (!isOpen) return null;
 
 	return (
@@ -34,53 +64,40 @@ export function EventsFilterDialog({
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="filter-title"
-			className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200"
+			className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm animate-in fade-in duration-200"
 		>
-			{/* Backdrop button for keyboard / click dismissal */}
+			{/* Backdrop: pointer dismissal only; keyboard users have Escape and
+			    the close button. */}
 			<button
 				type="button"
 				aria-label="Close filter overlay"
 				onClick={onClose}
-				className="fixed inset-0 w-full h-full cursor-default -z-10 focus:outline-none bg-transparent"
+				className="fixed inset-0 -z-10 h-full w-full cursor-default bg-transparent"
 				tabIndex={-1}
 			/>
 
-			<div className="w-full max-w-md bg-paper border border-perforation rounded-lg p-6 shadow-xl space-y-6 relative z-10">
-				<div className="flex items-center justify-between border-b border-perforation pb-4">
+			<div className="relative flex max-h-full w-full max-w-md flex-col gap-6 overflow-y-auto overscroll-contain rounded-lg border border-perforation bg-paper p-6 shadow-xl">
+				<div className="flex items-center justify-between gap-4 border-b border-perforation pb-4">
 					<h2
 						id="filter-title"
-						className="font-display font-semibold text-h3 text-ink"
+						className="font-display text-h3 font-semibold text-ink"
 					>
 						Filter Events
 					</h2>
 					<button
+						ref={closeButtonRef}
 						type="button"
 						onClick={onClose}
 						aria-label="Close filters"
-						className="p-2 rounded-md hover:bg-perforation/20 text-ink opacity-70 hover:opacity-100 transition-colors"
+						className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink/70 transition-colors duration-150 hover:bg-perforation/20 hover:text-ink"
 					>
-						<svg
-							aria-hidden="true"
-							xmlns="http://www.w3.org/2000/svg"
-							width="18"
-							height="18"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						>
-							<path d="M18 6 6 18" />
-							<path d="m6 6 12 12" />
-						</svg>
+						<X width={18} height={18} aria-hidden="true" />
 					</button>
 				</div>
 
-				<div className="space-y-4">
-					{/* Format */}
-					<div>
-						<label htmlFor="format-select" className="block label mb-2">
+				<div className="flex flex-col gap-4">
+					<div className="flex flex-col gap-2">
+						<label htmlFor="format-select" className="label">
 							Event Format
 						</label>
 						<select
@@ -89,7 +106,7 @@ export function EventsFilterDialog({
 							onChange={(e) =>
 								onFilterChange({ ...filters, format: e.target.value })
 							}
-							className="w-full bg-paper border border-perforation rounded-md px-4 py-2 text-body focus:outline-none focus:border-stamp focus:ring-1 focus:ring-stamp"
+							className={selectClass}
 						>
 							<option value="All">All Formats</option>
 							{availableFormats.map((fmt) => (
@@ -100,9 +117,8 @@ export function EventsFilterDialog({
 						</select>
 					</div>
 
-					{/* Location */}
-					<div>
-						<label htmlFor="location-select" className="block label mb-2">
+					<div className="flex flex-col gap-2">
+						<label htmlFor="location-select" className="label">
 							Location
 						</label>
 						<select
@@ -111,7 +127,7 @@ export function EventsFilterDialog({
 							onChange={(e) =>
 								onFilterChange({ ...filters, location: e.target.value })
 							}
-							className="w-full bg-paper border border-perforation rounded-md px-4 py-2 text-body focus:outline-none focus:border-stamp focus:ring-1 focus:ring-stamp"
+							className={selectClass}
 						>
 							<option value="All">All Locations</option>
 							{availableLocations.map((loc) => (
@@ -122,9 +138,8 @@ export function EventsFilterDialog({
 						</select>
 					</div>
 
-					{/* Ticket Pricing */}
-					<div>
-						<label htmlFor="pricing-select" className="block label mb-2">
+					<div className="flex flex-col gap-2">
+						<label htmlFor="pricing-select" className="label">
 							Pricing
 						</label>
 						<select
@@ -133,7 +148,7 @@ export function EventsFilterDialog({
 							onChange={(e) =>
 								onFilterChange({ ...filters, pricing: e.target.value })
 							}
-							className="w-full bg-paper border border-perforation rounded-md px-4 py-2 text-body focus:outline-none focus:border-stamp focus:ring-1 focus:ring-stamp"
+							className={selectClass}
 						>
 							<option value="all">All Events (Free & Paid)</option>
 							<option value="free">Free Only</option>
@@ -142,18 +157,18 @@ export function EventsFilterDialog({
 					</div>
 				</div>
 
-				<div className="flex items-center justify-between border-t border-perforation pt-4">
+				<div className="flex flex-col-reverse gap-2 border-t border-perforation pt-4 sm:flex-row sm:items-center sm:justify-between">
 					<button
 						type="button"
 						onClick={onReset}
-						className="label text-ink opacity-60 hover:opacity-100 transition-opacity"
+						className="label inline-flex h-11 items-center justify-center rounded-md px-4 text-ink/70 transition-colors duration-150 hover:bg-perforation/20 hover:text-ink"
 					>
 						Reset All
 					</button>
 					<button
 						type="button"
 						onClick={onClose}
-						className="bg-stamp text-paper label px-6 py-2 rounded-md hover:opacity-90 transition-opacity"
+						className="label inline-flex h-11 w-full items-center justify-center rounded-md bg-stamp px-6 text-paper transition-opacity duration-150 hover:opacity-90 active:opacity-80 sm:w-auto"
 					>
 						Apply Filters
 					</button>

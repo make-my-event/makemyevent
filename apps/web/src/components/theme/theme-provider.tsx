@@ -9,6 +9,7 @@ import {
 	useState,
 } from "react";
 import type { JSX, ReactNode } from "react";
+import { DEFAULT_THEME, THEME_STORAGE_KEY } from "./theme-constants";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -21,7 +22,9 @@ export interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "makemyevent-theme";
+function isTheme(value: unknown): value is Theme {
+	return value === "light" || value === "dark" || value === "system";
+}
 
 export interface ThemeProviderProps {
 	children: ReactNode;
@@ -30,24 +33,27 @@ export interface ThemeProviderProps {
 
 export function ThemeProvider({
 	children,
-	defaultTheme = "light",
+	defaultTheme = DEFAULT_THEME,
 }: ThemeProviderProps): JSX.Element {
-	const [theme, setThemeState] = useState<Theme>(() => {
-		if (typeof window !== "undefined") {
-			const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
-			if (saved === "light" || saved === "dark" || saved === "system") {
-				return saved;
-			}
-		}
-		return defaultTheme;
-	});
-
+	// Start from the default on both server and client so hydration matches;
+	// the saved value is read after mount. `ThemeScript` has already applied
+	// the saved theme to <html> before paint, so nothing flashes meanwhile.
+	const [theme, setThemeState] = useState<Theme>(defaultTheme);
+	const [isHydrated, setIsHydrated] = useState<boolean>(false);
 	const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
+
+	useEffect(() => {
+		try {
+			const saved = localStorage.getItem(THEME_STORAGE_KEY);
+			if (isTheme(saved)) setThemeState(saved);
+		} catch (error) {
+			console.error("[theme] Could not read saved theme:", error);
+		}
+		setIsHydrated(true);
+	}, []);
 
 	// Listen to system theme changes
 	useEffect(() => {
-		if (typeof window === "undefined") return;
-
 		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 		setSystemTheme(mediaQuery.matches ? "dark" : "light");
 
@@ -64,24 +70,22 @@ export function ThemeProvider({
 		return theme;
 	}, [theme, systemTheme]);
 
-	// Apply class and data-theme attribute
+	// Apply class and data-theme attribute. Skipped until the saved theme has
+	// been read, otherwise the first pass would briefly undo ThemeScript.
 	useEffect(() => {
-		if (typeof window === "undefined") return;
+		if (!isHydrated) return;
 		const root = document.documentElement;
-
-		if (resolvedTheme === "dark") {
-			root.classList.add("dark");
-			root.setAttribute("data-theme", "dark");
-		} else {
-			root.classList.remove("dark");
-			root.setAttribute("data-theme", "light");
-		}
-	}, [resolvedTheme]);
+		const isDark = resolvedTheme === "dark";
+		root.classList.toggle("dark", isDark);
+		root.setAttribute("data-theme", resolvedTheme);
+	}, [resolvedTheme, isHydrated]);
 
 	const setTheme = useCallback((newTheme: Theme) => {
 		setThemeState(newTheme);
-		if (typeof window !== "undefined") {
-			localStorage.setItem(STORAGE_KEY, newTheme);
+		try {
+			localStorage.setItem(THEME_STORAGE_KEY, newTheme);
+		} catch (error) {
+			console.error("[theme] Could not save theme:", error);
 		}
 	}, []);
 

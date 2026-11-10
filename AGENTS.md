@@ -1,8 +1,8 @@
 # Agent & contributor instructions
 
 Rules for anyone writing code here — a human contributor or an AI
-agent. Read `docs/architecture.md` and `docs/design-system.md`
-before making UI or schema changes; read `docs/security.md` before
+agent. Read `docs/architecture.md` and the makemyevent-design skill
+(`.agents/skills/makemyevent-design/`) before making UI or schema changes; read `docs/security.md` before
 touching auth, permissions, secrets, or user data — this file
 assumes you already know what's in those.
 
@@ -29,14 +29,14 @@ assumes you already know what's in those.
   renames and refactors don't silently break imports.
 
 ## Layout, spacing, color
+UI work follows the makemyevent-design skill for colors. Use theme tokens, never raw hex.
 
-All of this is defined in `docs/design-system.md` — this section is
+All of this is defined in the makemyevent-design skill
+(`.agents/skills/makemyevent-design/`) — this section is
 just the enforcement rule:
 
-- Spacing values come from the 8px scale (`4 8 16 24 32 48 64 96`)
-  only. No arbitrary Tailwind values like `p-[13px]`.
+- Colors, spacing and layout follow the makemyevent-design skill.
 - Colors come strictly from the 5 design system Tailwind tokens (`bg-paper`, `text-ink`, `bg-stamp`, `border-perforation`, `text-alert`). Absolutely NO raw hex values (e.g. `bg-[#22c55e]`), HSL/RGB values, or non-token Tailwind colors are permitted in components under any circumstances.
-- Responsive Grid Layouts: Always use `sm:` (640px+) or `md:` (768px+) for multi-column grids and side-by-side card layouts so that split-screen windows, iPads, and tablets render side-by-side gracefully without forcing single-column mobile drop.
 - Fonts are the three defined in the design system. Don't add a
   fourth "just for this component."
 - If a layout needs a value the design system doesn't have (a new
@@ -144,7 +144,7 @@ These rules are not suggestions.
 - Do not silently change the design system, the schema, or the API
   contract as a side effect of an unrelated fix.
 - Do not use the `browser_subagent` for purely capturing screenshots of complex React state or multi-step modal workflows (it is prone to infinite loops and timeouts). Verify UI changes manually or ask the user to verify.
-- Do not use emojis in UI components, documentation, or code. Use clean SVG icons or Lucide icons (`lucide-react`) per `docs/design-system.md`.
+- Do not use emojis in UI components, documentation, or code. Use clean SVG icons or Lucide icons (`lucide-react`) per the makemyevent-design skill.
 - Do not `return null` from NextAuth's `jwt` callback without
   understanding the consequences — it destroys the user's session
   cookie and can cause login loops if the trigger condition recurs.

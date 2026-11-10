@@ -41,7 +41,7 @@ export function Logo({
 
 	if (variant === "full") {
 		return (
-			<div className="inline-flex items-center gap-2.5">
+			<div className="inline-flex items-center gap-2">
 				<Logo
 					variant="icon"
 					width={width}

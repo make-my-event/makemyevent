@@ -16,8 +16,15 @@ import {
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { trpc } from "@/lib/trpc";
+import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { JSX } from "react";
+
+interface ActiveFilterChip {
+	key: string;
+	label: string;
+	onRemove: () => void;
+}
 
 export default function EventsPage(): JSX.Element {
 	const [searchQuery, setSearchQuery] = useState<string>("");
@@ -29,7 +36,13 @@ export default function EventsPage(): JSX.Element {
 		pricing: "all",
 	});
 
-	const { data: rawEvents, isLoading, isError } = trpc.events.list.useQuery();
+	const {
+		data: rawEvents,
+		isLoading,
+		isError,
+		refetch,
+		isRefetching,
+	} = trpc.events.list.useQuery();
 
 	const events: EventItem[] = useMemo(() => {
 		if (!rawEvents) return [];
@@ -70,7 +83,7 @@ export default function EventsPage(): JSX.Element {
 						}
 					} else if (token.startsWith("location:")) {
 						const locVal = token.replace("location:", "");
-						if (!event.location.toLowerCase().includes(locVal)) {
+						if (!(event.location ?? "").toLowerCase().includes(locVal)) {
 							matchesSearch = false;
 						}
 					} else if (token.startsWith("date:")) {
@@ -82,7 +95,7 @@ export default function EventsPage(): JSX.Element {
 					} else {
 						// Free-text query across title, description, location, organizer
 						const text =
-							`${event.title} ${event.description ?? ""} ${event.location} ${event.organizer.name} ${event.format} ${event.topic}`.toLowerCase();
+							`${event.title} ${event.description ?? ""} ${event.location ?? ""} ${event.organizer.name} ${event.format} ${event.topic}`.toLowerCase();
 						if (!text.includes(token)) {
 							matchesSearch = false;
 						}
@@ -100,8 +113,10 @@ export default function EventsPage(): JSX.Element {
 				return false;
 			}
 			if (filters.pricing !== "all") {
-				const ticket = event.tickets[0];
-				const isFree = !ticket?.price || ticket.price === 0;
+				// An event counts as free if any tier is free (or it has none).
+				const isFree =
+					event.tickets.length === 0 ||
+					event.tickets.some((ticket) => ticket.price === 0);
 				if (filters.pricing === "free" && !isFree) return false;
 				if (filters.pricing === "paid" && isFree) return false;
 			}
@@ -118,23 +133,55 @@ export default function EventsPage(): JSX.Element {
 		return count;
 	}, [filters]);
 
+	const resetFilters = (): void =>
+		setFilters({ format: "All", location: "All", pricing: "all" });
+
+	const activeChips: ActiveFilterChip[] = [];
+	const trimmedQuery = searchQuery.trim();
+	if (trimmedQuery) {
+		activeChips.push({
+			key: "query",
+			label: `Search: “${trimmedQuery}”`,
+			onRemove: () => setSearchQuery(""),
+		});
+	}
+	if (filters.format !== "All") {
+		activeChips.push({
+			key: "format",
+			label: `Format: ${filters.format}`,
+			onRemove: () => setFilters({ ...filters, format: "All" }),
+		});
+	}
+	if (filters.location !== "All") {
+		activeChips.push({
+			key: "location",
+			label: `Location: ${filters.location}`,
+			onRemove: () => setFilters({ ...filters, location: "All" }),
+		});
+	}
+	if (filters.pricing !== "all") {
+		activeChips.push({
+			key: "pricing",
+			label: `Pricing: ${filters.pricing}`,
+			onRemove: () => setFilters({ ...filters, pricing: "all" }),
+		});
+	}
+
 	return (
-		<div className="min-h-screen bg-paper flex flex-col">
+		<div className="flex min-h-dvh flex-col bg-paper">
 			<SiteHeader activeNav="events" />
 
-			{/* Main Content Area */}
-			<main className="flex-1 max-w-[1280px] w-full mx-auto px-4 md:px-6 lg:px-8 py-8">
-				<div className="mb-6">
-					<h1 className="font-display font-semibold text-h1 text-ink mb-2">
+			<main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-12 md:px-6 md:py-16 lg:px-8">
+				<div className="flex flex-col gap-2">
+					<h1 className="text-balance font-display text-h1 font-semibold text-ink">
 						Events Directory
 					</h1>
-					<p className="text-body opacity-70 max-w-xl">
+					<p className="max-w-prose text-pretty text-body text-ink/70">
 						Explore upcoming conferences, hackathons, workshops, and community
-						meetups happening near you.
+						meetups.
 					</p>
 				</div>
 
-				{/* FOSS United Inspired Events Toolbar */}
 				<EventsToolbar
 					searchQuery={searchQuery}
 					onSearchChange={setSearchQuery}
@@ -144,69 +191,33 @@ export default function EventsPage(): JSX.Element {
 					activeFilterCount={activeFilterCount}
 				/>
 
-				{/* Active Filters Tag Bar */}
-				{(activeFilterCount > 0 || searchQuery.trim()) && (
-					<div className="flex flex-wrap items-center gap-2 pt-4 pb-2">
-						<span className="label text-xs opacity-50">ACTIVE FILTERS:</span>
-						{searchQuery.trim() && (
-							<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-perforation/30 text-xs font-mono">
-								query: &quot;{searchQuery}&quot;
-								<button
-									type="button"
-									onClick={() => setSearchQuery("")}
-									className="hover:text-alert"
-								>
-									×
-								</button>
-							</span>
-						)}
-						{filters.format !== "All" && (
-							<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-perforation/30 text-xs font-mono">
-								format: {filters.format}
-								<button
-									type="button"
-									onClick={() => setFilters({ ...filters, format: "All" })}
-									className="hover:text-alert"
-								>
-									×
-								</button>
-							</span>
-						)}
-						{filters.location !== "All" && (
-							<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-perforation/30 text-xs font-mono">
-								location: {filters.location}
-								<button
-									type="button"
-									onClick={() => setFilters({ ...filters, location: "All" })}
-									className="hover:text-alert"
-								>
-									×
-								</button>
-							</span>
-						)}
-						{filters.pricing !== "all" && (
-							<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-perforation/30 text-xs font-mono">
-								pricing: {filters.pricing}
-								<button
-									type="button"
-									onClick={() => setFilters({ ...filters, pricing: "all" })}
-									className="hover:text-alert"
-								>
-									×
-								</button>
-							</span>
-						)}
+				{activeChips.length > 0 && (
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="label text-ink/70">Active filters</span>
+						{activeChips.map((chip) => (
+							<button
+								key={chip.key}
+								type="button"
+								onClick={chip.onRemove}
+								aria-label={`Remove filter ${chip.label}`}
+								className="inline-flex h-11 min-w-0 max-w-full items-center gap-2 rounded-md border border-ink/50 px-4 font-mono text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-perforation/20"
+							>
+								<span className="truncate">{chip.label}</span>
+								<X
+									width={16}
+									height={16}
+									className="shrink-0"
+									aria-hidden="true"
+								/>
+							</button>
+						))}
 						<button
 							type="button"
 							onClick={() => {
 								setSearchQuery("");
-								setFilters({
-									format: "All",
-									location: "All",
-									pricing: "all",
-								});
+								resetFilters();
 							}}
-							className="label text-xs text-alert hover:underline ml-2"
+							className="label inline-flex h-11 items-center rounded-md px-4 text-alert transition-colors duration-150 hover:bg-alert/10"
 						>
 							Clear all
 						</button>
@@ -215,32 +226,49 @@ export default function EventsPage(): JSX.Element {
 
 				{/* Loading State */}
 				{isLoading && (
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 my-8">
-						{[1, 2, 3, 4, 5, 6].map((i) => (
-							<div
-								key={i}
-								className="border border-perforation rounded-lg overflow-hidden animate-pulse bg-paper h-64"
-							>
-								<div className="h-28 bg-perforation/40" />
-								<div className="p-4 space-y-3">
-									<div className="h-3 w-16 bg-perforation/60 rounded" />
-									<div className="h-5 w-3/4 bg-perforation/60 rounded" />
-									<div className="h-3 w-24 bg-perforation/60 rounded" />
+					<div role="status">
+						<span className="sr-only">Loading events…</span>
+						<div
+							aria-hidden="true"
+							className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3"
+						>
+							{[1, 2, 3, 4, 5, 6].map((i) => (
+								<div
+									key={i}
+									className="overflow-hidden rounded-md border border-perforation bg-paper motion-safe:animate-pulse"
+								>
+									<div className="aspect-video bg-perforation/40" />
+									<div className="flex flex-col gap-2 p-4 md:p-6">
+										<div className="h-3 w-16 rounded-sm bg-perforation/60" />
+										<div className="h-5 w-3/4 rounded-sm bg-perforation/60" />
+										<div className="h-3 w-24 rounded-sm bg-perforation/60" />
+									</div>
 								</div>
-							</div>
-						))}
+							))}
+						</div>
 					</div>
 				)}
 
 				{/* Error State */}
 				{isError && (
-					<div className="py-24 text-center border border-perforation rounded-lg bg-paper my-8">
-						<h3 className="font-display font-medium text-h3 mb-2 text-alert">
-							Unable to load events
-						</h3>
-						<p className="opacity-60 text-body">
-							The API server might not be running or reachable.
-						</p>
+					<div className="flex flex-col items-center gap-6 rounded-md border border-perforation bg-paper px-4 py-16 text-center md:py-24">
+						<div className="flex max-w-prose flex-col gap-2">
+							<h2 className="font-display text-h3 font-medium text-ink">
+								We couldn’t load events
+							</h2>
+							<p className="text-pretty text-body text-ink/70">
+								Something went wrong on our side. Check your connection and try
+								again.
+							</p>
+						</div>
+						<button
+							type="button"
+							onClick={() => refetch()}
+							disabled={isRefetching}
+							className="label inline-flex h-11 w-full items-center justify-center rounded-md bg-stamp px-6 text-paper transition-opacity duration-150 hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+						>
+							{isRefetching ? "Retrying…" : "Try Again"}
+						</button>
 					</div>
 				)}
 
@@ -260,9 +288,7 @@ export default function EventsPage(): JSX.Element {
 				onClose={() => setIsFilterOpen(false)}
 				filters={filters}
 				onFilterChange={setFilters}
-				onReset={() =>
-					setFilters({ format: "All", location: "All", pricing: "all" })
-				}
+				onReset={resetFilters}
 				availableFormats={availableFormats}
 				availableLocations={availableLocations}
 			/>
