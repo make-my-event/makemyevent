@@ -79,21 +79,23 @@ export function Toast({
 	return (
 		<div
 			aria-live="polite"
-			className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4"
+			className="pointer-events-none fixed inset-x-0 bottom-16 z-40 flex justify-center px-4 pb-[env(safe-area-inset-bottom)]"
 		>
 			{toast && Icon && (
 				<div
 					key={toast.id}
 					role={toast.type === "error" ? "alert" : "status"}
-					className={`pointer-events-auto flex max-w-md items-start gap-2.5 rounded-md px-4 py-2.5 shadow-lg ${STYLES[toast.type]}`}
+					className={`pointer-events-auto flex max-w-md items-center gap-2 rounded-md py-1 pl-4 pr-1 shadow-lg ${STYLES[toast.type]}`}
 				>
-					<Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-					<span className="text-sm font-medium">{toast.message}</span>
+					<Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+					<span className="min-w-0 break-words py-2 text-sm font-medium">
+						{toast.message}
+					</span>
 					<button
 						type="button"
 						onClick={onDismiss}
 						aria-label="Dismiss notification"
-						className="-mr-1 ml-1 shrink-0 cursor-pointer rounded p-0.5 opacity-80 hover:opacity-100"
+						className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md opacity-80 transition-opacity duration-150 hover:opacity-100"
 					>
 						<X size={16} />
 					</button>

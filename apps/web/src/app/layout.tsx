@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { headers } from "next/headers";
 import type { JSX, ReactNode } from "react";
 import "./globals.css";
+import { ThemeScript } from "@/components/theme/theme-script";
 import { Providers } from "./providers";
 
 const archivo = Archivo({
@@ -48,7 +50,7 @@ export const metadata: Metadata = {
 	],
 	openGraph: {
 		type: "website",
-		locale: "en_US",
+		locale: "en_IN",
 		url: baseUrl,
 		title: "makemyevent | Find and host community events",
 		description:
@@ -57,14 +59,16 @@ export const metadata: Metadata = {
 		images: [
 			{
 				url: "/makemyevent-symbol-575x630.png",
-				width: 1200,
+				width: 575,
 				height: 630,
-				alt: "makemyevent preview",
+				alt: "makemyevent logo",
 			},
 		],
 	},
 	twitter: {
-		card: "summary_large_image",
+		// The only share image is the square-ish logo, which a large card
+		// would crop. Switch back once a 1200x630 banner image exists.
+		card: "summary",
 		title: "makemyevent | Find and host community events",
 		description: "Open-source event ticketing and management platform.",
 		images: ["/makemyevent-symbol-575x630.png"],
@@ -93,21 +97,37 @@ export const metadata: Metadata = {
 	manifest: "/manifest.json",
 };
 
+// Pinch-zoom must stay enabled (WCAG 1.4.4), so no maximumScale/userScalable.
+// theme-color needs literal values; they mirror the `paper` token in
+// globals.css (light and dark). Update both together.
 export const viewport: Viewport = {
 	width: "device-width",
 	initialScale: 1,
-	maximumScale: 1,
-	userScalable: false,
+	colorScheme: "light dark",
+	themeColor: [
+		{ media: "(prefers-color-scheme: light)", color: "#f7f6f2" },
+		{ media: "(prefers-color-scheme: dark)", color: "#131211" },
+	],
 };
 
 export interface RootLayoutProps {
 	children: ReactNode;
 }
 
-export default function RootLayout({ children }: RootLayoutProps): JSX.Element {
+export default async function RootLayout({
+	children,
+}: RootLayoutProps): Promise<JSX.Element> {
+	// The proxy (src/proxy.ts) puts a fresh CSP nonce on every request. Reading
+	// it opts every route into dynamic rendering, which nonces require (Next.js
+	// can only add them during server rendering).
+	const nonce = (await headers()).get("x-nonce") ?? undefined;
+
 	return (
-		<html lang="en">
+		// suppressHydrationWarning: ThemeScript sets class/data-theme on <html>
+		// before React hydrates; only this element's attributes are affected.
+		<html lang="en" suppressHydrationWarning>
 			<head>
+				<ThemeScript nonce={nonce} />
 				<link
 					rel="icon"
 					href="/makemyevent-symbol-467x512.svg"

@@ -15,7 +15,7 @@ export function ThemeToggle(): JSX.Element {
 	if (!mounted) {
 		return (
 			<div
-				className="w-8 h-8 rounded-full border border-perforation/40 bg-paper/50"
+				className="h-11 w-11 rounded-md border border-ink/50"
 				aria-hidden="true"
 			/>
 		);
@@ -27,7 +27,7 @@ export function ThemeToggle(): JSX.Element {
 		<button
 			type="button"
 			onClick={toggleTheme}
-			className="p-2 rounded-full border border-perforation text-ink opacity-70 hover:opacity-100 hover:bg-perforation/20 transition-all focus:outline-none focus:border-stamp focus:ring-1 focus:ring-stamp flex items-center justify-center cursor-pointer"
+			className="flex h-11 w-11 items-center justify-center rounded-md border border-ink/50 text-ink/70 transition-colors duration-150 hover:bg-perforation/20 hover:text-ink"
 			aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
 			title={isDark ? "Switch to light mode" : "Switch to dark mode"}
 		>

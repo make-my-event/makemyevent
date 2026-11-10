@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
 /* `dark:` utilities follow the theme toggle, which sets the .dark class on
@@ -8,6 +9,7 @@
 /* Brand colors (makemyevent-design skill). Source variables: light by
    default, dark under .dark. */
 :root {
+	color-scheme: light;
 	--paper: #f7f6f2;
 	--ink: #1b1a18;
 	--stamp: #1f7a4d;
@@ -15,7 +17,9 @@
 	--alert: #c0432a;
 }
 
-.dark {
+.dark,
+[data-theme="dark"] {
+	color-scheme: dark;
 	--paper: #131211;
 	--ink: #f4f3ee;
 	--stamp: #2d9b5e;
@@ -176,8 +180,48 @@ body {
 
 /* Multi-device Performance & Touch Optimization */
 html {
-	scroll-behavior: smooth;
 	-webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		scroll-behavior: smooth;
+	}
+}
+
+/* Base interaction styles. Components may override these with utilities
+   (utilities win over base). */
+@layer base {
+	/* Tailwind v4 preflight gives buttons `cursor: default` (v3 used pointer).
+	   Restore the pointer for every enabled button site-wide, as Tailwind's
+	   v4 upgrade guide recommends, instead of adding cursor-pointer per use. */
+	button:not(:disabled),
+	[role="button"]:not(:disabled) {
+		cursor: pointer;
+	}
+
+	/* Visible keyboard focus for every interactive element. */
+	:focus-visible {
+		outline: 2px solid var(--color-stamp);
+		outline-offset: 2px;
+	}
+}
+
+/* Respect the OS "reduce motion" setting site-wide, including third-party
+   animation utilities (tw-animate-css) and hover transforms. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		/* biome-ignore lint/complexity/noImportantStyles: must override component utilities when the user asks for reduced motion */
+		animation-duration: 0.01ms !important;
+		/* biome-ignore lint/complexity/noImportantStyles: must override component utilities when the user asks for reduced motion */
+		animation-iteration-count: 1 !important;
+		/* biome-ignore lint/complexity/noImportantStyles: must override component utilities when the user asks for reduced motion */
+		transition-duration: 0.01ms !important;
+		/* biome-ignore lint/complexity/noImportantStyles: must override component utilities when the user asks for reduced motion */
+		scroll-behavior: auto !important;
+	}
 }
 
 .scrollbar-none {
