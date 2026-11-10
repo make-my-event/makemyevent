@@ -87,3 +87,9 @@ scratch
 
 # Vercel
 .vercel
+
+# Agent skills: ignore installed third-party skills, keep our own
+.agents/skills/*
+!.agents/skills/makemyevent-design/
+.claude/
+skills-lock.json
