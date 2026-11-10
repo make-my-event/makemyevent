@@ -1,50 +1,106 @@
+import { FooterWordmark } from "@/components/landing/footer-wordmark";
 import { Logo } from "@/components/ui/logo";
 import Link from "next/link";
 import type { JSX } from "react";
 
-export function SiteFooter(): JSX.Element {
+const REPO_URL = "https://github.com/make-my-event/makemyevent";
+
+export interface SiteFooterProps {
+	/** "landing": the marketing page footer with the large wordmark. */
+	variant?: "app" | "landing";
+}
+
+export function SiteFooter({
+	variant = "app",
+}: SiteFooterProps = {}): JSX.Element {
+	return variant === "landing" ? <LandingFooter /> : <AppFooter />;
+}
+
+const LANDING_LINKS = [
+	{ label: "GitHub", href: REPO_URL },
+	{
+		label: "Contributing",
+		href: `${REPO_URL}/blob/development/CONTRIBUTING.md`,
+	},
+	{ label: "Security", href: `${REPO_URL}/security` },
+	{ label: "License", href: `${REPO_URL}/blob/development/LICENSE.txt` },
+];
+
+function LandingFooter(): JSX.Element {
 	return (
-		<footer className="border-t border-perforation bg-paper py-10 text-ink">
-			<div className="max-w-[1280px] mx-auto px-4 md:px-6 lg:px-8 space-y-8">
-				<div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+		<footer className="overflow-hidden pt-8">
+			<div className="mx-auto w-full max-w-7xl px-4 md:px-6 lg:px-8">
+				<div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+					<Link
+						href="/"
+						aria-label="makemyevent home"
+						className="inline-flex min-h-11 items-center gap-2 font-display text-xl leading-none font-semibold tracking-tight no-underline"
+					>
+						<Logo width={22} height={24} className="h-6 w-auto" />
+						<span translate="no">makemyevent</span>
+					</Link>
+					<nav aria-label="Footer" className="flex flex-wrap gap-x-4">
+						{LANDING_LINKS.map((link) => (
+							<a
+								key={link.label}
+								href={link.href}
+								className="inline-flex min-h-11 items-center underline underline-offset-4"
+							>
+								{link.label}
+							</a>
+						))}
+					</nav>
+					<p className="text-sm text-ink/70">
+						© {new Date().getFullYear()} <span translate="no">makemyevent</span>
+					</p>
+				</div>
+				<FooterWordmark />
+			</div>
+		</footer>
+	);
+}
+
+function AppFooter(): JSX.Element {
+	return (
+		<footer className="border-t border-perforation bg-paper py-12 text-ink">
+			<div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 md:px-6 lg:px-8">
+				<div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
 					{/* Left: Brand Identity */}
-					<div className="space-y-2 max-w-md">
+					<div className="flex max-w-md flex-col gap-2">
 						<Link
 							href="/"
-							className="font-display font-semibold text-h3 tracking-tight flex items-center gap-2.5"
+							aria-label="makemyevent home"
+							className="flex min-h-11 items-center gap-2 self-start rounded-md font-display text-h3 font-semibold tracking-tight"
 						>
-							<Logo width={32} height={32} className="w-8 h-8 object-contain" />
-							<span>makemyevent</span>
+							<Logo width={32} height={32} className="h-8 w-8 object-contain" />
+							<span translate="no">makemyevent</span>
 						</Link>
-						<p className="text-xs text-ink opacity-70 leading-relaxed font-sans">
+						<p className="text-pretty text-sm leading-relaxed text-ink/70">
 							Open-source event ticketing and community management platform.
 							Built for organizers, meetups, and conferences.
 						</p>
 					</div>
 
 					{/* Right: Quick Links + GitHub Button */}
-					<div className="flex flex-wrap items-center gap-6 text-xs font-medium">
+					<nav
+						aria-label="Footer"
+						className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium"
+					>
 						<Link
 							href="/events"
-							className="opacity-70 hover:opacity-100 transition-opacity"
+							className="inline-flex h-11 items-center text-ink/70 transition-colors duration-150 hover:text-ink"
 						>
 							Explore Events
 						</Link>
 						<Link
-							href="/onboarding"
-							className="opacity-70 hover:opacity-100 transition-opacity"
-						>
-							Communities
-						</Link>
-						<Link
 							href="/dashboard"
-							className="opacity-70 hover:opacity-100 transition-opacity"
+							className="inline-flex h-11 items-center text-ink/70 transition-colors duration-150 hover:text-ink"
 						>
 							Dashboard
 						</Link>
 						<a
 							href="mailto:admin@makemyevent.org"
-							className="opacity-70 hover:opacity-100 transition-opacity"
+							className="inline-flex h-11 items-center text-ink/70 transition-colors duration-150 hover:text-ink"
 						>
 							Contact
 						</a>
@@ -54,7 +110,7 @@ export function SiteFooter(): JSX.Element {
 							href="https://github.com/make-my-event/makemyevent"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-perforation hover:border-ink/40 bg-paper/60 text-ink font-mono text-xs hover:bg-perforation/20 transition-all cursor-pointer shadow-xs"
+							className="inline-flex h-11 items-center gap-2 rounded-md border border-ink/50 px-4 font-mono text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-perforation/20"
 						>
 							<svg
 								aria-hidden="true"
@@ -72,21 +128,17 @@ export function SiteFooter(): JSX.Element {
 								<path d="M9 18c-4.51 2-5-2-7-2" />
 							</svg>
 							<span>GitHub Repository</span>
+							<span className="sr-only"> (opens in a new tab)</span>
 						</a>
-					</div>
+					</nav>
 				</div>
 
 				{/* Bottom copyright line */}
-				<div className="border-t border-perforation/60 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-mono opacity-60">
-					<p>© {new Date().getFullYear()} makemyevent. Open Source.</p>
-					<a
-						href="https://github.com/make-my-event/makemyevent"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="hover:underline hover:opacity-100 transition-opacity"
-					>
-						github.com/make-my-event/makemyevent
-					</a>
+				<div className="border-t border-perforation pt-6 font-mono text-sm text-ink/70">
+					<p>
+						© {new Date().getFullYear()} <span translate="no">makemyevent</span>
+						. Open Source.
+					</p>
 				</div>
 			</div>
 		</footer>

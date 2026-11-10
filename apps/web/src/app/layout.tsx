@@ -6,9 +6,13 @@ import "./globals.css";
 import { ThemeScript } from "@/components/theme/theme-script";
 import { Providers } from "./providers";
 
+// Variable font so the width axis can load (next/font only accepts `axes`
+// with a variable weight). Covers the 500 and 600 weights the design uses;
+// the landing display type sets font-stretch 112% (font-stretch-wide).
 const archivo = Archivo({
 	subsets: ["latin"],
-	weight: ["500", "600"],
+	weight: "variable",
+	axes: ["wdth"],
 	variable: "--font-display",
 });
 const plexSans = IBM_Plex_Sans({
