@@ -132,23 +132,23 @@ export function LoginForm(): JSX.Element {
 	};
 
 	return (
-		<div className="w-full max-w-sm mx-auto">
-			<div className="text-center mb-8">
-				<h1 className="font-display font-semibold text-h2 mb-2">
+		<div className="mx-auto flex w-full max-w-sm flex-col gap-8">
+			<div className="flex flex-col gap-2 text-center">
+				<h1 className="text-balance font-display text-h2 font-semibold">
 					{isLogin ? "Welcome back" : "Create an account"}
 				</h1>
-				<p className="text-body opacity-80">
+				<p className="text-pretty text-body text-ink/70">
 					{isLogin
 						? "Sign in to your makemyevent account"
 						: "Sign up to start organizing and attending"}
 				</p>
 			</div>
 
-			<div className="space-y-4 mb-8">
+			<div className="flex flex-col gap-4">
 				<button
 					type="button"
 					onClick={() => handleOAuthLogin("github")}
-					className="w-full flex items-center justify-center gap-4 bg-paper border border-perforation text-ink p-4 rounded-md hover:border-ink/30 transition-colors"
+					className="flex h-11 w-full items-center justify-center gap-4 rounded-md border border-ink/50 bg-paper px-4 text-ink transition-colors duration-150 hover:border-ink hover:bg-perforation/20 active:bg-perforation/40"
 				>
 					<svg
 						aria-hidden="true"
@@ -171,7 +171,7 @@ export function LoginForm(): JSX.Element {
 				<button
 					type="button"
 					onClick={() => handleOAuthLogin("google")}
-					className="w-full flex items-center justify-center gap-4 bg-paper border border-perforation text-ink p-4 rounded-md hover:border-ink/30 transition-colors"
+					className="flex h-11 w-full items-center justify-center gap-4 rounded-md border border-ink/50 bg-paper px-4 text-ink transition-colors duration-150 hover:border-ink hover:bg-perforation/20 active:bg-perforation/40"
 				>
 					<svg
 						aria-hidden="true"
@@ -193,16 +193,16 @@ export function LoginForm(): JSX.Element {
 				</button>
 			</div>
 
-			<div className="relative mb-8 text-center">
+			<div className="relative text-center">
 				<div className="absolute inset-0 flex items-center" aria-hidden="true">
 					<div className="w-full border-t border-perforation" />
 				</div>
 				<div className="relative flex justify-center">
-					<span className="bg-paper px-4 label text-ink opacity-60">Or</span>
+					<span className="label bg-paper px-4 text-ink/70">Or</span>
 				</div>
 			</div>
 
-			<form onSubmit={handleSubmit} className="space-y-4">
+			<form onSubmit={handleSubmit} className="flex flex-col gap-4">
 				{notice && (
 					<div
 						role="status"
@@ -212,7 +212,10 @@ export function LoginForm(): JSX.Element {
 					</div>
 				)}
 				{error && (
-					<div className="p-3 mb-4 text-sm text-alert bg-alert/10 border border-alert/20 rounded-md text-center">
+					<div
+						role="alert"
+						className="rounded-md border border-alert/20 bg-alert/10 p-4 text-center text-sm text-alert"
+					>
 						{error}
 						{showResend && (
 							<button
@@ -233,47 +236,54 @@ export function LoginForm(): JSX.Element {
 					</div>
 				)}
 				{!isLogin && (
-					<div>
-						<label htmlFor="name" className="block label mb-2">
+					<div className="flex flex-col gap-2">
+						<label htmlFor="name" className="label">
 							Full name
 						</label>
 						<input
 							id="name"
+							name="name"
 							type="text"
+							autoComplete="name"
 							required
 							value={name}
 							onChange={(e) => setName(e.target.value)}
 							placeholder="Your name"
-							className="w-full bg-paper border border-perforation rounded-md px-4 py-4 text-body focus:outline-none focus:border-stamp focus:ring-1 focus:ring-stamp"
+							className="h-11 w-full rounded-md border border-ink/50 bg-paper px-4 text-base text-ink placeholder:text-ink/50 transition-colors duration-150 focus-visible:border-stamp"
 						/>
 					</div>
 				)}
-				<div>
-					<label htmlFor="email" className="block label mb-2">
+				<div className="flex flex-col gap-2">
+					<label htmlFor="email" className="label">
 						Email address
 					</label>
 					<input
 						id="email"
+						name="email"
 						type="email"
+						autoComplete="email"
+						spellCheck={false}
 						required
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						placeholder="you@example.com"
-						className="w-full bg-paper border border-perforation rounded-md px-4 py-4 text-body focus:outline-none focus:border-stamp focus:ring-1 focus:ring-stamp"
+						className="h-11 w-full rounded-md border border-ink/50 bg-paper px-4 text-base text-ink placeholder:text-ink/50 transition-colors duration-150 focus-visible:border-stamp"
 					/>
 				</div>
-				<div>
-					<label htmlFor="password" className="block label mb-2">
+				<div className="flex flex-col gap-2">
+					<label htmlFor="password" className="label">
 						Password
 					</label>
 					<input
 						id="password"
+						name="password"
 						type="password"
+						autoComplete={isLogin ? "current-password" : "new-password"}
 						required
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 						placeholder="••••••••"
-						className="w-full bg-paper border border-perforation rounded-md px-4 py-4 text-body focus:outline-none focus:border-stamp focus:ring-1 focus:ring-stamp"
+						className="h-11 w-full rounded-md border border-ink/50 bg-paper px-4 text-base text-ink placeholder:text-ink/50 transition-colors duration-150 focus-visible:border-stamp"
 					/>
 					{isLogin && (
 						<Link
@@ -287,13 +297,14 @@ export function LoginForm(): JSX.Element {
 				<button
 					type="submit"
 					disabled={isLoading}
-					className="w-full bg-stamp text-paper label p-4 rounded-md hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-not-allowed"
+					aria-busy={isLoading}
+					className="label inline-flex h-11 w-full items-center justify-center rounded-md bg-stamp px-4 text-paper transition-opacity duration-150 hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-70"
 				>
-					{isLoading ? "Please wait..." : isLogin ? "Sign In" : "Sign Up"}
+					{isLoading ? "Please wait…" : isLogin ? "Sign In" : "Sign Up"}
 				</button>
 			</form>
 
-			<div className="mt-6 text-center">
+			<div className="flex flex-col items-center gap-4 text-center">
 				<button
 					type="button"
 					onClick={() => {
@@ -302,25 +313,13 @@ export function LoginForm(): JSX.Element {
 						setNotice(null);
 						setShowResend(false);
 					}}
-					className="text-body text-sm underline hover:text-stamp transition-colors"
+					className="inline-flex min-h-11 items-center text-sm text-ink underline transition-colors duration-150 hover:text-stamp"
 				>
 					{isLogin
-						? "Don't have an account? Sign up"
+						? "Don’t have an account? Sign up"
 						: "Already have an account? Sign in"}
 				</button>
 			</div>
-
-			<p className="mt-8 text-center text-body text-sm opacity-60">
-				By continuing, you agree to our{" "}
-				<Link href="#" className="underline hover:text-ink">
-					Terms of Service
-				</Link>{" "}
-				and{" "}
-				<Link href="#" className="underline hover:text-ink">
-					Privacy Policy
-				</Link>
-				.
-			</p>
 		</div>
 	);
 }
