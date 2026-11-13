@@ -14,10 +14,6 @@ dist/
 .env.*
 !.env.example
 
-# supabase local state
-supabase/.branches/
-supabase/.temp/
-
 # os / editor
 .DS_Store
 *.log

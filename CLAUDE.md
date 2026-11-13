@@ -1,6 +1,6 @@
 # makemyevent — Engineering Standards
 
-Global event ticketing marketplace (Stripe Connect, multi-organizer). Web: Next.js. Mobile: Expo. API: Hono + tRPC. DB: Postgres + RLS. Cache/queues: Redis + BullMQ.
+Global event ticketing marketplace (Stripe Connect, multi-organizer). Web: Next.js. Mobile: Expo. API: Hono + tRPC. DB: Postgres (Supabase-hosted) via Prisma in packages/db, which owns schema and migrations for every environment; RLS policies as SQL in Prisma migrations. No supabase/ folder unless edge functions or storage rules are adopted. Cache/queues: Redis + BullMQ.
 
 ## Non-negotiable principle
 
