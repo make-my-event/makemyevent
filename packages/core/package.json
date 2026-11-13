@@ -1,10 +1,10 @@
 {
-  "name": "@makemyevent/core",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .turbo *.tsbuildinfo"
-  }
+	"name": "@makemyevent/core",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"clean": "rm -rf dist .turbo *.tsbuildinfo"
+	}
 }

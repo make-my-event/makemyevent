@@ -1,22 +1,141 @@
-# dependencies
-node_modules/
+# Dependencies
+node_modules
 .pnpm-store/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# builds
-dist/
+# Next.js
 .next/
-.expo/
-.turbo/
-*.tsbuildinfo
+.next-*/
+out/
+next-env.d.ts
 
-# env — only .env.example is committed
+# Build & caches
+dist/
+build/
+.turbo/
+.cache/
+.parcel-cache/
+storybook-static/
+
+# Environment variables — every .env file is ignored except the committed template
 .env
 .env.*
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 !.env.example
+!.env*.example
 
-# os / editor
-.DS_Store
+# Database & Prisma
+packages/db/generated/
+generated/
+*.sqlite
+*.sqlite-journal
+*.db
+*.dump
+*.sql.gz
+
+# Mobile / Expo (continuous native generation: android/ and ios/ are build outputs)
+.expo/
+.expo-shared/
+expo-env.d.ts
+apps/mobile/android/
+apps/mobile/ios/
+web-build/
+*.orig.*
+*.apk
+*.aab
+*.ipa
+*.app.zip
+
+# Signing & credentials — never committed
+*.jks
+*.keystore
+*.p8
+*.p12
+*.pem
+*.key
+*.mobileprovision
+*.cer
+credentials.json
+google-services.json
+GoogleService-Info.plist
+service-account*.json
+client_secret*.json
+*oauth*client*.json
+.sentryclirc
+sentry.properties
+
+# Testing, coverage & perf
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+.lighthouseci/
+k6-results/
+*.har
+
+# TypeScript
+*.tsbuildinfo
+
+# Debug & Logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# IDE & Editor files
 .idea/
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Temporary & Patches
+*.patch
+*.diff
+scratch/
+scratch
+.scratch/
+
+# Hosting & local infra
+.vercel
+.fly/
+docker-compose.override.yml
+.docker/
+
+# Local tool state
+.superdesign/
+.supabase/
+supabase/.temp/
+.stripe/
+
+# Agent skills: ignore installed third-party skills, keep our own
+.agents/skills/*
+!.agents/skills/makemyevent-design/
+.claude/
+skills-lock.json

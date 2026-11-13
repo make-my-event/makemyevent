@@ -1,24 +1,26 @@
 {
-  "name": "makemyevent",
-  "private": true,
-  "packageManager": "pnpm@10.30.3",
-  "engines": {
-    "node": ">=22",
-    "pnpm": ">=10"
-  },
-  "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
-    "clean": "turbo run clean && rm -rf node_modules",
-    "db:generate": "pnpm --filter @makemyevent/db generate",
-    "db:migrate": "pnpm --filter @makemyevent/db migrate",
-    "db:studio": "pnpm --filter @makemyevent/db studio"
-  },
-  "devDependencies": {
-    "turbo": "^2",
-    "typescript": "^5"
-  }
+	"name": "makemyevent",
+	"private": true,
+	"packageManager": "pnpm@10.30.3",
+	"engines": {
+		"node": ">=22",
+		"pnpm": ">=10"
+	},
+	"scripts": {
+		"build": "turbo run build",
+		"clean": "turbo run clean && rm -rf node_modules",
+		"db:generate": "pnpm --filter @makemyevent/db generate",
+		"db:migrate": "pnpm --filter @makemyevent/db migrate",
+		"db:studio": "pnpm --filter @makemyevent/db studio",
+		"dev": "turbo run dev",
+		"format": "biome check --write .",
+		"lint": "biome check .",
+		"test": "turbo run test",
+		"typecheck": "turbo run typecheck"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.7",
+		"turbo": "^2",
+		"typescript": "^5"
+	}
 }

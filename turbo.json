@@ -1,17 +1,17 @@
 {
-  "$schema": "https://turbo.build/schema.json",
-  "ui": "tui",
-  "globalEnv": ["APP_ENV", "NODE_ENV"],
-  "globalPassThroughEnv": ["CI", "VERCEL", "EAS_BUILD"],
-  "tasks": {
-    "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
-    },
-    "dev": { "cache": false, "persistent": true },
-    "lint": { "dependsOn": ["^build"] },
-    "typecheck": { "dependsOn": ["^build"] },
-    "test": { "dependsOn": ["^build"] },
-    "clean": { "cache": false }
-  }
+	"$schema": "https://turbo.build/schema.json",
+	"ui": "tui",
+	"globalEnv": ["APP_ENV", "NODE_ENV"],
+	"globalPassThroughEnv": ["CI", "VERCEL", "EAS_BUILD"],
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+		},
+		"dev": { "cache": false, "persistent": true },
+		"lint": { "dependsOn": ["^build"] },
+		"typecheck": { "dependsOn": ["^build"] },
+		"test": { "dependsOn": ["^build"] },
+		"clean": { "cache": false }
+	}
 }

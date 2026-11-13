@@ -14,7 +14,8 @@ Phases narrow **scope**, never **quality**. Nothing ships as a temporary shortcu
 - Postgres RLS on every tenant-scoped table. User traffic runs under a per-request role, never a superuser/service connection.
 - Money stored as `bigint` minor units + currency. Never floats.
 - Secrets only via environment / secret manager. `gitleaks` in CI. Dependencies pinned, audited (`pnpm audit`), Renovate enabled.
-- Auth: Argon2id hashing, mandatory TOTP for organizer/admin roles, short-lived access tokens + rotating refresh tokens, session revocation.
+- Auth: Supabase Auth with Google as the sign-in provider (web via PKCE redirect, mobile via native Google Sign-In → ID-token exchange). Mandatory TOTP MFA for organizer/admin roles (Supabase MFA). Short-lived access tokens + rotating refresh tokens, session revocation. Google client secrets live only in the Supabase dashboard, never in the repo.
+- Sign-in methods: Google and email magic link (no passwords). Guest checkout is supported: orders carry `purchaser_email` with nullable `user_id`; tickets are claimed into an account on first sign-in with that email.
 - Rate limiting + bot protection on every public write endpoint. Stripe Radar rules live before first sale.
 - QR tickets are signed tokens (per-event key, rotatable), never raw IDs.
 - Append-only audit log for privileged actions: refunds, payouts, role changes, data exports.

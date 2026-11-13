@@ -1,30 +1,21 @@
 # makemyevent
 
-Event ticketing marketplace. Standards: `CLAUDE.md`. Visual values: `design-spec.md`.
+A monorepo for event discovery, ticketing, and community event management.
 
-## Layout
-```
-apps/      web (Next.js) · mobile (Expo) · api (Hono + tRPC) · worker (BullMQ)
-packages/  db (Prisma schema, migrations, client) · core (domain logic, zod) · sdk (typed client)
-           ui-web · ui-native · config (design tokens, generated from design-spec.md)
-```
+## Apps and packages
 
-## Environments
-| Env | Database | Config file |
-|---|---|---|
-| local | Local Postgres | `.env.local` |
-| staging | Supabase project (staging) | `.env.staging` |
-| production | Supabase project (production) | `.env.production` |
+- `apps/web`: Next.js web app
+- `apps/api`: NestJS API
+- `apps/mobile`: Expo app
+- `packages/db`: Prisma schema and migrations
+- `packages/ui`: shared UI package
+- `docs/`: architecture, design, security, and decisions
 
-Only `.env.example` is committed. Service-role keys and `DATABASE_URL` never reach `apps/web` or `apps/mobile`.
+## Quick start
 
-`packages/db` owns the schema and all migrations through Prisma, for every environment. RLS policies ship as SQL inside Prisma migrations. There is no `supabase/` folder; add one later only for edge functions or storage rules, and migrations still stay in Prisma.
-
-## Setup
-```
+```bash
 pnpm install
-cp .env.example .env.local
-# fill DATABASE_URL / DIRECT_URL for local Postgres
-pnpm db:migrate
 pnpm dev
 ```
+
+Use `pnpm build` and `pnpm test` to validate changes. For contribution rules, see [`CONTRIBUTING.md`](./CONTRIBUTING.md). For the docs index, see [`docs/README.md`](./docs/README.md).
