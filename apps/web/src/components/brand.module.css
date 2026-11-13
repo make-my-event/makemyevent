@@ -1,0 +1,29 @@
+.brand {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+}
+
+.symbol {
+	flex: none;
+	width: 28px;
+	height: 28px;
+}
+
+.wordmark {
+	flex: none;
+	width: 144px;
+	height: 18px;
+}
+
+.onDark {
+	display: none;
+}
+
+:global(.dark) .onLight {
+	display: none;
+}
+
+:global(.dark) .onDark {
+	display: block;
+}

@@ -1,0 +1,130 @@
+/* ------------------------------------------------------------------
+   Tokens. Every value comes from design-spec.md v1.1. Add a value
+   there first, then here. These move to packages/config once tokens
+   are generated from the spec.
+   ------------------------------------------------------------------ */
+:root {
+	/* Colour (spec 2) */
+	--paper: #f7f6f2;
+	--ink: #1b1a18;
+	--stamp: #1f7a4d;
+	--perforation: #dad6cc;
+	--alert: #c0432a;
+	--muted: color-mix(in srgb, var(--ink) 65%, var(--paper));
+	--border-strong: color-mix(in srgb, var(--ink) 55%, var(--paper));
+
+	/* States (spec 8). ink fills move toward paper, 15% at most.
+     stamp and alert fills move toward ink, never lighter. */
+	--ink-hover: color-mix(in srgb, var(--paper) 8%, var(--ink));
+	--ink-pressed: color-mix(in srgb, var(--paper) 15%, var(--ink));
+	--stamp-hover: color-mix(in srgb, var(--ink) 10%, var(--stamp));
+	--stamp-pressed: color-mix(in srgb, var(--ink) 20%, var(--stamp));
+	--alert-hover: color-mix(in srgb, var(--ink) 10%, var(--alert));
+	--alert-pressed: color-mix(in srgb, var(--ink) 20%, var(--alert));
+
+	/* Type (spec 3). The faces are loaded in layout.tsx. */
+	--font-display: var(--face-display), system-ui, sans-serif;
+	--font-body: var(--face-body), system-ui, -apple-system, sans-serif;
+
+	/* Spacing (spec 4) */
+	--space-2xs: 4px;
+	--space-xs: 8px;
+	--space-s: 16px;
+	--space-m: 24px;
+	--space-l: 32px;
+	--space-xl: 40px;
+	--space-2xl: 80px;
+	--space-3xl: 120px;
+
+	/* Radius (spec 5) */
+	--radius-s: 6px;
+	--radius-m: 12px;
+	--radius-full: 9999px;
+
+	/* Elevation (spec 6) */
+	--shadow-overlay: 0 8px 24px rgb(0 0 0 / 0.08);
+
+	/* Controls (spec 8): Touch below 1024px, Default from there. */
+	--control: 44px;
+	--control-compact: 32px;
+
+	/* Motion (spec 9) */
+	--motion: 160ms ease;
+
+	color-scheme: light;
+}
+
+.dark {
+	--paper: #131211;
+	--ink: #f4f3ee;
+	--stamp: #2d9b5e;
+	--perforation: #2a2925;
+	--alert: #ef4444;
+	--shadow-overlay: none;
+	color-scheme: dark;
+}
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+	:root {
+		--control: 40px;
+	}
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	-webkit-text-size-adjust: 100%;
+	background: var(--paper);
+}
+
+body {
+	margin: 0;
+	min-height: 100dvh;
+	background: var(--paper);
+	color: var(--ink);
+	font-family: var(--font-body);
+	font-size: 16px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+button,
+input {
+	font: inherit;
+}
+
+img,
+svg {
+	display: block;
+	max-width: 100%;
+}
+
+/* Focus (spec 9): 2px stamp, 2px offset. The offset is load-bearing. */
+:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+	border-radius: var(--radius-s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		/* biome-ignore lint/complexity/noImportantStyles: a reduced-motion override
+       must win over every component rule, including inline transitions. */
+		animation: none !important;
+		/* biome-ignore lint/complexity/noImportantStyles: same reason. */
+		transition: none !important;
+		/* biome-ignore lint/complexity/noImportantStyles: same reason. */
+		scroll-behavior: auto !important;
+	}
+}
