@@ -15,11 +15,13 @@
 		"dev": "turbo run dev",
 		"format": "biome check --write .",
 		"lint": "biome check .",
+		"prepare": "husky",
 		"test": "turbo run test",
 		"typecheck": "turbo run typecheck"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.7",
+		"husky": "9.1.7",
 		"turbo": "^2",
 		"typescript": "^5"
 	}

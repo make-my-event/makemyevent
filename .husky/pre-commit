@@ -1,0 +1,14 @@
+# Format and lint only what is being committed, then re-stage whatever was
+# fixed so the commit contains the corrected files rather than the originals.
+pnpm exec biome check --write --staged --no-errors-on-unmatched
+git update-index --again
+
+# Secrets must never reach a commit. This is a convenience check only: it can
+# be skipped with --no-verify, so CI runs the same scan as the real gate.
+if command -v gitleaks >/dev/null 2>&1; then
+	gitleaks protect --staged --redact --no-banner
+elif command -v pre-commit >/dev/null 2>&1; then
+	pre-commit run gitleaks --hook-stage pre-commit
+else
+	echo "note: gitleaks not installed, skipping the local secret scan (CI still runs it)"
+fi

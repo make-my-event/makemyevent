@@ -1,0 +1,20 @@
+// makemyevent database schema.
+//
+// This package owns the schema and every migration, for local, staging and
+// production alike. Row-level security policies ship as raw SQL inside the
+// migrations that need them.
+//
+// Models are added one screen at a time, alongside the screen that needs them.
+// Nothing is defined ahead of its use.
+//
+// Connection URLs live in prisma.config.ts, not here: Prisma 7 no longer
+// accepts them in the schema file.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}

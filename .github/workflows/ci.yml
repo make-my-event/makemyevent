@@ -19,11 +19,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
-          POSTGRES_DB: openevents_ci
+          POSTGRES_DB: makemyevent_ci
         ports:
           - "5432:5432"
         options: >-
@@ -33,15 +33,15 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/openevents_ci
-      DIRECT_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/openevents_ci
+      DATABASE_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/makemyevent_ci
+      DIRECT_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/makemyevent_ci
       RUN_DB_TESTS: "1"
-      AUTH_SECRET: test-auth-secret-for-ci
-      NEXTAUTH_SECRET: test-auth-secret-for-ci
-      NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # Placeholders: nothing in CI talks to a real Supabase project.
       SUPABASE_URL: https://example.supabase.co
-      SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
+      SUPABASE_SECRET_KEY: sb_secret_placeholder_for_ci
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder_for_ci
       RESEND_API_KEY: test-resend-api-key
       EMAIL_FROM: test@example.com
 
@@ -59,28 +59,29 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Lint and format (Biome)
         run: pnpm biome ci .
 
       - name: Prisma schema valid and client generated
         run: |
-          pnpm --filter db exec prisma validate
-          pnpm --filter db exec prisma generate
+          pnpm --filter @makemyevent/db exec prisma validate
+          pnpm --filter @makemyevent/db exec prisma generate
 
       - name: Migrations build a fresh DB that matches schema.prisma
         run: |
-          pnpm --filter db exec prisma migrate deploy
-          pnpm --filter db exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+          pnpm --filter @makemyevent/db exec prisma migrate deploy
+          pnpm --filter @makemyevent/db exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 
       - name: Type check
-        run: |
-          pnpm --filter web exec tsc --noEmit
-          pnpm --filter api exec tsc --noEmit
+        run: pnpm typecheck
 
       - name: Tests
-        run: |
-          pnpm --filter web exec vitest run
-          pnpm --filter api exec vitest run
+        run: pnpm -r --if-present test
 
       - name: Build web
-        run: pnpm --filter web build
+        run: pnpm --filter @makemyevent/web build

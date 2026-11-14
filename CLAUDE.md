@@ -50,6 +50,32 @@ Phases narrow **scope**, never **quality**. Nothing ships as a temporary shortcu
 - Conventional commits. Every PR: lint, typecheck, tests, security scan, perf budgets, a11y scan — all green.
 - Observability from day one: Sentry (errors), structured logs with request IDs, Stripe webhook failure alerts.
 
+## Reference guidance (`.agents/skills/`)
+
+Committed on purpose, so the standards this project is built to cannot drift
+between machines or contributors. Consult the relevant one before writing code
+in that area; they are the detail behind the gates above.
+
+| Skill | Use it for |
+|---|---|
+| `web-design-guidelines` | Vercel Web Interface Guidelines — the authority named in design-spec.md section 1 for interaction, forms, motion and layout behaviour |
+| `accessibility-compliance` | WCAG 2.2 AA patterns, ARIA, mobile accessibility |
+| `vercel-react-best-practices` | React/Next.js performance: waterfalls, bundle size, server actions, re-renders, hydration |
+| `nextjs-app-router-patterns` | App Router, Server Components, streaming, caching |
+| `auth-implementation-patterns` | Sessions, tokens, OAuth, authorization checks |
+| `postgresql-table-design` | Schema design, constraints, indexes — read before adding Prisma models |
+| `database-migration` | Zero-downtime migration practice |
+| `security-audit` | Vulnerability review of code, APIs and infrastructure |
+| `debugging-strategies` | Systematic debugging and profiling |
+
+**Precedence.** Where any of these disagree with `design-spec.md` or the gates
+in this file, this project's own documents win; the skills are general advice,
+these are decisions. Note the exceptions already recorded: Google's sign-in
+button uses Google's own colours, outside the five-colour palette.
+
+**Not committed:** skills a package installs into its own folder, such as
+`packages/db/.agents`, which Prisma rewrites on every install.
+
 ## Monorepo layout
 
 ```

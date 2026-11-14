@@ -9,6 +9,9 @@ node_modules
 !.yarn/releases
 !.yarn/versions
 
+# Git hooks (husky writes its own helper scripts here)
+.husky/_/
+
 # Next.js
 .next/
 .next-*/
@@ -37,6 +40,7 @@ storybook-static/
 # Database & Prisma
 packages/db/generated/
 generated/
+**/prisma/generated/
 *.sqlite
 *.sqlite-journal
 *.db
@@ -134,8 +138,15 @@ docker-compose.override.yml
 supabase/.temp/
 .stripe/
 
-# Agent skills: ignore installed third-party skills, keep our own
-.agents/skills/*
-!.agents/skills/makemyevent-design/
+# Agent skills.
+#
+# The set at the repository root is committed on purpose: it pins the guidance
+# this project is built to, so the standards cannot drift between machines, and
+# design-spec.md names the Web Interface Guidelines as its authority.
+#
+# Skills a package installs into its own folder are install output. Prisma
+# rewrites packages/db/.agents on every pnpm install, so those are ignored.
 .claude/
 skills-lock.json
+apps/*/.agents/
+packages/*/.agents/
