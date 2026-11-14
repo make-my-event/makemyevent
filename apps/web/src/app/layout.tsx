@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, IBM_Plex_Sans } from "next/font/google";
+import { headers } from "next/headers";
+import { NONCE_HEADER } from "@/lib/csp";
+import { THEME_SCRIPT } from "@/lib/theme-script.mjs";
 import "./globals.css";
 
 // Weights from design-spec.md section 3: display 700; body 400, 500, 700.
@@ -36,15 +39,15 @@ export const viewport: Viewport = {
 	],
 };
 
-// Runs before first paint so the page never flashes the wrong theme.
-// The theme follows the system setting; a manual choice is stored and wins.
-const themeScript = `(function(){try{var s=localStorage.getItem("makemyevent-theme");var d=s==="dark"||(s!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
-
-export default function RootLayout({
+export default async function RootLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
+	// A fresh nonce per request, set by the middleware, so this one inline
+	// script is allowed while injected scripts are not.
+	const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
+
 	return (
 		<html
 			lang="en"
@@ -52,8 +55,11 @@ export default function RootLayout({
 			suppressHydrationWarning
 		>
 			<head>
-				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static string, no user input */}
-				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
+				<script
+					nonce={nonce}
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed string with no user input, carrying the request nonce
+					dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
+				/>
 			</head>
 			<body>{children}</body>
 		</html>

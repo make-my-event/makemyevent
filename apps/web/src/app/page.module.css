@@ -1,0 +1,24 @@
+.main {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 100dvh;
+	padding: var(--space-xl);
+}
+
+.wordmark {
+	width: min(85vw, 560px);
+	height: auto;
+}
+
+.onDark {
+	display: none;
+}
+
+:global(.dark) .onLight {
+	display: none;
+}
+
+:global(.dark) .onDark {
+	display: block;
+}

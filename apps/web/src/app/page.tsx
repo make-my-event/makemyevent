@@ -1,26 +1,23 @@
+import styles from "./page.module.css";
+
 export default function HomePage() {
 	return (
-		<main
-			style={{
-				minHeight: "100vh",
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-				background: "#ffffff",
-				color: "#111111",
-				fontFamily: "Arial, Helvetica, sans-serif",
-			}}
-		>
-			{/* biome-ignore lint/performance/noImgElement: a static SVG; the image
-          optimiser has nothing to do for it. */}
+		<main className={styles.main}>
+			{/* biome-ignore lint/performance/noImgElement: a static SVG; the image optimiser has nothing to do for it. */}
 			<img
+				className={`${styles.wordmark} ${styles.onLight}`}
 				src="/makemyevent-wordmark-light.svg"
-				alt="MakemyEvent"
-				style={{
-					display: "block",
-					maxWidth: "min(85vw, 560px)",
-					height: "auto",
-				}}
+				alt="makemyevent"
+				width={1196}
+				height={150}
+			/>
+			{/* biome-ignore lint/performance/noImgElement: a static SVG; the image optimiser has nothing to do for it. */}
+			<img
+				className={`${styles.wordmark} ${styles.onDark}`}
+				src="/makemyevent-wordmark-dark.svg"
+				alt="makemyevent"
+				width={1196}
+				height={150}
 			/>
 		</main>
 	);
