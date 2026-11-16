@@ -70,8 +70,16 @@ in that area; they are the detail behind the gates above.
 
 **Precedence.** Where any of these disagree with `design-spec.md` or the gates
 in this file, this project's own documents win; the skills are general advice,
-these are decisions. Note the exceptions already recorded: Google's sign-in
+these are decisions. Note the exception already recorded: Google's sign-in
 button uses Google's own colours, outside the five-colour palette.
+
+**Brand artwork exception.** The official logo files — `apps/web/src/assets/`
+`icon.svg` and the light and dark wordmarks beside it — carry their own colours
+and gradients, including values outside the application palette. Those colours
+are artwork, not interface colour. Nothing in the interface may sample one for
+a background, border, text or any other styling, and the files are not bent to
+fit the palette. `public/icon.svg` is deliberately the same drawing on a stable
+path, for the favicon and for crawlers: keep the two copies identical.
 
 **Not committed:** skills a package installs into its own folder, such as
 `packages/db/.agents`, which Prisma rewrites on every install.
