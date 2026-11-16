@@ -45,3 +45,28 @@ is what makes per-instance cost the number worth knowing.
   drive a real browser; the repository does not ship one.
 - [k6](https://k6.io/docs/get-started/installation/) for the load test, or
   `K6_PATH` pointing at the binary.
+
+## Experiments
+
+One-off investigations, in `quality/experiments/`. They carry no budgets and
+nothing in CI runs them: each answers a question once, and the answer is
+written down rather than watched.
+
+| Script | Question |
+|---|---|
+| `control.mjs` | What can this machine measure at all? Run it first; no result above this ceiling means anything. |
+| `a-per-route.mjs` | Is one route unusually expensive? |
+| `b-multi-process.mjs` | Does capacity multiply across processes? |
+| `c-caching.mjs` | What does the per-request CSP nonce cost, and what would caching with an edge nonce rewrite buy? |
+
+`c-caching.mjs` prototypes the edge rewrite in front of the real app: the HTML
+is rendered once, and every response gets a freshly generated nonce
+substituted into the body and the CSP header. No visitor is served another
+visitor's nonce and nothing is relaxed. Its third configuration, a cached body
+sent untouched, exists only to separate the cost of caching from the cost of
+rewriting — it is not a proposal, because it would hand every visitor the same
+nonce.
+
+Run them with a load generator on a separate machine if the numbers are going
+to be spent. On one box, k6 and the servers compete for the same cores and the
+multi-process result in particular cannot be trusted.

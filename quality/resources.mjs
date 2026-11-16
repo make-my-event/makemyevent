@@ -53,6 +53,41 @@ async function snapshot(rootPid) {
 	return { cpuTicks, rssMb: (rssPages * 4096) / 1024 / 1024, at: Date.now() };
 }
 
+/** Whole-machine CPU, so a per-process number can be read against the box. */
+export function sampleSystem(intervalMs = 500) {
+	if (process.platform !== "linux") return { stop: async () => ({}) };
+	const read = async () => {
+		const line = (await readFile("/proc/stat", "utf8")).split("\n")[0];
+		const fields = line.split(/\s+/).slice(1).map(Number);
+		const idle = fields[3] + fields[4];
+		const total = fields.reduce((sum, value) => sum + value, 0);
+		return { idle, total };
+	};
+	const samples = [];
+	let previous = null;
+	const timer = setInterval(async () => {
+		const now = await read();
+		if (previous) {
+			const dTotal = now.total - previous.total;
+			const dIdle = now.idle - previous.idle;
+			if (dTotal > 0) samples.push(((dTotal - dIdle) / dTotal) * 100);
+		}
+		previous = now;
+	}, intervalMs);
+	return {
+		async stop() {
+			clearInterval(timer);
+			if (samples.length === 0) return {};
+			const sorted = samples.slice().sort((a, b) => a - b);
+			return {
+				systemCpuPercentMedian:
+					+sorted[Math.floor(sorted.length / 2)].toFixed(1),
+				systemCpuPercentMax: +sorted[sorted.length - 1].toFixed(1),
+			};
+		},
+	};
+}
+
 export function sampleResources(rootPid, intervalMs = 500) {
 	if (process.platform !== "linux") {
 		return { stop: async () => ({ supported: false }) };
