@@ -27,7 +27,28 @@ const nextConfig = {
 				value: "max-age=63072000; includeSubDomains; preload",
 			});
 		}
-		return [{ source: "/:path*", headers: security }];
+		// public/ is served with no caching by default, so these stable paths
+		// are revalidated on every navigation. They are brand artwork and the
+		// manifest: they change rarely, and a stale one for a day is harmless.
+		// Anything the build fingerprints is served from /_next/static, which
+		// is already immutable for a year.
+		const publicAssets = [
+			{
+				key: "Cache-Control",
+				value: "public, max-age=86400, stale-while-revalidate=604800",
+			},
+		];
+		return [
+			{ source: "/:path*", headers: security },
+			{
+				source: "/:file(icon\\.svg|favicon\\.ico|manifest\\.json)",
+				headers: publicAssets,
+			},
+			{
+				source: "/:file(makemyevent-symbol-[^/]+)",
+				headers: publicAssets,
+			},
+		];
 	},
 };
 

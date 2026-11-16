@@ -8,6 +8,12 @@
 	flex: none;
 	width: 28px;
 	height: 28px;
+	background-image: url("../assets/icon.svg");
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+	/* Backgrounds are dropped from print by default; the logo should survive. */
+	print-color-adjust: exact;
 }
 
 /* Gives way before the header row can overflow: `contain` keeps the drawing's
@@ -20,15 +26,17 @@
 	background-repeat: no-repeat;
 	background-position: left center;
 	background-size: contain;
+	/* Backgrounds are dropped from print by default; the logo should survive. */
+	print-color-adjust: exact;
 }
 
 .onLight {
-	background-image: url("/makemyevent-wordmark-light.svg");
+	background-image: url("../assets/makemyevent-wordmark-light.svg");
 }
 
 .onDark {
 	display: none;
-	background-image: url("/makemyevent-wordmark-dark.svg");
+	background-image: url("../assets/makemyevent-wordmark-dark.svg");
 }
 
 :global(.dark) .onLight {
