@@ -14,6 +14,12 @@ Everything runs against `next build` + `next start`. The dev server recompiles
 on demand and ships unminified code, so its numbers are meaningless; nothing
 here will use it.
 
+The build goes to `apps/web/.next-quality`, never `.next`. A dev server owns
+`.next` while it runs, and a production build over the top of it leaves that
+dev server answering 500 on every route until it is restarted. The runners
+build into their own directory and create it on first use, so `pnpm
+quality:*` is safe to run while `pnpm dev` is up.
+
 Reports land in `quality/reports/`, which is not committed.
 
 ## Reporting, not gating, for now

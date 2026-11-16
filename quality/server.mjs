@@ -1,5 +1,28 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
+
+/**
+ * The build these measurements run against, kept apart from `.next`.
+ *
+ * A dev server owns `.next` while it runs, and a production build written
+ * over the top of it leaves it answering 500 on every route until it is
+ * restarted. next.config.mjs reads NEXT_DIST_DIR for exactly this reason;
+ * nothing here may ignore it.
+ */
+export const QUALITY_DIST_DIR = ".next-quality";
+
+/** Builds into QUALITY_DIST_DIR if it is not there already. */
+async function ensureBuild(distDir) {
+	if (existsSync(`apps/web/${distDir}/BUILD_ID`)) return;
+	console.log(`Building into apps/web/${distDir} ...`);
+	const build = spawn("pnpm", ["--filter", "@makemyevent/web", "build"], {
+		env: { ...process.env, NEXT_DIST_DIR: distDir },
+		stdio: ["ignore", "ignore", "inherit"],
+	});
+	const code = await new Promise((resolve) => build.on("close", resolve));
+	if (code !== 0) throw new Error(`Build failed with code ${code}`);
+}
 
 /**
  * Starts the built web app and waits for it to answer.
@@ -8,7 +31,11 @@ import { setTimeout as sleep } from "node:timers/promises";
  * dev`: the dev server recompiles on demand, ships unminified code and has no
  * production caching, so its numbers mean nothing.
  */
-export async function startServer({ port = 3210, distDir = ".next" } = {}) {
+export async function startServer({
+	port = 3210,
+	distDir = QUALITY_DIST_DIR,
+} = {}) {
+	await ensureBuild(distDir);
 	const child = spawn("pnpm", ["--filter", "@makemyevent/web", "start"], {
 		env: {
 			...process.env,
