@@ -1,0 +1,117 @@
+{
+	"$comment": [
+		"Performance budgets for makemyevent, named in CLAUDE.md.",
+		"Lighthouse CI, the axe pass and the k6 load test all read this file,",
+		"so a number is changed in one place and every gate follows.",
+		"",
+		"enforce:false means a breach is reported but does not fail the build.",
+		"Each budget stays that way until a baseline shows it is stable on CI",
+		"hardware; then it flips to true and becomes a real gate. A budget",
+		"loosened to make a build pass is a decision to record, not a default."
+	],
+	"enforce": false,
+
+	"lighthouse": {
+		"$comment": "Run against `next build` + `next start`, never the dev server. Mobile emulation with Lighthouse's simulated 4G, three runs per route, median reported.",
+		"runs": 3,
+		"formFactor": "mobile",
+		"routes": {
+			"/": {
+				"name": "Landing",
+				"largest-contentful-paint": 1500,
+				"first-contentful-paint": 1200,
+				"cumulative-layout-shift": 0.1,
+				"total-blocking-time": 300,
+				"speed-index": 2500
+			},
+			"/signin": {
+				"name": "Sign in",
+				"categories": {
+					"$comment": "Sign-in sets robots:{index:false} on purpose, which costs the is-crawlable audit and caps SEO at 0.6. The budget records the decision rather than the page chasing a score it should not have.",
+					"seo": 0.6
+				},
+				"largest-contentful-paint": 1500,
+				"first-contentful-paint": 1200,
+				"cumulative-layout-shift": 0.1,
+				"total-blocking-time": 300,
+				"speed-index": 2500
+			},
+			"/about": {
+				"name": "About",
+				"largest-contentful-paint": 1500,
+				"first-contentful-paint": 1200,
+				"cumulative-layout-shift": 0.1,
+				"total-blocking-time": 300,
+				"speed-index": 2500
+			}
+		},
+		"categories": {
+			"performance": 0.9,
+			"accessibility": 1,
+			"best-practices": 1,
+			"seo": 0.9
+		},
+		"resourceSizesKb": {
+			"$comment": "Transfer sizes, compressed, for a first visit with a cold cache.",
+			"script": 160,
+			"stylesheet": 40,
+			"font": 120,
+			"image": 40,
+			"document": 60,
+			"total": 450
+		}
+	},
+
+	"accessibility": {
+		"$comment": "WCAG 2.2 AA is the floor (CLAUDE.md). axe runs on every route in both themes and in the states a visitor can reach without data.",
+		"standard": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"],
+		"maxViolations": 0,
+		"themes": ["light", "dark"],
+		"viewports": [
+			{ "name": "mobile", "width": 390, "height": 844 },
+			{ "name": "desktop", "width": 1280, "height": 900 }
+		]
+	},
+
+	"load": {
+		"$comment": [
+			"`next start` on one process. This measures the application server,",
+			"not a CDN: no host's edge cache, no autoscaling, no geography.",
+			"Read it as the cost of one instance, which is the input the",
+			"hosting decision needs — not as a verdict on a deployment."
+		],
+		"routes": ["/", "/signin", "/about"],
+		"stages": {
+			"baseline": { "vus": 25, "duration": "30s" },
+			"moderate": { "vus": 200, "duration": "60s" },
+			"heavy": { "vus": 500, "duration": "60s" },
+			"stress": {
+				"$comment": "Climbs until latency or errors go bad, then drops, so recovery is visible.",
+				"ramp": [
+					{ "target": 250, "duration": "30s" },
+					{ "target": 750, "duration": "60s" },
+					{ "target": 1500, "duration": "60s" },
+					{ "target": 0, "duration": "30s" }
+				]
+			}
+		},
+		"thresholds": {
+			"$comment": [
+				"Two different numbers, measured apart on purpose.",
+				"",
+				"server_*: http_req_waiting, the time to the first byte — what the",
+				"application actually spent rendering. This is the budget CLAUDE.md",
+				"sets for a read, and the one that gates.",
+				"",
+				"total_p95: http_req_duration, which adds transfer. On one machine",
+				"the load generator and the server share cores, so this inflates",
+				"under load and is recorded for the trend, not as a gate."
+			],
+			"server_p50": 50,
+			"server_p95": 150,
+			"server_p99": 500,
+			"total_p95": 800,
+			"http_req_failed_rate": 0.001
+		}
+	}
+}

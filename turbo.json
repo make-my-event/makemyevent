@@ -2,7 +2,14 @@
 	"$schema": "https://turbo.build/schema.json",
 	"ui": "tui",
 	"globalEnv": ["APP_ENV", "NODE_ENV"],
-	"globalPassThroughEnv": ["CI", "VERCEL", "EAS_BUILD"],
+	"globalPassThroughEnv": [
+		"CI",
+		"VERCEL",
+		"EAS_BUILD",
+		"CHROME_PATH",
+		"K6_PATH",
+		"QUALITY_ORIGIN"
+	],
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
