@@ -12,6 +12,7 @@ Phases narrow **scope**, never **quality**. Nothing ships as a temporary shortcu
 - Every money-affecting write: idempotency key + single DB transaction + confirmed only by Stripe webhook. Never by client callback or redirect.
 - Webhook events deduplicated via `stripe_events(id UNIQUE)`.
 - Postgres RLS on every tenant-scoped table. User traffic runs under a per-request role, never a superuser/service connection.
+- The session is verified once per request, in the middleware. It hands the display name to the render through a request header the middleware always rewrites, so a browser cannot supply one. Anything that gates access calls `getCurrentUser` instead, which verifies and is wrapped in `cache()`.
 - Money stored as `bigint` minor units + currency. Never floats.
 - Secrets only via environment / secret manager. `gitleaks` in CI. Dependencies pinned, audited (`pnpm audit`), Renovate enabled.
 - Auth: Supabase Auth with Google as the sign-in provider (web via PKCE redirect, mobile via native Google Sign-In → ID-token exchange). Mandatory TOTP MFA for organizer/admin roles (Supabase MFA). Short-lived access tokens + rotating refresh tokens, session revocation. Google client secrets live only in the Supabase dashboard, never in the repo.
@@ -34,7 +35,7 @@ Phases narrow **scope**, never **quality**. Nothing ships as a temporary shortcu
 
 ## UI/UX gates
 
-- `design-spec.md` is the single authority for every visual value. `packages/config` tokens are generated from it and are the only source of color, typography, spacing, radius, elevation and control sizes in code. Raw hex, palette names, or off-scale sizes fail review.
+- `design-spec.md` lists the product's colours and typography, and is the only source of those values. Spacing, radius, elevation, control sizes and motion are the named tokens in `apps/web/src/app/globals.css`. `packages/config` tokens will be generated from both. Raw hex, palette names, or off-scale sizes fail review.
 - If a screen and `design-spec.md` disagree, the spec wins and the screen is fixed. New values are added to the spec first, in their own change.
 - Vercel Web Interface Guidelines (https://vercel.com/design/guidelines) govern interaction, forms, motion and layout behaviour where the spec is silent.
 - WCAG 2.2 AA minimum: contrast, visible focus, labels, reduced-motion, keyboard navigation. `axe` in CI; manual screen-reader pass per stage.
@@ -58,7 +59,7 @@ in that area; they are the detail behind the gates above.
 
 | Skill | Use it for |
 |---|---|
-| `web-design-guidelines` | Vercel Web Interface Guidelines — the authority named in design-spec.md section 1 for interaction, forms, motion and layout behaviour |
+| `web-design-guidelines` | Vercel Web Interface Guidelines — the authority for interaction, forms, motion and layout behaviour (see UI/UX gates) |
 | `accessibility-compliance` | WCAG 2.2 AA patterns, ARIA, mobile accessibility |
 | `vercel-react-best-practices` | React/Next.js performance: waterfalls, bundle size, server actions, re-renders, hydration |
 | `nextjs-app-router-patterns` | App Router, Server Components, streaming, caching |

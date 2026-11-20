@@ -2,6 +2,10 @@
 	display: inline-flex;
 	align-items: center;
 	gap: var(--space-xs);
+	/* A flex item's floor is its content unless it is told otherwise, and
+	   without this the mark runs out over the control beside it rather than
+	   giving way. The wordmark below is what gives. */
+	min-width: 0;
 }
 
 .symbol {
@@ -59,4 +63,16 @@
 	clip-path: inset(50%);
 	white-space: nowrap;
 	border: 0;
+}
+
+/* On a phone the symbol carries the mark on its own, for a caller that asked
+   to be tight. 480px is where a band holding two more controls stops having
+   room for 144px of wordmark; below it, shrinking the drawing to fit would
+   cost more than dropping it. Both selectors are spelled out so this wins
+   over the theme rules above whatever order the bundler emits them in. */
+@media (max-width: 479px) {
+	.tight .wordmark,
+	:global(.dark) .tight .wordmark {
+		display: none;
+	}
 }

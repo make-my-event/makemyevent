@@ -1,10 +1,11 @@
 /* ------------------------------------------------------------------
-   Tokens. Every value comes from design-spec.md v1.1. Add a value
-   there first, then here. These move to packages/config once tokens
-   are generated from the spec.
+   Tokens. Colours and type come from design-spec.md: add one there
+   first, then here. Spacing, radius, elevation, controls and motion
+   are defined here. These move to packages/config once tokens are
+   generated.
    ------------------------------------------------------------------ */
 :root {
-	/* Colour (spec 2) */
+	/* Colour (design-spec.md) */
 	--paper: #f7f6f2;
 	--ink: #1b1a18;
 	--stamp: #1f7a4d;
@@ -12,8 +13,11 @@
 	--alert: #c0432a;
 	--muted: color-mix(in srgb, var(--ink) 65%, var(--paper));
 	--border-strong: color-mix(in srgb, var(--ink) 55%, var(--paper));
+	--surface: #fefdfc;
+	--tint: #eeece5;
+	--stamp-tint: #e6eee9;
 
-	/* States (spec 8). ink fills move toward paper, 15% at most.
+	/* States. ink fills move toward paper, 15% at most.
      stamp and alert fills move toward ink, never lighter. */
 	--ink-hover: color-mix(in srgb, var(--paper) 8%, var(--ink));
 	--ink-pressed: color-mix(in srgb, var(--paper) 15%, var(--ink));
@@ -22,11 +26,32 @@
 	--alert-hover: color-mix(in srgb, var(--ink) 10%, var(--alert));
 	--alert-pressed: color-mix(in srgb, var(--ink) 20%, var(--alert));
 
-	/* Type (spec 3). The faces are loaded in layout.tsx. */
+	/* Type (design-spec.md). The faces are loaded in layout.tsx. */
 	--font-display: var(--face-display), system-ui, sans-serif;
 	--font-body: var(--face-body), system-ui, -apple-system, sans-serif;
+	/* Ticket codes, IDs and tokens only. */
+	--font-mono: var(--face-mono), ui-monospace, "SFMono-Regular", monospace;
 
-	/* Spacing (spec 4) */
+	/* The H1 steps, named so a screen with less room can hold an earlier
+	   one instead of inventing a size. */
+	--step-h1-s: 32px;
+	--step-h1-m: 48px;
+	--step-h1-l: 60px;
+	/* H3's tablet step, for card titles that hold it at every width. */
+	--step-h3-m: 20px;
+
+	/* Type scale (design-spec.md). Mobile values; stepped up at the breakpoints below. */
+	--text-h1: var(--step-h1-s);
+	--text-h2: 24px;
+	--text-h3: 20px;
+	--text-large: 18px;
+	--text-body: 16px;
+	--text-small: 14px;
+	--text-card-title: 16px;
+	--text-caption: 12px;
+	--text-micro: 11px;
+
+	/* Spacing */
 	--space-2xs: 4px;
 	--space-xs: 8px;
 	--space-s: 16px;
@@ -36,20 +61,31 @@
 	--space-2xl: 80px;
 	--space-3xl: 120px;
 
-	/* Radius (spec 5) */
+	/* Radius */
+	--radius-2xs: 5px;
 	--radius-s: 6px;
+	--radius-xs: 8px;
+	--radius-segment: 10px;
 	--radius-m: 12px;
+	--radius-l: 18px;
 	--radius-full: 9999px;
 
-	/* Elevation (spec 6) */
+	/* Elevation */
 	--shadow-overlay: 0 8px 24px rgb(0 0 0 / 0.08);
 
-	/* Controls (spec 8): Touch below 1024px, Default from there. */
+	/* The band: the header's translucent surface, and nothing else.
+	   Solid paper is substituted where the blur is unavailable. */
+	--band: color-mix(in srgb, var(--paper) 92%, transparent);
+	--band-blur: 12px;
+
+	/* Controls: Touch below 1024px, Default from there. */
 	--control: 44px;
 	--control-compact: 32px;
 
-	/* Motion (spec 9) */
+	/* Motion */
 	--motion: 160ms ease;
+
+	--header-height: 64px;
 
 	color-scheme: light;
 }
@@ -60,10 +96,37 @@
 	--stamp: #2d9b5e;
 	--perforation: #2a2925;
 	--alert: #ef4444;
+	--surface: #1a1917;
+	--tint: #26251f;
+	--stamp-tint: #17281e;
 	--shadow-overlay: none;
+	/* Dark paper sits further from anything that can pass behind it, so the
+	   band can give up a little more and still hold its text. */
+	--band: color-mix(in srgb, var(--paper) 88%, transparent);
 	color-scheme: dark;
 }
 
+/* Tablet, from the 640px breakpoint. */
+@media (min-width: 640px) {
+	:root {
+		--text-h1: var(--step-h1-m);
+		--text-h2: 32px;
+		--text-h3: 20px;
+		--text-large: 18px;
+	}
+}
+
+/* Desktop, from 1024px. */
+@media (min-width: 1024px) {
+	:root {
+		--text-h1: var(--step-h1-l);
+		--text-h2: 36px;
+		--text-h3: 24px;
+		--text-large: 20px;
+	}
+}
+
+/* Controls drop to the Default height only where there is a real pointer. */
 @media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
 	:root {
 		--control: 40px;
@@ -79,6 +142,14 @@
 html {
 	-webkit-text-size-adjust: 100%;
 	background: var(--paper);
+	/* Anchored sections must clear the sticky header. */
+	scroll-padding-top: calc(var(--header-height) + var(--space-s));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		scroll-behavior: smooth;
+	}
 }
 
 body {
@@ -87,7 +158,7 @@ body {
 	background: var(--paper);
 	color: var(--ink);
 	font-family: var(--font-body);
-	font-size: 16px;
+	font-size: var(--text-body);
 	line-height: 1.5;
 	-webkit-font-smoothing: antialiased;
 }
@@ -108,11 +179,13 @@ svg {
 	max-width: 100%;
 }
 
-/* Focus (spec 9): 2px stamp, 2px offset. The offset is load-bearing. */
+/* Focus: 2px stamp, 2px offset. The offset is load-bearing. */
+/* The outline follows whatever radius the element already has, so this rule
+   sets no radius of its own: writing one here would square off the header's
+   pills the moment they take focus. */
 :focus-visible {
 	outline: 2px solid var(--stamp);
 	outline-offset: 2px;
-	border-radius: var(--radius-s);
 }
 
 @media (prefers-reduced-motion: reduce) {

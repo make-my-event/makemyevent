@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { safeRedirectPath } from "@/lib/safe-redirect";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/identity";
 import { SignInForm, type UrlError } from "./sign-in-form";
 import styles from "./signin.module.css";
 
@@ -27,10 +27,9 @@ export default async function SignInPage({ searchParams }: Props) {
 	);
 	const urlError = URL_ERRORS.find((code) => code === params.error) ?? null;
 
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	// Verified, not the display name from the middleware: this decides
+	// whether someone is sent on to their account.
+	const user = await getCurrentUser();
 
 	return (
 		<div className={styles.shell}>

@@ -146,7 +146,8 @@ supabase/.temp/
 #
 # Skills a package installs into its own folder are install output. Prisma
 # rewrites packages/db/.agents on every pnpm install, so those are ignored.
-.claude/
+.claude/*
+!.claude/skills/
 skills-lock.json
 apps/*/.agents/
 packages/*/.agents/

@@ -1,9 +1,9 @@
-/* Sign-in screen. Every value is a token from design-spec.md v1.1. */
+/* Sign-in screen. Colours and type come from design-spec.md; every other value is a token in globals.css. */
 
 /* ---------------------------------------------------------------
    Layout. One column until 1024px. From there the whole screen is
    one hairline card centred in the viewport, pitch and form side
-   by side. Flat, no shadow: it sits in the page flow (spec 6).
+   by side. Flat, no shadow: it sits in the page flow.
    --------------------------------------------------------------- */
 .shell {
 	min-height: 100dvh;
@@ -116,38 +116,32 @@
    Pitch
    --------------------------------------------------------------- */
 
-/* H1 type style (spec 3) on a paragraph: the page's real heading is
-   the form's. 32 / 48; half of a 1040px card has no room for 60. */
+/* H1 type style on a paragraph: the page's real heading is the
+   form's. Half of a 1040px card has no room for the largest step, so it
+   holds the middle one on desktop. */
 .pitch {
 	margin: 0;
 	max-width: 18ch;
 	font-family: var(--font-display);
 	font-weight: 700;
-	font-size: 32px;
+	font-size: var(--text-h1);
 	line-height: 1.1;
 	letter-spacing: -0.01em;
 	text-wrap: balance;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
 	.pitch {
-		font-size: 48px;
+		font-size: var(--step-h1-m);
 	}
 }
 
-/* Large type style: 18 / 18 / 20 */
 .pitchSub {
 	margin: var(--space-m) 0 0;
 	max-width: 40ch;
-	font-size: 18px;
+	font-size: var(--text-large);
 	line-height: 1.4;
 	color: var(--muted);
-}
-
-@media (min-width: 1024px) {
-	.pitchSub {
-		font-size: 20px;
-	}
 }
 
 .points {
@@ -179,7 +173,7 @@
 	gap: var(--space-s) var(--space-m);
 	padding-top: var(--space-m);
 	border-top: 1px solid var(--perforation);
-	font-size: 14px;
+	font-size: var(--text-small);
 	line-height: 1.4;
 }
 
@@ -212,30 +206,17 @@
    Form
    --------------------------------------------------------------- */
 
-/* H2 type style (spec 3): 24 / 32 / 36 */
 .title {
 	margin: 0;
 	font-family: var(--font-display);
 	font-weight: 700;
-	font-size: 24px;
+	font-size: var(--text-h2);
 	line-height: 1.2;
 	letter-spacing: -0.01em;
 }
 
 .title:focus {
 	outline: none;
-}
-
-@media (min-width: 640px) {
-	.title {
-		font-size: 32px;
-	}
-}
-
-@media (min-width: 1024px) {
-	.title {
-		font-size: 36px;
-	}
 }
 
 .lede {
@@ -264,7 +245,7 @@
 
 .label {
 	font-weight: 500;
-	font-size: 14px;
+	font-size: var(--text-small);
 	line-height: 1.4;
 }
 
@@ -272,7 +253,8 @@
 	height: var(--control);
 	width: 100%;
 	padding: 0 var(--space-s);
-	font-size: 16px; /* keeps iOS from zooming on focus */
+	/* Body size keeps iOS from zooming the page on focus. */
+	font-size: var(--text-body);
 	color: var(--ink);
 	background: transparent;
 	border: 1px solid var(--border-strong);
@@ -300,7 +282,7 @@
 }
 
 /* ---------------------------------------------------------------
-   Buttons (spec 8)
+   Buttons
    --------------------------------------------------------------- */
 .btn {
 	display: inline-flex;
@@ -311,7 +293,7 @@
 	width: 100%;
 	padding: 0 var(--space-s);
 	font-weight: 500;
-	font-size: 16px;
+	font-size: var(--text-body);
 	line-height: 1.5;
 	text-align: center;
 	border: 1px solid transparent;
@@ -367,8 +349,8 @@
 
 .google {
 	flex: none;
-	width: 18px;
-	height: 18px;
+	width: 20px;
+	height: 20px;
 }
 
 .divider {
@@ -376,7 +358,7 @@
 	align-items: center;
 	gap: var(--space-s);
 	margin: var(--space-m) 0;
-	font-size: 14px;
+	font-size: var(--text-small);
 	line-height: 1.4;
 	color: var(--muted);
 }
@@ -390,7 +372,7 @@
 }
 
 /* ---------------------------------------------------------------
-   Messages. Icon plus words, never colour alone (spec 2).
+   Messages. Icon plus words, never colour alone.
    --------------------------------------------------------------- */
 .error,
 .notice {
@@ -398,7 +380,7 @@
 	align-items: flex-start;
 	gap: var(--space-xs);
 	margin: 0;
-	font-size: 14px;
+	font-size: var(--text-small);
 	line-height: 1.4;
 }
 
@@ -440,7 +422,7 @@
 
 .foot {
 	margin: var(--space-l) 0 0;
-	font-size: 14px;
+	font-size: var(--text-small);
 	line-height: 1.4;
 	color: var(--muted);
 	text-align: center;

@@ -1,11 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, IBM_Plex_Sans } from "next/font/google";
+import {
+	Bricolage_Grotesque,
+	IBM_Plex_Mono,
+	IBM_Plex_Sans,
+} from "next/font/google";
 import { headers } from "next/headers";
 import { NONCE_HEADER } from "@/lib/csp";
 import { THEME_SCRIPT } from "@/lib/theme-script.mjs";
 import "./globals.css";
 
-// Weights from design-spec.md section 3: display 700; body 400, 500, 700.
+// Weights from design-spec.md: display 700; body 400, 500, 700.
 const display = Bricolage_Grotesque({
 	subsets: ["latin"],
 	weight: ["700"],
@@ -20,9 +24,20 @@ const body = IBM_Plex_Sans({
 	display: "swap",
 });
 
+// Only small details use the mono face — ticket codes and IDs — so it must
+// not compete for bandwidth with the text that decides first paint.
+const mono = IBM_Plex_Mono({
+	subsets: ["latin"],
+	weight: ["400"],
+	variable: "--face-mono",
+	display: "swap",
+	preload: false,
+});
+
 export const metadata: Metadata = {
 	title: { default: "makemyevent", template: "%s — makemyevent" },
-	description: "Tickets, passes and check-in for community events.",
+	description:
+		"Free event pages, QR passes and certificates for your community. From the first registration to the last scan at the door.",
 	manifest: "/manifest.json",
 	icons: {
 		icon: [
@@ -51,12 +66,20 @@ export default async function RootLayout({
 	return (
 		<html
 			lang="en"
-			className={`${display.variable} ${body.variable}`}
+			className={`${display.variable} ${body.variable} ${mono.variable}`}
 			suppressHydrationWarning
 		>
 			<head>
+				{/*
+				  Once a nonce-based CSP is active the browser blanks the nonce
+				  attribute in the DOM (the value lives only on the element's
+				  `nonce` property), so React would report a mismatch against
+				  the string the server wrote. The script has already run by
+				  then; nothing needs patching, only the warning silenced.
+				*/}
 				<script
 					nonce={nonce}
+					suppressHydrationWarning
 					// biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed string with no user input, carrying the request nonce
 					dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
 				/>
