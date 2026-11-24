@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/site";
 import styles from "../../content.module.css";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
+	path: "/privacy",
 	title: "Privacy policy",
 	description:
 		"What makemyevent collects, why, who else sees it, and how to have it removed.",
-};
+});
 
 function NoteIcon() {
 	return (

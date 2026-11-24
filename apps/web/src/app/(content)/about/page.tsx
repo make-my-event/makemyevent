@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/site";
 import styles from "../../content.module.css";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
+	path: "/about",
 	title: "About",
 	description:
 		"Why makemyevent exists, who builds it, and what it costs to use.",
-};
+});
 
 export default function AboutPage() {
 	return (
