@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { safeRedirectPath } from "@/lib/safe-redirect";
@@ -28,8 +29,11 @@ export default async function SignInPage({ searchParams }: Props) {
 	const urlError = URL_ERRORS.find((code) => code === params.error) ?? null;
 
 	// Verified, not the display name from the middleware: this decides
-	// whether someone is sent on to their account.
+	// whether someone is sent on. Already signed in, there is nothing to do
+	// here, so they go where they were headed (their events, by default)
+	// instead of stopping on a page that only says so.
 	const user = await getCurrentUser();
+	if (user) redirect(next);
 
 	return (
 		<div className={styles.shell}>
@@ -41,33 +45,7 @@ export default async function SignInPage({ searchParams }: Props) {
 					</div>
 
 					<div className={styles.formInner}>
-						{user ? (
-							<>
-								<h1 className={styles.title}>You're signed in</h1>
-								<p className={styles.lede}>
-									Signed in as{" "}
-									<strong className={styles.strong}>{user.email}</strong>.
-								</p>
-								<div className={styles.actions}>
-									<a
-										className={`${styles.btn} ${styles.btnPrimary}`}
-										href={next}
-									>
-										Continue
-									</a>
-									<form action="/auth/signout" method="post">
-										<button
-											type="submit"
-											className={`${styles.btn} ${styles.btnSecondary}`}
-										>
-											Sign out
-										</button>
-									</form>
-								</div>
-							</>
-						) : (
-							<SignInForm next={next} urlError={urlError} />
-						)}
+						<SignInForm next={next} urlError={urlError} />
 					</div>
 				</main>
 

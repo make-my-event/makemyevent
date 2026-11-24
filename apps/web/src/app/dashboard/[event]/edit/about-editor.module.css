@@ -1,0 +1,353 @@
+/* The About editor: a header with the word count, then one frame holding the
+   toolbar and the text. The text is styled as it will read, so the host
+   sees headings, lists and quotes as guests will. */
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	grid-column: 1 / -1;
+	min-width: 0;
+}
+
+.head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-s);
+}
+
+.title {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.count {
+	margin: 0;
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	font-variant-numeric: tabular-nums;
+}
+
+.frame {
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+	transition: border-color var(--motion);
+}
+
+.frame:focus-within {
+	border-color: var(--border-strong);
+}
+
+.frame[data-invalid] {
+	border-color: var(--alert);
+}
+
+/* ---- Toolbar ---------------------------------------------------------- */
+
+/* Held under the site header while a long text scrolls past, so formatting
+   is always one reach away. */
+.toolbar {
+	position: sticky;
+	top: var(--header-height);
+	z-index: 2;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2xs);
+	padding: var(--space-xs) var(--space-s);
+	border-bottom: 1px solid var(--perforation);
+	border-radius: var(--radius-l) var(--radius-l) 0 0;
+	background: var(--surface);
+}
+
+/* Groups of like actions, a hairline between them. */
+.group {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding-inline-end: var(--space-2xs);
+	border-right: 1px solid var(--perforation);
+}
+
+.group:last-child {
+	border-right: 0;
+}
+
+.history {
+	margin-inline-start: auto;
+}
+
+.tool {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: var(--control-compact);
+	height: var(--control-compact);
+	padding: 0 var(--space-2xs);
+	border: 1px solid transparent;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	line-height: 1;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		background-color var(--motion),
+		border-color var(--motion);
+}
+
+.tool sub {
+	font-size: 0.65em;
+	vertical-align: -0.25em;
+}
+
+.tool:hover:not(:disabled) {
+	background: var(--tint);
+}
+
+.tool:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 1px;
+}
+
+/* On: filled tint with a border, so "on" is not colour alone. */
+.tool[aria-pressed="true"] {
+	border-color: var(--border-strong);
+	background: var(--stamp-tint);
+}
+
+.tool:disabled {
+	color: var(--muted);
+	cursor: default;
+	opacity: 0.5;
+}
+
+.mono {
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+}
+
+/* ---- The text --------------------------------------------------------- */
+
+.content {
+	min-height: calc(var(--control) * 4);
+	padding: var(--space-s) var(--space-m) var(--space-m);
+	color: var(--ink);
+	font-size: var(--text-body);
+	line-height: 1.6;
+	outline: none;
+	overflow-wrap: anywhere;
+}
+
+/* Placeholder: Tiptap marks the empty first paragraph. */
+.content :global(p.is-editor-empty:first-child::before) {
+	content: attr(data-placeholder);
+	float: left;
+	height: 0;
+	color: var(--muted);
+	pointer-events: none;
+}
+
+.content > :first-child {
+	margin-top: 0;
+}
+
+.content :global(p) {
+	margin: 0 0 var(--space-xs);
+}
+
+.content :global(h1),
+.content :global(h2),
+.content :global(h3) {
+	margin: var(--space-m) 0 var(--space-xs);
+	font-family: var(--font-display);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.content :global(h1) {
+	font-size: var(--text-h2);
+}
+
+.content :global(h2) {
+	font-size: var(--text-h3);
+}
+
+.content :global(h3) {
+	font-size: var(--text-large);
+}
+
+.content :global(ul),
+.content :global(ol) {
+	margin: 0 0 var(--space-xs);
+	padding-inline-start: var(--space-m);
+}
+
+.content :global(li > p) {
+	margin: 0;
+}
+
+.content :global(code) {
+	padding: 1px var(--space-2xs);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-badge);
+	background: var(--tint);
+	font-family: var(--font-mono);
+	font-size: 0.875em;
+}
+
+.content :global(pre) {
+	margin: 0 0 var(--space-s);
+	padding: var(--space-s);
+	overflow-x: auto;
+	border-radius: var(--radius-m);
+	background: var(--tint);
+	font-family: var(--font-mono);
+	font-size: var(--text-small);
+	line-height: 1.5;
+}
+
+.content :global(pre code) {
+	padding: 0;
+	border: 0;
+	background: none;
+	font-size: inherit;
+}
+
+.content :global(blockquote) {
+	margin: 0 0 var(--space-s);
+	padding: var(--space-2xs) 0 var(--space-2xs) var(--space-s);
+	border-left: 3px solid var(--stamp);
+	color: var(--muted);
+}
+
+.content :global(hr) {
+	margin: var(--space-m) 0;
+	border: 0;
+	border-top: 1px dashed var(--border-strong);
+}
+
+.content :global(a) {
+	color: var(--stamp);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.content :global(img) {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	margin: var(--space-s) 0;
+	border-radius: var(--radius-m);
+}
+
+.content :global(img.ProseMirror-selectednode) {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+/* ---- Below ------------------------------------------------------------ */
+
+.status {
+	min-height: calc(var(--text-caption) * 1.3);
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.3;
+}
+
+.error {
+	margin: 0;
+	color: var(--alert);
+	font-size: var(--text-small);
+}
+
+.popupForm {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+}
+
+.preview {
+	display: block;
+	max-width: 100%;
+	max-height: 200px;
+	margin-inline: auto;
+	border-radius: var(--radius-m);
+}
+
+.hint {
+	margin: var(--space-2xs) 0 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.4;
+}
+
+/* ---- Skeleton --------------------------------------------------------- */
+
+/* As many rows as the real toolbar wraps to at this width: one on a
+   laptop, two on a tablet, three on a phone, with the toolbar's gap
+   between them. */
+.boneTools {
+	display: block;
+	width: min(100%, 420px);
+	height: var(--control-compact);
+	border-radius: var(--radius-compact);
+	background: var(--perforation);
+}
+
+.boneBody {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	min-height: calc(var(--control) * 4);
+	padding: var(--space-s) var(--space-m) var(--space-m);
+}
+
+.boneLine {
+	display: block;
+	height: calc(var(--text-body) * 1.2);
+	border-radius: var(--radius-s);
+	background: var(--perforation);
+}
+
+.boneShort {
+	width: 60%;
+}
+
+@media (max-width: 767px) {
+	.content {
+		padding-inline: var(--space-s);
+	}
+
+	.toolbar {
+		/* Under the site header and the section strip. */
+		top: calc(
+			var(--header-height) +
+			var(--control-compact) +
+			2 *
+			var(--space-xs) +
+			1px
+		);
+	}
+}
+
+@media (max-width: 1023px) {
+	.boneTools {
+		height: calc(var(--control-compact) * 2 + var(--space-2xs));
+	}
+}
+
+@media (max-width: 767px) {
+	.boneTools {
+		height: calc(var(--control-compact) * 3 + var(--space-2xs) * 2);
+	}
+}

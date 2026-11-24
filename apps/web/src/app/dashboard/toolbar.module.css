@@ -1,0 +1,489 @@
+/* The dashboard toolbar: the row that says whose events these are, which half
+   of them is on screen, and how to add one. Drawn to the Figma frame
+   (TechNova events › Event toolbar, node 274:3): one filled group holding the
+   workspace chip, the Organized / Attending segment and settings; search and
+   Create Event to the right. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "../../components/ui/ui.module.css";
+}
+
+.soonTag {
+	composes: soonTag from "../../components/ui/ui.module.css";
+}
+
+.toolbar {
+	/* Geometry from the Figma frame. */
+	--group-height: 56px;
+	--segment-height: 40px;
+	--segment-pill-height: 34px;
+	--search-height: 44px;
+	--search-width: 301px;
+	--create-width: 153px;
+	--create-height: 42px;
+	--radius-field: 13px;
+
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 15px;
+	max-width: var(--dashboard-width);
+	margin-inline: auto;
+	/* No bottom padding: in the frame the filters' own 21px is the only gap
+	   between the toolbar and the status tabs. */
+	padding: var(--space-s) var(--dashboard-gutter) 0;
+}
+
+/* Workspace, view and settings read as one control: all three answer "which
+   events am I looking at". Create Event does not, so it stays outside. */
+.group {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-width: 0;
+	min-height: var(--group-height);
+	padding: 7px var(--space-s) 7px 7px;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+/* A solid hairline between the group's three jobs. Decorative. */
+.divider {
+	flex: none;
+	width: 1px;
+	height: var(--space-m);
+	background: var(--perforation);
+}
+
+.switcher {
+	position: relative;
+	min-width: 0;
+}
+
+/* Filled in stamp-tint: the workspace these events belong to. */
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	max-width: 240px;
+	min-width: 0;
+	height: var(--segment-height);
+	padding-inline: 15px var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--stamp-tint);
+	color: var(--ink);
+	font-size: var(--text-small);
+	font-weight: 700;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: border-color var(--motion);
+}
+
+.chip:hover {
+	border-color: var(--border-strong);
+}
+
+.chipName {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* stamp as the primary accent, not as status: it marks the workspace
+   whose name is beside it, and the name is what carries the meaning. */
+.dot {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: var(--radius-full);
+	background: var(--stamp);
+}
+
+.chevron {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	color: var(--muted);
+}
+
+/* Anchored to the chip, not to the toolbar: it belongs to the control that
+   opened it, and the names inside it set its width. */
+.panel {
+	position: absolute;
+	top: calc(100% + var(--space-xs));
+	inset-inline-start: 0;
+	z-index: 20;
+	min-width: 100%;
+	width: max-content;
+	max-width: 320px;
+	padding: var(--space-2xs);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--paper);
+	box-shadow: var(--shadow-overlay);
+}
+
+.panelLabel {
+	margin: 0;
+	padding: var(--space-xs) var(--space-s);
+	border-bottom: 1px solid var(--perforation);
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+.panelItem {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	width: 100%;
+	min-height: var(--control);
+	padding-inline: var(--space-s);
+	border: 0;
+	border-radius: var(--radius-s);
+	background: none;
+	color: var(--ink);
+	font-size: var(--text-small);
+	text-align: start;
+	text-decoration-color: transparent;
+	text-underline-offset: 4px;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: text-decoration-color var(--motion);
+}
+
+.panelItem:hover {
+	text-decoration-line: underline;
+	text-decoration-color: currentcolor;
+}
+
+/* Not built yet: shown, said, and not pressable. */
+.panelItem[aria-disabled="true"] {
+	color: var(--muted);
+	cursor: not-allowed;
+	text-decoration-line: none;
+}
+
+.panelItemName {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* The tick, not the dot, says which one is current — and aria-current says it
+   again for anyone not looking at ticks. */
+.tick {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	margin-inline-start: auto;
+	color: var(--stamp);
+}
+
+.panelAdd {
+	margin-top: var(--space-2xs);
+	padding-top: var(--space-2xs);
+	border-top: 1px solid var(--perforation);
+}
+
+/* Two links styled as one control. Links, not buttons: each view is a URL,
+   so it can be opened in a tab, bookmarked and reloaded.
+
+   Equal columns, sized to the longer label. Both labels also carry the same
+   weight whether chosen or not, so choosing one cannot change the width of
+   the control it sits in — a toggle that nudges the row each time it is
+   pressed is a layout shift, in miniature. */
+.views {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	align-items: center;
+	min-width: 0;
+	padding: 2px var(--space-2xs);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-field);
+	background: var(--tint);
+}
+
+/* The marker, as one element that slides rather than a border that appears:
+   it is the thing with somewhere to move. Logical inset rather than a
+   translate, so it still slides toward the chosen label in a right-to-left
+   layout. */
+.viewThumb {
+	position: absolute;
+	inset-block: 2px;
+	inset-inline-start: var(--space-2xs);
+	width: calc(50% - var(--space-2xs));
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-segment);
+	background: var(--surface);
+	pointer-events: none;
+	transition: inset-inline-start var(--motion);
+}
+
+.viewThumb[data-view="attending"] {
+	inset-inline-start: 50%;
+}
+
+.view {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: var(--segment-pill-height);
+	padding-inline: 15px;
+	border-radius: var(--radius-segment);
+	font-size: var(--text-small);
+	font-weight: 400;
+	color: var(--muted);
+	white-space: nowrap;
+	transition: color var(--motion);
+}
+
+.view:hover {
+	color: var(--ink);
+}
+
+/* The chosen one. The thumb is its boundary and carries border-strong's 3:1
+  ; ink and aria-current say it again where a moving box cannot. */
+.viewCurrent {
+	color: var(--ink);
+}
+
+/* Icon-only, so the icon is the boundary and the label is read aloud. */
+.iconButton {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+	width: var(--control);
+	height: var(--control);
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	background: none;
+	color: var(--muted);
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		color var(--motion),
+		border-color var(--motion);
+}
+
+.iconButton:hover {
+	color: var(--ink);
+	border-color: var(--perforation);
+}
+
+.iconButton[aria-disabled="true"] {
+	cursor: not-allowed;
+	opacity: 0.45;
+}
+
+.iconButton svg {
+	width: 18px;
+	height: 18px;
+}
+
+/* Pushed to the end of the row, and first to wrap under it when the row runs
+   out of width. */
+.search {
+	flex: 1 1 240px;
+	min-width: 0;
+	margin-inline-start: auto;
+}
+
+@media (min-width: 1024px) {
+	.search {
+		flex: 0 1 var(--search-width);
+	}
+}
+
+/* Filled in surface, as in the frame. The border stays border-strong rather
+   than the frame's perforation: an input needs a 3:1 boundary (WCAG 1.4.11).
+   16px text below desktop keeps iOS from zooming the page on focus; with a
+   real pointer it drops to the frame's 14px. */
+.searchForm {
+	position: relative;
+}
+
+.searchInput {
+	width: 100%;
+	height: var(--search-height);
+	padding-inline: 17px calc(15px + 18px + var(--space-xs));
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-field);
+	background: var(--surface);
+	color: var(--ink);
+	font-size: var(--text-body);
+	transition: border-color var(--motion);
+}
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+	.searchInput {
+		font-size: var(--text-small);
+	}
+}
+
+.searchInput::placeholder {
+	color: var(--muted);
+}
+
+.searchInput:hover {
+	border-color: var(--ink);
+}
+
+.searchIcon {
+	position: absolute;
+	inset-inline-end: 15px;
+	top: 50%;
+	translate: 0 -50%;
+	width: 18px;
+	height: 18px;
+	color: var(--muted);
+	pointer-events: none;
+}
+
+/* stamp fill, as in the Figma frame: the dashboard's one primary action, and stamp
+   is the primary accent. paper label, 4.92:1 light and 5.31:1 dark. */
+.create {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	flex: none;
+	min-width: var(--create-width);
+	min-height: var(--create-height);
+	padding-inline: 20px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-m);
+	background: var(--stamp);
+	color: var(--paper);
+	font-size: var(--text-small);
+	font-weight: 500;
+	line-height: 1.4;
+	white-space: nowrap;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: background-color var(--motion);
+}
+
+.create:hover {
+	background: var(--stamp-hover);
+}
+
+.create:active {
+	background: var(--stamp-pressed);
+}
+
+.create svg {
+	flex: none;
+	width: 18px;
+	height: 18px;
+}
+
+/* ---- Skeleton -------------------------------------------------------- */
+
+/* The group's frame, empty, at the width its three controls give it. */
+.skeletonGroup {
+	flex: none;
+	width: 435px;
+}
+
+/* Below a laptop the search's larger text makes the group a little taller. */
+@media (max-width: 1023px) {
+	.skeletonGroup {
+		width: 439px;
+		min-height: 60px;
+	}
+}
+
+.skeletonSearch {
+	display: block;
+	min-height: var(--search-height);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-field);
+	background: var(--surface);
+}
+
+.skeletonCreate {
+	background: var(--perforation);
+}
+
+/* Phones: no box around the group, so the list starts sooner. The workspace
+   and settings share the first line, Organized | Attending gets the second
+   to itself (an even split, a wide target each), and search shares the third
+   with Create Event as a square +. The + keeps its words for screen readers
+   and as a tooltip; on a phone the green square beside search is the
+   dashboard's one primary action, and is read as such. */
+@media (max-width: 639px) {
+	.toolbar {
+		gap: var(--space-xs);
+	}
+
+	.group {
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+		row-gap: var(--space-xs);
+		min-height: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+	}
+
+	.chip {
+		flex: 0 1 auto;
+		padding-inline: var(--space-xs);
+	}
+
+	.divider {
+		display: none;
+	}
+
+	.iconButton {
+		margin-inline-start: auto;
+	}
+
+	.views {
+		flex: 1 1 100%;
+		order: 1;
+	}
+
+	.search {
+		flex: 1 1 0;
+		order: 1;
+		margin-inline-start: 0;
+	}
+
+	.create {
+		order: 2;
+		min-width: var(--search-height);
+		width: var(--search-height);
+		min-height: var(--search-height);
+		padding: 0;
+	}
+
+	.createLabel {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+		border: 0;
+	}
+}
+
+/* Phones: the group has no frame of its own, so its skeleton is one bone
+   as tall as its two lines. */
+@media (max-width: 639px) {
+	.skeletonGroup {
+		width: auto;
+		min-height: 92px;
+		background: var(--perforation);
+	}
+}

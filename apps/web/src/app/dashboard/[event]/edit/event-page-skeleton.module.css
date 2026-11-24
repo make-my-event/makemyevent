@@ -1,0 +1,71 @@
+/* The Event Page's skeleton. Frames come from the page's own stylesheets;
+   these are only the stand-ins inside them, each at the height of what it
+   stands in for. Heights were measured from a new event's page. */
+
+/* The 4:5 frame, empty. */
+.poster {
+	background: var(--tint);
+}
+
+/* The address bar under the poster. */
+.field {
+	display: block;
+	min-height: var(--control);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+}
+
+/* The upload status line, kept even when empty. */
+.status {
+	display: block;
+	min-height: calc(var(--text-caption) * 1.3);
+}
+
+/* A control, drawn at its own size from its own class, as a bone. Two
+   classes, so it wins over that class whichever stylesheet loads last. */
+.boneControl.boneControl {
+	border-color: transparent;
+	background: var(--perforation);
+	color: transparent;
+	cursor: default;
+}
+
+/* A new event's cards. Phones, then tablets (one card per row), then
+   laptops (Schedule and Venue side by side). */
+.scheduleCard {
+	min-height: 530px;
+}
+
+.venueCard {
+	min-height: 539px;
+}
+
+.linksCard {
+	min-height: 442px;
+}
+
+@media (min-width: 768px) {
+	.scheduleCard {
+		min-height: 546px;
+	}
+
+	.venueCard {
+		min-height: 563px;
+	}
+
+	.linksCard {
+		min-height: 397px;
+	}
+}
+
+@media (min-width: 1024px) {
+	.scheduleCard,
+	.venueCard {
+		min-height: 537px;
+	}
+
+	.linksCard {
+		min-height: 292px;
+	}
+}

@@ -3,6 +3,7 @@ import { QrPattern } from "@/components/qr-pattern";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { CheckInDemo } from "./_landing/check-in-demo";
+import { CreateCta } from "./_landing/create-cta";
 import { CopyLink } from "./_landing/copy-link";
 import { PassDeck, type SamplePass } from "./_landing/pass-deck";
 import styles from "./landing.module.css";
@@ -169,12 +170,10 @@ export default function LandingPage() {
 								to the final certificate.
 							</p>
 							<div className={styles.ctaRow}>
-								<a
+								<CreateCta
 									className={`${styles.btn} ${styles.btnPrimary}`}
-									href="/signin"
-								>
-									Create an event
-								</a>
+									label="Create an event"
+								/>
 								<a
 									className={`${styles.btn} ${styles.btnSecondary}`}
 									href="#features"
@@ -663,12 +662,10 @@ export default function LandingPage() {
 								</p>
 							</div>
 							<div className={styles.closingAction}>
-								<a
+								<CreateCta
 									className={`${styles.btn} ${styles.btnPrimary}`}
-									href="/signin"
-								>
-									Create your event
-								</a>
+									label="Create your event"
+								/>
 								<p className={styles.note}>
 									Simple to start. Free event pages.
 								</p>

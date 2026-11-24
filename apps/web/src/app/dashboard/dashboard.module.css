@@ -1,0 +1,94 @@
+/* The dashboard's page body, below the toolbar. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "../../components/ui/ui.module.css";
+}
+
+.bone {
+	composes: bone from "../../components/ui/ui.module.css";
+}
+
+.main {
+	max-width: var(--dashboard-width);
+	margin-inline: auto;
+	/* 21px under the toolbar, as in the Figma frame, whatever the page holds. */
+	padding: 21px var(--dashboard-gutter) var(--space-2xl);
+}
+
+/* Every empty state is the same shape: a line that says what is missing, a
+   line that says what to do, and the control that does it. */
+.empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-s);
+	padding: var(--space-2xl) var(--space-s);
+	border: 1px dashed var(--perforation);
+	border-radius: var(--radius-m);
+	text-align: center;
+}
+
+.emptyTitle {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.emptyBody {
+	max-width: 46ch;
+	margin: 0;
+	color: var(--muted);
+}
+
+.emptyAction {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: var(--control);
+	padding-inline: var(--space-m);
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	background: var(--ink);
+	color: var(--paper);
+	font-family: inherit;
+	font-size: var(--text-small);
+	font-weight: 500;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background-color var(--motion);
+}
+
+.emptyAction:hover {
+	background: var(--ink-hover);
+}
+
+.emptyAction:active {
+	background: var(--ink-pressed);
+}
+
+/* Skeletons are sized to the rows they stand in for, so nothing moves when
+   the real ones arrive. perforation as a fill is allowed where nothing is
+   read on it. */
+.skeletonRow {
+	height: 96px;
+	margin-bottom: var(--space-s);
+	border-radius: var(--radius-m);
+	background: var(--perforation);
+}
+
+.boneEmptyTitle {
+	inline-size: min(16rem, 80%);
+	block-size: calc(var(--text-h3) * 1.25);
+}
+
+/* A control, drawn at its own size from its own class, as a bone. Two
+   classes, so it wins over that class's own colours. */
+.boneControl.boneControl {
+	border-color: transparent;
+	background: var(--perforation);
+	color: transparent;
+	cursor: default;
+}

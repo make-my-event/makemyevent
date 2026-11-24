@@ -374,39 +374,25 @@
 /* ---------------------------------------------------------------
    Messages. Icon plus words, never colour alone.
    --------------------------------------------------------------- */
-.error,
-.notice {
+.error {
 	display: flex;
 	align-items: flex-start;
 	gap: var(--space-xs);
 	margin: 0;
 	font-size: var(--text-small);
 	line-height: 1.4;
-}
-
-.error {
 	color: var(--alert);
 }
 
-.error[data-shown="false"],
-.notice:empty {
+.error[data-shown="false"] {
 	display: none;
 }
 
-.notice {
-	color: var(--ink);
-}
-
-.error svg,
-.notice svg {
+.error svg {
 	flex: none;
 	width: 16px;
 	height: 16px;
 	margin-top: 2px;
-}
-
-.notice svg {
-	color: var(--stamp);
 }
 
 .link {

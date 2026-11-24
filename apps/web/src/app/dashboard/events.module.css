@@ -1,0 +1,630 @@
+/* The Organized list: status filters, then event cards. Drawn to the Figma
+   frame (TechNova events, node 274:2). Colours and type are design-spec.md
+   tokens; the measurements below are the frame's own. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "../../components/ui/ui.module.css";
+}
+
+.list {
+	/* Geometry from the Figma frame. */
+	--filters-pad-bottom: 30px;
+	--tabs-height: 52px;
+	--tabs-width: 524px;
+	--tabs-radius: 17px;
+	--card-height: 190px;
+	--card-pad: 15px;
+	--card-gap: 14px;
+	--grid-gap: 21px;
+	--cover-width: 103px;
+	--detail-gap: 6px;
+	--heading-height: 32px;
+	--place-height: 22px;
+	--meta-height: 16px;
+	--meta-gap: 7px;
+	--meta-icon: 13px;
+	--duplicate-width: 28px;
+	--duplicate-height: 30px;
+	--manage-gap: 11px;
+	--footer-height: 28px;
+	--manage-width: 85px;
+	--manage-height: 27px;
+	--manage-radius: 7px;
+	--action-icon: 15px;
+	/* Each bare 15px action icon sits in a 24px target (WCAG 2.5.8). */
+	--action-target: 24px;
+}
+
+/* ---- Filters ------------------------------------------------------- */
+
+.filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+	padding-block: 0 var(--filters-pad-bottom);
+}
+
+.tabs {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: min(100%, var(--tabs-width));
+	min-height: var(--tabs-height);
+	padding-inline: 31px 27px;
+	border: 1px solid var(--perforation);
+	border-radius: var(--tabs-radius);
+	background: var(--surface);
+}
+
+/* The label and its count, inside an invisible target tall enough to press. */
+.tab {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+	color: var(--muted);
+	font-size: var(--text-small);
+	font-weight: 400;
+	line-height: 1.2;
+	white-space: nowrap;
+	touch-action: manipulation;
+	transition: color var(--motion);
+}
+
+.tab:hover {
+	color: var(--ink);
+}
+
+.tabCount {
+	padding: 3px 6px;
+	border-radius: var(--radius-badge);
+	background: var(--tint);
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	line-height: 1.25;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Chosen: ink label, and the count takes the active workspace's tint. The
+   weight stays put, so choosing a tab cannot shift the row. */
+.tabCurrent {
+	color: var(--ink);
+}
+
+.tabCurrent .tabCount {
+	background: var(--stamp-tint);
+	color: var(--ink);
+}
+
+/* Phones: one row of chips that scrolls sideways, edge to edge, instead of
+   a boxed bar folded into rows. Each chip is a full pressable pill; the
+   chosen one is filled ink. The far edge fades, so the row reads as one
+   that continues. */
+@media (max-width: 639px) {
+	.list {
+		--filters-pad-bottom: var(--space-s);
+	}
+
+	.filters {
+		gap: var(--space-xs);
+	}
+
+	.tabs {
+		gap: var(--space-xs);
+		justify-content: flex-start;
+		width: calc(100% + 2 * var(--dashboard-gutter));
+		min-height: 0;
+		margin-inline: calc(-1 * var(--dashboard-gutter));
+		padding: 2px var(--dashboard-gutter);
+		overflow-x: auto;
+		border: 0;
+		border-radius: 0;
+		background: none;
+		scroll-padding-inline: var(--dashboard-gutter);
+		scroll-snap-type: x proximity;
+		scrollbar-width: none;
+		mask-image: linear-gradient(
+			to right,
+			var(--ink) calc(100% - var(--space-m)),
+			transparent
+		);
+	}
+
+	.tabs::-webkit-scrollbar {
+		display: none;
+	}
+
+	.tab {
+		/* Anchors its hidden screen-reader text, which would otherwise be
+		   placed against the page and widen it past the scrolling row. */
+		position: relative;
+		flex: none;
+		min-height: var(--control-compact);
+		padding-inline: var(--space-s) var(--space-xs);
+		border: 1px solid var(--perforation);
+		border-radius: var(--radius-full);
+		background: var(--surface);
+		scroll-snap-align: start;
+	}
+
+	.tabCurrent {
+		border-color: var(--ink);
+		background: var(--ink);
+		color: var(--paper);
+	}
+
+	.tabCurrent .tabCount {
+		background: var(--paper);
+	}
+}
+
+/* ---- Grid ---------------------------------------------------------- */
+
+.grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--grid-gap);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+@media (min-width: 1024px) {
+	.grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* Three across once the page reaches its full width, as in the frame. */
+@media (min-width: 1440px) {
+	.grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+/* ---- Card ---------------------------------------------------------- */
+
+.card {
+	display: flex;
+	align-items: stretch;
+	gap: var(--card-gap);
+	height: var(--card-height);
+	padding: var(--card-pad);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+	transition: border-color var(--motion);
+}
+
+/* The whole card answers the pointer, so it reads as one thing to act on;
+   each control inside then answers on its own. */
+.card:hover {
+	border-color: var(--border-strong);
+}
+
+.cover {
+	flex: none;
+	width: var(--cover-width);
+	overflow: hidden;
+	border-radius: var(--radius-m);
+	background: var(--ink);
+}
+
+.coverImage {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* No artwork yet: the event's initials and code, paper on ink. */
+.coverPlaceholder {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	gap: var(--space-2xs);
+	height: 100%;
+	padding: var(--space-xs);
+	color: var(--paper);
+}
+
+.coverInitials {
+	font-family: var(--font-display);
+	font-size: var(--step-h3-m);
+	font-weight: 700;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+
+.coverCode {
+	font-family: var(--font-mono);
+	font-size: var(--text-micro);
+	line-height: 1.3;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.info {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	justify-content: space-between;
+	min-width: 0;
+}
+
+.details {
+	display: flex;
+	flex-direction: column;
+	gap: var(--detail-gap);
+}
+
+.heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	height: var(--heading-height);
+}
+
+/* Card title: body face, 16px, 700. One line, so every card is the same
+   height. */
+.title {
+	min-width: 0;
+	margin: 0;
+	overflow: hidden;
+	font-family: var(--font-body);
+	font-size: var(--text-card-title);
+	font-weight: 700;
+	line-height: 1.25;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.place,
+.meta {
+	display: flex;
+	align-items: center;
+	gap: var(--meta-gap);
+	margin: 0;
+	white-space: nowrap;
+}
+
+.place {
+	min-width: 0;
+	height: var(--place-height);
+}
+
+.code {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	height: var(--place-height);
+	padding-inline: 7px;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-badge);
+	background: var(--tint);
+	color: var(--ink);
+	font-family: var(--font-mono);
+	font-size: var(--text-micro);
+	line-height: 1.3;
+}
+
+.venue {
+	min-width: 0;
+	overflow: hidden;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.3;
+	text-overflow: ellipsis;
+}
+
+.meta {
+	height: var(--meta-height);
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-micro);
+	line-height: 1.3;
+}
+
+.metaStrong {
+	color: var(--ink);
+}
+
+/* stamp as accent; the text beside each icon says what it is. */
+.metaIcon {
+	flex: none;
+	width: var(--meta-icon);
+	height: var(--meta-icon);
+	color: var(--stamp);
+}
+
+.metaIconMuted {
+	flex: none;
+	width: var(--meta-icon);
+	height: var(--meta-icon);
+}
+
+.when,
+.count {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-variant-numeric: tabular-nums;
+}
+
+.manageArea {
+	display: flex;
+	flex-direction: column;
+	gap: var(--manage-gap);
+}
+
+/* The tear line: 3px dashes, 3px apart, in perforation. Decorative. */
+.tear {
+	height: 1px;
+	background: repeating-linear-gradient(
+		to right,
+		var(--perforation) 0 3px,
+		transparent 3px 6px
+	);
+}
+
+.footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	height: var(--footer-height);
+}
+
+.manage {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: var(--manage-width);
+	height: var(--manage-height);
+	border: 1px solid var(--perforation);
+	border-radius: var(--manage-radius);
+	background: var(--tint);
+	color: var(--ink);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	white-space: nowrap;
+	touch-action: manipulation;
+	transition:
+		border-color var(--motion),
+		background-color var(--motion);
+}
+
+.manage:hover {
+	border-color: var(--stamp);
+	background: var(--stamp-tint);
+}
+
+.manage:focus-visible,
+.action:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.manageIcon {
+	width: 12px;
+	height: 12px;
+}
+
+.actions {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+}
+
+.action {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--action-target);
+	height: var(--action-target);
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-badge);
+	background: none;
+	color: var(--muted);
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		color var(--motion),
+		background-color var(--motion),
+		border-color var(--motion);
+}
+
+/* A tint square behind the icon, so the target shows its full size. */
+.action:hover {
+	background: var(--tint);
+	color: var(--ink);
+}
+
+/* Not built yet: shown, said in its name and title, not pressable. */
+.action[aria-disabled="true"] {
+	cursor: not-allowed;
+	opacity: 0.45;
+}
+
+.action svg {
+	width: var(--action-icon);
+	height: var(--action-icon);
+}
+
+/* The footer's actions (edit, copy link, delete) wear Manage's box: its
+   height, border, corner and tint, square, with a 16px icon in ink. Beside a
+   boxed Manage, bare icons read as decoration rather than buttons. */
+.actions .action {
+	width: var(--manage-height);
+	height: var(--manage-height);
+	border: 1px solid var(--perforation);
+	border-radius: var(--manage-radius);
+	background: var(--tint);
+	color: var(--ink);
+}
+
+.actions .action:hover {
+	border-color: var(--border-strong);
+	background: var(--surface);
+}
+
+.actions .action svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+/* Duplicate, beside the title: outlined, 28 by 30, with a 16px icon. */
+.actionOutlined {
+	width: var(--duplicate-width);
+	height: var(--duplicate-height);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+}
+
+.actionOutlined:hover {
+	border-color: var(--border-strong);
+}
+
+.actionOutlined svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+/* Delete turns alert only on intent. */
+.actionDestructive:hover {
+	background: color-mix(in srgb, var(--alert) 10%, var(--surface));
+	color: var(--alert);
+}
+
+/* Delete keeps its warning: alert only on intent. */
+.actions .actionDestructive:hover {
+	border-color: var(--alert);
+	background: color-mix(in srgb, var(--alert) 10%, var(--surface));
+	color: var(--alert);
+}
+
+.copiedIcon {
+	color: var(--stamp);
+}
+
+/* Phones: a square thumbnail beside the title, like a ticket stub, and the
+   rest of the card at full width beneath. A poster is cropped to the square,
+   never squeezed into a strip. The card is a grid here, and its two wrapper
+   boxes step aside (display: contents) so their rows line up in it. */
+@media (max-width: 639px) {
+	.list {
+		--thumb: 56px;
+	}
+
+	.card {
+		display: grid;
+		grid-template-columns: var(--thumb) minmax(0, 1fr);
+		align-items: center;
+		gap: var(--detail-gap) var(--card-gap);
+		height: auto;
+	}
+
+	.info,
+	.details {
+		display: contents;
+	}
+
+	.cover {
+		grid-row: 1 / span 2;
+		width: var(--thumb);
+		height: var(--thumb);
+		align-self: start;
+	}
+
+	.coverPlaceholder {
+		justify-content: center;
+		align-items: center;
+		padding: 0;
+	}
+
+	.coverInitials {
+		font-size: var(--text-body);
+	}
+
+	.coverCode {
+		display: none;
+	}
+
+	.heading,
+	.place {
+		grid-column: 2;
+	}
+
+	.meta:not(.place),
+	.manageArea {
+		grid-column: 1 / -1;
+	}
+
+	.manageArea {
+		margin-top: var(--space-2xs);
+	}
+}
+
+/* ---- Loading ------------------------------------------------------- */
+
+/* Sized to what they stand in for, so nothing moves when the list lands. */
+.skeletonFilters {
+	width: min(100%, var(--tabs-width));
+	height: var(--tabs-height);
+	margin-block: 0 var(--filters-pad-bottom);
+	border-radius: var(--tabs-radius);
+	background: var(--tint);
+}
+
+.skeletonGrid {
+	composes: grid;
+}
+
+.skeletonCard {
+	height: var(--card-height);
+	border-radius: var(--radius-l);
+	background: var(--tint);
+}
+
+/* Phones: the chip row; and the stub card, row by
+   row (padding, title, place, two meta lines, their gaps, the tear and the
+   footer, the border). */
+@media (max-width: 639px) {
+	.skeletonFilters {
+		height: calc(var(--control-compact) + 4px);
+		border-radius: var(--radius-full);
+	}
+
+	.skeletonCard {
+		height: calc(
+			2 *
+			var(--card-pad) +
+			var(--heading-height) +
+			var(--place-height) +
+			2 *
+			var(--meta-height) +
+			4 *
+			var(--detail-gap) +
+			var(--space-2xs) +
+			1px +
+			var(--manage-gap) +
+			var(--footer-height) +
+			2px
+		);
+	}
+}
+
+.deleteError {
+	margin: 0;
+	color: var(--alert);
+	font-size: var(--text-small);
+	line-height: 1.4;
+}

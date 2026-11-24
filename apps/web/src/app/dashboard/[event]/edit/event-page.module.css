@@ -1,0 +1,607 @@
+/* The Event Page tab: the poster column, then the settings beside it. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "../../../../components/ui/ui.module.css";
+}
+
+.switch {
+	composes: switch from "../../../../components/ui/ui.module.css";
+}
+
+.switchThumb {
+	composes: switchThumb from "../../../../components/ui/ui.module.css";
+}
+
+.layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-m);
+	padding-bottom: calc(var(--control) + 2 * var(--space-s));
+}
+
+/* Side by side once there is room for a poster worth looking at. */
+@media (min-width: 1024px) {
+	.layout {
+		grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
+		/* Both columns run to the same foot: the settings card grows to
+		   end level with the address bar under the poster. */
+		align-items: stretch;
+	}
+}
+
+.media {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	min-width: 0;
+}
+
+/* ---- Poster ----------------------------------------------------------- */
+
+.posterGroup {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+}
+
+/* 4:5, the shape of an Instagram portrait post, so the host's poster goes
+   in as it is. */
+.poster {
+	position: relative;
+	aspect-ratio: 4 / 5;
+	overflow: hidden;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+	transition: border-color var(--motion);
+}
+
+/* A file held over it: the whole frame says "drop here". */
+.poster[data-dragging] {
+	border-color: var(--stamp);
+	background: var(--stamp-tint);
+}
+
+.posterImage {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* The empty frame is one big button, click or drop, on a quiet dot grid:
+   the surface a poster gets laid on. The dots are perforation, so they hold
+   back in both themes. */
+.posterEmpty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	width: 100%;
+	height: 100%;
+	padding: var(--space-m);
+	position: relative;
+	border: 0;
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	text-align: center;
+	cursor: pointer;
+}
+
+/* The dots: sparse, soft, and gone from the middle, so they frame the
+   upload tile and its words instead of running through them. A layer of
+   their own, so only they fade, not the text. */
+.posterEmpty::before {
+	position: absolute;
+	inset: 0;
+	content: "";
+	background-image: radial-gradient(
+		circle,
+		var(--border-strong) 0.75px,
+		transparent 1px
+	);
+	background-position: center;
+	background-size: var(--space-m) var(--space-m);
+	opacity: 0.7;
+	mask-image: radial-gradient(
+		ellipse 46% 34% at center,
+		transparent 55%,
+		var(--ink) 100%
+	);
+	pointer-events: none;
+	transition: opacity var(--motion);
+}
+
+.posterEmpty > * {
+	position: relative;
+}
+
+/* A file held over the frame: the dots turn stamp, ready to catch it. */
+.poster[data-dragging] .posterEmpty::before {
+	background-image: radial-gradient(
+		circle,
+		var(--stamp) 1px,
+		transparent 1.25px
+	);
+	opacity: 1;
+}
+
+.posterEmpty:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: -4px;
+}
+
+.uploadTile {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: calc(var(--control) + var(--space-xs));
+	height: calc(var(--control) + var(--space-xs));
+	margin-bottom: var(--space-2xs);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--tint);
+	color: var(--ink);
+	transition:
+		background-color var(--motion),
+		border-color var(--motion);
+}
+
+.uploadTile svg {
+	width: 20px;
+	height: 20px;
+}
+
+.posterEmpty:hover .uploadTile {
+	border-color: var(--border-strong);
+	background: var(--surface);
+}
+
+.posterTitle {
+	font-size: var(--text-body);
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+.posterChip {
+	padding: 2px var(--space-xs);
+	border-radius: var(--radius-full);
+	background: var(--tint);
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	line-height: 1.5;
+}
+
+/* Over the poster while it uploads, so the preview stays visible. */
+.uploading {
+	position: absolute;
+	inset-block-start: var(--space-s);
+	inset-inline-start: var(--space-s);
+	padding: var(--space-2xs) var(--space-xs);
+	border-radius: var(--radius-badge);
+	background: var(--ink);
+	color: var(--paper);
+	font-size: var(--text-caption);
+	font-weight: 500;
+}
+
+/* The community's mark, over the poster's corner. */
+.logoWrap {
+	position: absolute;
+	inset-block-end: var(--space-s);
+	inset-inline-start: var(--space-s);
+}
+
+.logo {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: calc(var(--control) * 1.5);
+	height: calc(var(--control) * 1.5);
+	padding: 0;
+	overflow: hidden;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-full);
+	background: var(--surface);
+	/* A ring of surface keeps it apart from a busy poster behind it. */
+	box-shadow: 0 0 0 var(--space-2xs) var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-caption);
+	font-weight: 500;
+	cursor: pointer;
+	transition: border-color var(--motion);
+}
+
+.logo:hover {
+	border-color: var(--ink);
+}
+
+.logoEmpty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+}
+
+.logoEmpty svg {
+	width: 14px;
+	height: 14px;
+}
+
+.logo:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.logoImage {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.logoRemove {
+	position: absolute;
+	inset-block-start: calc(-1 * var(--space-2xs));
+	inset-inline-end: calc(-1 * var(--space-2xs));
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--space-m);
+	height: var(--space-m);
+	padding: 0;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-full);
+	background: var(--surface);
+	color: var(--ink);
+	cursor: pointer;
+}
+
+.logoRemove svg {
+	width: 12px;
+	height: 12px;
+}
+
+.logoRemove:hover {
+	border-color: var(--alert);
+	color: var(--alert);
+}
+
+/* Over the poster's top corner, so the column keeps one height. */
+.posterTools {
+	position: absolute;
+	inset-block-start: var(--space-s);
+	inset-inline-end: var(--space-s);
+	display: flex;
+	gap: var(--space-2xs);
+}
+
+.toolButton {
+	min-height: var(--control-compact);
+	padding-inline: var(--space-s);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	box-shadow: var(--shadow-overlay);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-caption);
+	font-weight: 500;
+	cursor: pointer;
+	transition:
+		background-color var(--motion),
+		border-color var(--motion),
+		color var(--motion);
+}
+
+.toolButton:hover {
+	background: var(--tint);
+}
+
+.toolDanger:hover {
+	border-color: var(--alert);
+	background: color-mix(in srgb, var(--alert) 10%, var(--surface));
+	color: var(--alert);
+}
+
+.toolButton:disabled {
+	cursor: progress;
+	opacity: 0.6;
+}
+
+.uploadStatus {
+	min-height: calc(var(--text-caption) * 1.3);
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.3;
+}
+
+.altField {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+}
+
+.altLabel {
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+.altInput {
+	width: 100%;
+	padding: var(--space-xs);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	resize: vertical;
+}
+
+.altInput:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.altHint {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.3;
+}
+
+/* ---- Address ---------------------------------------------------------- */
+
+.address {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+}
+
+.addressField {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	min-height: var(--control);
+	padding-inline: var(--space-s) var(--space-2xs);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	font-family: var(--font-mono);
+	/* Caption size, so a usual address fits the poster's width whole. */
+	font-size: var(--text-caption);
+}
+
+.addressField:focus-within {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.addressPrefix {
+	flex: none;
+	color: var(--muted);
+}
+
+.addressValue,
+.addressInput {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	color: var(--ink);
+	font-weight: 500;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.addressInput {
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	font-weight: 500;
+}
+
+.addressInput:focus {
+	outline: none;
+}
+
+.addressEdit {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--control-compact);
+	height: var(--control-compact);
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--muted);
+	cursor: pointer;
+	transition:
+		background-color var(--motion),
+		color var(--motion);
+}
+
+.copiedIcon {
+	color: var(--stamp);
+}
+
+.addressEdit:hover {
+	background: var(--tint);
+	color: var(--ink);
+}
+
+.addressStatus {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.3;
+}
+
+.statusError {
+	color: var(--alert);
+}
+
+.statusOk {
+	color: var(--stamp);
+}
+
+/* ---- Registration behaviour ------------------------------------------- */
+
+.behaviour {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	min-width: 0;
+}
+
+.behaviourHead {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-2xs) var(--space-s);
+}
+
+.behaviourTitle {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.behaviourLead {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.card {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	padding: var(--space-2xs) var(--space-m) var(--space-m);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+/* Full width at the foot of the card, like the mockup. Present but not yet
+   working: it reads as a button, and says it is coming. */
+.advanced {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	width: 100%;
+	min-height: var(--control);
+	margin-top: auto;
+	padding-inline: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 500;
+	white-space: nowrap;
+	cursor: not-allowed;
+}
+
+.soon {
+	padding: 2px var(--space-xs);
+	border-radius: var(--radius-full);
+	background: var(--tint);
+	color: var(--muted);
+	font-size: var(--text-caption);
+	font-weight: 400;
+}
+
+.row {
+	display: flex;
+	/* Rows share any height the card gains from matching the poster's
+	   column, instead of leaving a gap above Advanced settings. */
+	flex: 1 1 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+	padding-block: var(--space-s);
+	border-bottom: 1px solid var(--perforation);
+}
+
+.row:last-of-type {
+	margin-bottom: var(--space-s);
+}
+
+.rowText {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	min-width: 0;
+}
+
+.rowLabel {
+	margin: 0;
+	font-size: var(--text-body);
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+.rowDescription {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.fieldError {
+	color: var(--alert);
+}
+
+.capacity {
+	flex: none;
+	width: calc(var(--control) * 2.75);
+	min-height: var(--control);
+	padding-inline: var(--space-s);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--ink);
+	font-family: var(--font-mono);
+	font-size: var(--text-body);
+	text-align: end;
+}
+
+.capacity::placeholder {
+	color: var(--muted);
+}
+
+.capacity[aria-invalid="true"] {
+	border-color: var(--alert);
+}
+
+/* ---- Save bar ---------------------------------------------------------- */
+
+/* Under both columns, held at the foot of the screen (components/ui). */
+.saveBarPlace {
+	grid-column: 1 / -1;
+}
+
+@media (max-width: 767px) {
+	.card {
+		padding-inline: var(--space-s);
+	}
+
+	/* Room for the words beside it: about six digits wide. */
+	.capacity {
+		width: calc(var(--control) * 2);
+	}
+}
