@@ -1,0 +1,338 @@
+/* Social links: full width under Schedule and Venue. The paste field and
+   platform chips start a link; the numbered list below is the footer's
+   order, top to bottom. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "../../../../components/ui/ui.module.css";
+}
+
+.panel {
+	grid-column: 1 / -1;
+	container-type: inline-size;
+}
+
+.head {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: var(--space-s);
+}
+
+.count {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* ---- Paste ------------------------------------------------------------- */
+
+.paste {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+}
+
+.pasteRow {
+	display: flex;
+	gap: var(--space-xs);
+}
+
+.pasteBox {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+}
+
+/* The platform the paste will become, shown as it is recognised. */
+.pasteIcon {
+	position: absolute;
+	top: 50%;
+	left: var(--space-s);
+	display: grid;
+	color: var(--muted);
+	translate: 0 -50%;
+	pointer-events: none;
+}
+
+.pasteInput {
+	padding-inline-start: calc(var(--space-s) * 2 + var(--space-xs));
+}
+
+.addButton {
+	flex: none;
+	min-height: var(--control);
+	padding-inline: var(--space-m);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 600;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: background-color var(--motion);
+}
+
+.addButton:hover:not(:disabled) {
+	background: var(--tint);
+}
+
+.addButton:disabled {
+	color: var(--muted);
+	cursor: default;
+	opacity: 0.6;
+}
+
+.addButton:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+/* ---- Platforms --------------------------------------------------------- */
+
+.platforms {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-xs);
+}
+
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	min-height: var(--control-compact);
+	padding-inline: var(--space-xs) var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-full);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		border-color var(--motion),
+		background-color var(--motion);
+}
+
+.chip:hover:not(:disabled) {
+	border-color: var(--border-strong);
+}
+
+.chip:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 1px;
+}
+
+.chip:disabled {
+	cursor: default;
+	opacity: 0.5;
+}
+
+.chipIcon {
+	flex: none;
+}
+
+/* Already on the page: tinted and ticked, and a press goes to it. */
+.chip[data-added] {
+	border-color: transparent;
+	background: var(--stamp-tint);
+}
+
+.chip[data-added]::after {
+	content: "";
+	width: var(--space-xs);
+	height: calc(var(--space-xs) / 2);
+	margin-inline-start: 2px;
+	border-bottom: 1.5px solid var(--stamp);
+	border-left: 1.5px solid var(--stamp);
+	rotate: -45deg;
+	translate: 0 -1px;
+}
+
+.more {
+	padding-inline: var(--space-s);
+	border-style: dashed;
+	color: var(--muted);
+}
+
+/* ---- The list ---------------------------------------------------------- */
+
+.empty {
+	margin: 0;
+	padding: var(--space-m);
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--radius-m);
+	color: var(--muted);
+	font-size: var(--text-small);
+	text-align: center;
+}
+
+.list {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: var(--space-xs) 0 0;
+	border-top: 1px dashed var(--border-strong);
+	list-style: none;
+}
+
+/* Place, platform, what was typed, then move and remove. */
+.row {
+	display: grid;
+	grid-template-columns: var(--space-m) minmax(0, 9rem) minmax(0, 1fr) auto;
+	align-items: start;
+	gap: var(--space-xs) var(--space-s);
+	padding-block: var(--space-xs);
+}
+
+.row + .row {
+	border-top: 1px solid var(--perforation);
+}
+
+.place {
+	min-height: var(--control);
+	color: var(--muted);
+	font-size: var(--text-small);
+	font-variant-numeric: tabular-nums;
+	line-height: var(--control);
+	text-align: end;
+}
+
+.platform {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+	min-width: 0;
+	color: var(--ink);
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+.badge {
+	display: grid;
+	flex: none;
+	width: var(--control-compact);
+	height: var(--control-compact);
+	place-items: center;
+	border-radius: var(--radius-compact);
+	background: var(--tint);
+}
+
+.value {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	min-width: 0;
+}
+
+.value > p,
+.target {
+	overflow-wrap: anywhere;
+}
+
+.target {
+	color: var(--ink);
+}
+
+.tools {
+	display: flex;
+	gap: 2px;
+	min-height: var(--control);
+	align-items: center;
+}
+
+.tool {
+	display: grid;
+	width: var(--control-compact);
+	height: var(--control-compact);
+	padding: 0;
+	place-items: center;
+	border: 1px solid transparent;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--muted);
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		background-color var(--motion),
+		color var(--motion);
+}
+
+.tool svg {
+	width: var(--space-s);
+	height: var(--space-s);
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.tool:hover:not(:disabled) {
+	background: var(--tint);
+	color: var(--ink);
+}
+
+.remove:hover:not(:disabled) {
+	color: var(--alert);
+}
+
+.tool:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 1px;
+}
+
+.tool:disabled {
+	cursor: default;
+	opacity: 0.35;
+}
+
+/* A narrow card: the platform sits over its field, the tools beside it. */
+@container (max-width: 560px) {
+	.row {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
+	.place {
+		display: none;
+	}
+
+	.platform {
+		min-height: auto;
+	}
+
+	.value {
+		grid-column: 1 / -1;
+		grid-row: 2;
+	}
+
+	.tools {
+		grid-column: 2;
+		grid-row: 1;
+		min-height: auto;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.chip,
+	.tool,
+	.addButton {
+		transition: none;
+	}
+}

@@ -1,0 +1,15 @@
+/* The page under a layout: no box of its own, so the layout's grid and
+   flex rules reach the page as before. Hidden while a skeleton stands in. */
+.slot {
+	display: contents;
+}
+
+.slot[hidden] {
+	display: none;
+}
+
+/* Marks where the skeleton starts, to keep it in view. */
+.anchor {
+	display: block;
+	height: 0;
+}

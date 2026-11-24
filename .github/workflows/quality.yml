@@ -1,0 +1,77 @@
+name: Quality baseline
+
+# Performance, accessibility and load measurements. Separate from CI on
+# purpose: these numbers are noisy on shared runners, and a badly calibrated
+# gate costs more than it catches. Every step reports and uploads its report;
+# none of them fail the build until perf-budgets.json sets enforce:true, at
+# which point the `continue-on-error` lines below come out.
+
+on:
+  pull_request:
+  push:
+    branches: [development, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # Placeholders: nothing here talks to a real Supabase project.
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder_for_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build web
+        # Into .next-quality, never .next: the measurement build must not be
+        # able to overwrite a build someone else is serving.
+        run: NEXT_DIST_DIR=.next-quality pnpm --filter @makemyevent/web build
+
+      - name: Accessibility (axe, WCAG 2.2 AA)
+        continue-on-error: true
+        run: pnpm quality:a11y
+
+      - name: Lighthouse CI
+        continue-on-error: true
+        run: pnpm quality:lighthouse
+
+      - name: Install k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Load (k6)
+        continue-on-error: true
+        # The stress stage is for a human reading a report, not for a runner
+        # with two shared cores. It is run locally or on demand.
+        run: |
+          node quality/load.mjs baseline
+          node quality/load.mjs moderate
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: quality/reports/
+          retention-days: 30

@@ -1,0 +1,1488 @@
+/* Landing page. Colours and type come from design-spec.md; every other value is a token in globals.css.
+   Cards are outlined, never filled: depth comes from a 1px perforation
+   border first, which is why no surface colour is needed. */
+
+.skipLink {
+	position: absolute;
+	left: var(--space-s);
+	top: var(--space-s);
+	z-index: 100;
+	display: inline-flex;
+	align-items: center;
+	min-height: var(--control);
+	padding-inline: var(--space-s);
+	background: var(--ink);
+	color: var(--paper);
+	border-radius: var(--radius-s);
+	font-size: var(--text-small);
+	font-weight: 500;
+	transform: translateY(-200%);
+	transition: transform var(--motion);
+}
+
+.skipLink:focus-visible {
+	transform: translateY(0);
+}
+
+.inner {
+	width: 100%;
+	max-width: 1360px;
+	margin-inline: auto;
+	padding-inline: var(--space-s);
+}
+
+@media (min-width: 640px) {
+	.inner {
+		padding-inline: var(--space-xl);
+	}
+}
+
+.section {
+	padding-block: var(--space-2xl);
+}
+
+@media (min-width: 1024px) {
+	.section {
+		padding-block: var(--space-3xl);
+	}
+}
+
+.ruleTop {
+	border-top: 1px solid var(--perforation);
+}
+
+.sectionHead {
+	margin-bottom: var(--space-xl);
+}
+
+/* ---------------------------------------------------------------
+   Type. Sizes come from the shared scale in globals.css.
+   --------------------------------------------------------------- */
+.h1,
+.h2,
+.h3 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+
+.h1 {
+	font-size: var(--text-h1);
+	line-height: 1.1;
+}
+
+.h1 span {
+	display: block;
+}
+
+.h2 {
+	font-size: var(--text-h2);
+	line-height: 1.2;
+	max-width: 20ch;
+}
+
+.h3 {
+	font-size: var(--text-h3);
+	line-height: 1.25;
+}
+
+.lede {
+	margin: var(--space-s) 0 0;
+	max-width: 56ch;
+	font-size: var(--text-large);
+	line-height: 1.4;
+	color: var(--muted);
+	text-wrap: pretty;
+}
+
+.desc {
+	margin: var(--space-xs) 0 0;
+	max-width: 46ch;
+	color: var(--muted);
+	text-wrap: pretty;
+}
+
+.note {
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+/* Ticket codes, IDs and tokens. */
+.code {
+	font-family: var(--font-mono);
+	font-size: var(--text-small);
+	letter-spacing: 0.02em;
+	color: var(--muted);
+}
+
+/* Figures that are compared or counted line up (guidelines: typography). */
+.count {
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------
+   Buttons
+   --------------------------------------------------------------- */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+	padding-inline: var(--space-m);
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	font-size: var(--text-body);
+	font-weight: 500;
+	line-height: 1.5;
+	white-space: nowrap;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		background-color var(--motion),
+		border-color var(--motion),
+		color var(--motion);
+}
+
+.btnPrimary {
+	background: var(--ink);
+	color: var(--paper);
+}
+
+.btnPrimary:hover {
+	background: var(--ink-hover);
+}
+
+.btnPrimary:active {
+	background: var(--ink-pressed);
+}
+
+.btnSecondary {
+	background: transparent;
+	color: var(--ink);
+	border-color: var(--border-strong);
+}
+
+.btnSecondary:hover {
+	border-color: var(--ink);
+}
+
+/* Tighter type and padding, full control height: the
+   compact height is kept for dense desktop toolbars and tables. */
+.btnCompact {
+	padding-inline: var(--space-s);
+	font-size: var(--text-small);
+}
+
+.btn:disabled {
+	color: var(--muted);
+	background: transparent;
+	border-color: var(--perforation);
+	cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------
+   Hero
+   --------------------------------------------------------------- */
+.hero {
+	padding-block: var(--space-xl) var(--space-2xl);
+	overflow-x: clip;
+}
+
+@media (min-width: 1024px) {
+	.hero {
+		padding-block: var(--space-2xl);
+	}
+}
+
+.heroGrid {
+	display: grid;
+	gap: var(--space-xl);
+	align-items: center;
+}
+
+@media (min-width: 1024px) {
+	.heroGrid {
+		grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+		gap: var(--space-l);
+	}
+}
+
+.heroSub {
+	margin: var(--space-m) 0 0;
+	max-width: 34ch;
+	font-size: var(--text-large);
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+.heroNote {
+	margin: var(--space-xs) 0 0;
+	max-width: 46ch;
+	color: var(--muted);
+	text-wrap: pretty;
+}
+
+.ctaRow {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-s);
+	margin-top: var(--space-l);
+}
+
+.heroTrust {
+	margin: var(--space-m) 0 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+/* One orchestrated entrance on load, not a reveal on every card. */
+.heroCopy > * {
+	animation: rise 200ms ease both;
+}
+
+.heroCopy > *:nth-child(2) {
+	animation-delay: 60ms;
+}
+
+.heroCopy > *:nth-child(3) {
+	animation-delay: 120ms;
+}
+
+.heroCopy > *:nth-child(4) {
+	animation-delay: 180ms;
+}
+
+.heroCopy > *:nth-child(5) {
+	animation-delay: 240ms;
+}
+
+/* Moves into place without fading. A paragraph held at zero opacity does
+   not count as painted, which pushed the largest contentful paint out by
+   around half a second on a slow phone. */
+@keyframes rise {
+	from {
+		transform: translateY(10px);
+	}
+	to {
+		transform: none;
+	}
+}
+
+.heroArt {
+	display: flex;
+	justify-content: center;
+}
+
+/* ---------------------------------------------------------------
+   Pass deck
+
+   A real ticket: a stamp fill with paper text (paper on stamp
+   passes contrast), notches cut where the stub begins, and a dashed tear line.
+
+   Proportions follow the original landing page: a 440px pass, a 116px
+   stub, a title one step above the attendee name, and each pass behind
+   the front one a shade deeper so the three read as a stack.
+   --------------------------------------------------------------- */
+.deckWrap {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-m);
+	width: 100%;
+	max-width: 440px;
+}
+
+.deckStack {
+	position: relative;
+	width: 100%;
+	/* Room on the right for the fanned passes behind the front one. The
+	   rotated corner of the back pass reaches past its translation, so
+	   this is wider than the offsets alone suggest. */
+	padding: var(--space-m) var(--space-l) var(--space-m) 0;
+}
+
+@media (min-width: 640px) {
+	.deckStack {
+		padding-right: var(--space-xl);
+	}
+}
+
+.deck {
+	display: grid;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.deckItem {
+	grid-area: 1 / 1;
+	min-width: 0;
+	transform-origin: 50% 70%;
+	transition: transform 200ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+/* Narrow screens: a tighter fan, so nothing is cut off at the edge. */
+.deckItem[data-position="0"] {
+	z-index: 3;
+	transform: rotate(-3deg);
+}
+
+.deckItem[data-position="1"] {
+	z-index: 2;
+	transform: rotate(3deg) translate(12px, -8px);
+}
+
+.deckItem[data-position="2"] {
+	z-index: 1;
+	transform: rotate(8deg) translate(22px, -12px);
+}
+
+/* The front pass lifts away, then tucks in at the back. */
+.deckItem[data-lifting="true"] {
+	z-index: 4;
+	transform: translate(40%, -20%) rotate(14deg);
+}
+
+@media (min-width: 640px) {
+	.deckItem[data-position="0"] {
+		transform: rotate(-4deg);
+	}
+
+	.deckItem[data-position="1"] {
+		transform: rotate(3deg) translate(24px, -10px);
+	}
+
+	.deckItem[data-position="2"] {
+		transform: rotate(10deg) translate(46px, -14px);
+	}
+
+	.deckItem[data-lifting="true"] {
+		transform: translate(58%, -22%) rotate(16deg);
+	}
+}
+
+.pass {
+	--stub: 116px;
+	--notch: 10px;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background: var(--stamp);
+	color: var(--paper);
+	border-radius: var(--radius-m);
+	transition: background-color var(--motion);
+	/* The notches that make it read as a ticket rather than a card. */
+	mask-image:
+		radial-gradient(
+			circle var(--notch) at 0 calc(100% - var(--stub)),
+			transparent calc(var(--notch) - 0.5px),
+			black var(--notch)
+		),
+		radial-gradient(
+			circle var(--notch) at 100% calc(100% - var(--stub)),
+			transparent calc(var(--notch) - 0.5px),
+			black var(--notch)
+		);
+	mask-composite: intersect;
+	-webkit-mask-image:
+		radial-gradient(
+			circle var(--notch) at 0 calc(100% - var(--stub)),
+			transparent calc(var(--notch) - 0.5px),
+			black var(--notch)
+		),
+		radial-gradient(
+			circle var(--notch) at 100% calc(100% - var(--stub)),
+			transparent calc(var(--notch) - 0.5px),
+			black var(--notch)
+		);
+	-webkit-mask-composite: source-in;
+}
+
+/* Depth without a shadow: each pass behind the front one is the stamp
+   fill moved toward ink by the two state steps in globals.css (10%
+   and 20%). Without this the three passes merge into one green shape. */
+.deckItem[data-position="1"] .pass {
+	background: color-mix(in srgb, var(--stamp) 90%, var(--ink));
+}
+
+.deckItem[data-position="2"] .pass {
+	background: color-mix(in srgb, var(--stamp) 80%, var(--ink));
+}
+
+.passTop {
+	flex: 1;
+	padding: var(--space-m);
+}
+
+.passKind {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.passKind > span:first-child {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.passBadge {
+	flex: none;
+	padding: var(--space-2xs) var(--space-xs);
+	background: var(--paper);
+	color: var(--stamp);
+	border-radius: var(--radius-s);
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+/* H3, not H2: at H2 size the title crowded a pass this narrow. */
+.passTitle {
+	margin: var(--space-xs) 0 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+
+.passMeta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2xs) var(--space-s);
+	margin: var(--space-s) 0 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.passMeta span {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	min-width: 0;
+	white-space: nowrap;
+}
+
+.passMeta svg {
+	flex: none;
+	width: 16px;
+	height: 16px;
+}
+
+.passStub {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+	height: var(--stub);
+	padding-inline: var(--space-m);
+	/* The tear line: a dashed hairline in perforation. */
+	border-top: 1px dashed var(--perforation);
+}
+
+.passQrTile {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: 72px;
+	height: 72px;
+	padding: var(--space-xs);
+	background: var(--paper);
+	color: var(--ink);
+	border-radius: var(--radius-s);
+}
+
+.passQr {
+	width: 100%;
+	height: 100%;
+}
+
+.passWho {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.passAdmit {
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+/* Large, not H3: at H3 size a full name ran out of room beside the QR
+   tile and was cut off with an ellipsis. */
+.passName {
+	font-size: var(--text-large);
+	font-weight: 700;
+	line-height: 1.4;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.passCode {
+	font-family: var(--font-mono);
+	font-size: var(--text-small);
+	line-height: 1.4;
+	letter-spacing: 0.02em;
+}
+
+/* Only the front pass carries readable content; the others are the edges
+   of a stack. Content fades in as a pass reaches the front. The fade is
+   motion only: a pass at rest is either fully shown or fully hidden.
+
+   The stub itself stays: it draws the tear line, which is geometry rather
+   than content, so a pass in the stack still reads as a ticket. Only what
+   is written inside it is hidden. */
+.passTop,
+.passStub > * {
+	transition: opacity var(--motion);
+}
+
+.deckItem:not([data-position="0"]) .passTop,
+.deckItem:not([data-position="0"]) .passStub > * {
+	opacity: 0;
+	visibility: hidden;
+}
+
+/* The lift uncovers the pass behind, so that pass fills in while it is
+   still moving up rather than arriving blank and populating afterwards. */
+.deck[data-lifting="true"] .deckItem[data-position="1"] .passTop,
+.deck[data-lifting="true"] .deckItem[data-position="1"] .passStub > * {
+	opacity: 1;
+	visibility: visible;
+}
+
+.deckControls {
+	display: flex;
+	gap: var(--space-xs);
+	margin: 0;
+}
+
+.deckButton {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2xs);
+	min-height: var(--control);
+	padding-inline: var(--space-s);
+	background: none;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-s);
+	font-size: var(--text-small);
+	font-weight: 500;
+	color: var(--ink);
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		border-color var(--motion),
+		color var(--motion);
+}
+
+.deckButton:hover:not(:disabled) {
+	border-color: var(--ink);
+}
+
+.deckButton:disabled {
+	color: var(--muted);
+	border-color: var(--perforation);
+	cursor: not-allowed;
+}
+
+.deckButton svg {
+	flex: none;
+	width: 16px;
+	height: 16px;
+}
+
+/* ---------------------------------------------------------------
+   Who it is for
+   --------------------------------------------------------------- */
+.trust {
+	border-block: 1px solid var(--perforation);
+	padding-block: var(--space-m);
+}
+
+.trustRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-xs) var(--space-m);
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.trustLead {
+	margin: 0;
+	color: var(--ink);
+	font-weight: 500;
+}
+
+/* ---------------------------------------------------------------
+   Cards
+   --------------------------------------------------------------- */
+.bento,
+.kinds {
+	display: grid;
+	gap: var(--space-s);
+	grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+	.bento,
+	.kinds {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-m);
+	}
+}
+
+@media (min-width: 1024px) {
+	.bento {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--space-l);
+	}
+
+	.kinds {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--space-l);
+	}
+
+	.cardWide {
+		grid-column: span 2;
+	}
+
+	.cardFull {
+		grid-column: 1 / -1;
+	}
+}
+
+.card {
+	display: flex;
+	flex-direction: column;
+	padding: var(--space-m);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	/* A visual may run off the bottom edge (see .pagePreview). */
+	overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+	.card {
+		padding: var(--space-l);
+	}
+}
+
+.visual {
+	display: flex;
+	flex: 1;
+	align-items: flex-end;
+	margin-top: var(--space-m);
+	min-width: 0;
+}
+
+.visualCentre {
+	align-items: center;
+	justify-content: center;
+}
+
+.cardFull .visual {
+	align-items: center;
+	justify-content: flex-start;
+}
+
+/* ---------------------------------------------------------------
+   Event page preview
+   --------------------------------------------------------------- */
+/* The preview runs off the bottom of its card, like a page scrolled into
+   view, so the card is clipped (see .card) and this has no bottom edge. */
+.pagePreview {
+	width: 100%;
+	overflow: hidden;
+	margin-bottom: calc(-1 * var(--space-m));
+	border: 1px solid var(--perforation);
+	border-bottom: 0;
+	border-radius: var(--radius-s) var(--radius-s) 0 0;
+	background: var(--paper);
+}
+
+@media (min-width: 1024px) {
+	.pagePreview {
+		margin-bottom: calc(-1 * var(--space-l));
+	}
+}
+
+/* A typographic cover: the title carries it, so it stays short. The real
+   16:9 cover image is not drawn here. */
+.pageCover {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	padding: var(--space-m) var(--space-s) var(--space-s);
+	background: var(--ink);
+	color: var(--paper);
+}
+
+.pageCover strong {
+	font-family: var(--font-display);
+	font-size: var(--text-h2);
+	font-weight: 700;
+	line-height: 1.1;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+
+.pageCover small {
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.pageBody {
+	display: grid;
+	gap: var(--space-s);
+	align-items: start;
+	padding: var(--space-s) var(--space-s) var(--space-m);
+}
+
+/* Side by side only once the wide card spans two columns. */
+@media (min-width: 1024px) {
+	.pageBody {
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: var(--space-m);
+	}
+}
+
+.pageTitle {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.pageMeta {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	margin: var(--space-xs) 0 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.pageAbout {
+	margin: var(--space-s) 0 0;
+	max-width: 40ch;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+	text-wrap: pretty;
+}
+
+.regBox {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	align-self: start;
+	min-width: 0;
+	padding: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-s);
+}
+
+@media (min-width: 1024px) {
+	.regBox {
+		min-width: 168px;
+	}
+}
+
+.seats {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.bar {
+	display: block;
+	height: 4px;
+	border-radius: var(--radius-full);
+	background: var(--perforation);
+}
+
+.bar i {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--ink);
+}
+
+/* Low stock: text plus an icon, never colour alone. */
+.seatsLeft {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.seatsLeft svg {
+	flex: none;
+	width: 16px;
+	height: 16px;
+}
+
+/* ---------------------------------------------------------------
+   Small pass, certificate, registrations
+   --------------------------------------------------------------- */
+.miniPass {
+	width: 100%;
+	max-width: 260px;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-s);
+}
+
+.miniPassTop {
+	padding: var(--space-s);
+	border-bottom: 1px dashed var(--perforation);
+}
+
+.miniPassName {
+	margin: 0;
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+.miniPassEvent {
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.miniPassQr {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-xs);
+	padding: var(--space-s);
+}
+
+.qrMedium {
+	width: 96px;
+	height: 96px;
+}
+
+.qrLarge {
+	width: 120px;
+	height: 120px;
+}
+
+.chip,
+.chipQuiet {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	padding: 0 var(--space-xs);
+	border-radius: var(--radius-full);
+	font-size: var(--text-small);
+	line-height: 1.6;
+	white-space: nowrap;
+}
+
+.chip {
+	border: 1px solid var(--stamp);
+	color: var(--stamp);
+}
+
+.chipQuiet {
+	border: 1px solid var(--perforation);
+	color: var(--muted);
+}
+
+.chip svg {
+	flex: none;
+	width: 16px;
+	height: 16px;
+}
+
+.certificate {
+	width: 100%;
+	padding: var(--space-m);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-s);
+	text-align: center;
+}
+
+.certKind {
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.certName {
+	margin: var(--space-xs) 0 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.certFor {
+	margin: var(--space-2xs) 0 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+	text-wrap: pretty;
+}
+
+.certFoot {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	margin: var(--space-m) 0 0;
+	padding-top: var(--space-s);
+	border-top: 1px dashed var(--perforation);
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.regPanel {
+	width: 100%;
+	padding: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-s);
+}
+
+.regHead {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-xs);
+	margin: 0 0 var(--space-s);
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+.regHead strong {
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	color: var(--ink);
+}
+
+.regList {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.regList li {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-width: 0;
+}
+
+.avatar {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: var(--control-compact);
+	height: var(--control-compact);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-full);
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+.regName {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--text-small);
+}
+
+.price {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	margin: 0;
+}
+
+.priceNum {
+	font-family: var(--font-display);
+	font-size: var(--text-h1);
+	font-weight: 700;
+	line-height: 1.1;
+	font-variant-numeric: tabular-nums;
+}
+
+.priceNum sup {
+	font-size: var(--text-h3);
+	vertical-align: super;
+}
+
+.priceLine {
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+/* ---------------------------------------------------------------
+   Check-in demo
+   --------------------------------------------------------------- */
+.scanner {
+	display: flex;
+	gap: var(--space-s);
+	width: 100%;
+	min-width: 0;
+}
+
+.scanFrame {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: 88px;
+	height: 88px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-s);
+}
+
+.scanQr {
+	width: 64px;
+	height: 64px;
+}
+
+.scanOut {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	min-width: 0;
+}
+
+.scanResult {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	margin: 0;
+	min-width: 0;
+}
+
+.tick {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	border: 1px solid var(--stamp);
+	border-radius: var(--radius-full);
+	color: var(--stamp);
+}
+
+.tick svg {
+	width: 12px;
+	height: 12px;
+}
+
+.scanWho {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.scanWho strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 500;
+}
+
+.scanWho small {
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+.scanFoot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+/* ---------------------------------------------------------------
+   Steps
+   --------------------------------------------------------------- */
+.steps {
+	display: grid;
+	gap: var(--space-l);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	counter-reset: step;
+}
+
+@media (min-width: 1024px) {
+	.steps {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+.step {
+	display: flex;
+	flex-direction: column;
+	counter-increment: step;
+}
+
+/* The numbers are real: this is a sequence, not decoration. */
+.step::before {
+	content: counter(step, decimal-leading-zero);
+	margin-bottom: var(--space-s);
+	font-family: var(--font-mono);
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+.mini {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	margin-top: var(--space-m);
+	padding: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-s);
+}
+
+.field {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--space-s);
+	margin: 0;
+	padding-bottom: var(--space-xs);
+	border-bottom: 1px dashed var(--perforation);
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.field:last-child {
+	padding-bottom: 0;
+	border-bottom: 0;
+}
+
+.field span {
+	color: var(--muted);
+}
+
+.linkBar {
+	margin: 0;
+	padding: var(--space-xs) var(--space-s);
+	overflow-x: auto;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-s);
+}
+
+.copyRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-xs) var(--space-s);
+}
+
+/* ---------------------------------------------------------------
+   The pass itself
+   --------------------------------------------------------------- */
+.showcase {
+	display: grid;
+	gap: var(--space-xl);
+	align-items: start;
+}
+
+@media (min-width: 1024px) {
+	.showcase {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: var(--space-l);
+	}
+}
+
+.anatomy {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	margin: var(--space-l) 0 0;
+}
+
+.anatomy div {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2xs) var(--space-s);
+	padding-bottom: var(--space-s);
+	border-bottom: 1px solid var(--perforation);
+}
+
+.anatomy dt {
+	flex: none;
+	min-width: 10ch;
+	font-weight: 500;
+}
+
+.anatomy dd {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	color: var(--muted);
+}
+
+.ticket {
+	display: grid;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+@media (min-width: 640px) {
+	.ticket {
+		grid-template-columns: minmax(0, 1fr) auto auto;
+	}
+}
+
+.ticketMain {
+	padding: var(--space-m);
+}
+
+@media (min-width: 1024px) {
+	.ticketMain {
+		padding: var(--space-l);
+	}
+}
+
+.ticketTop {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.ticketStatus {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2xs);
+}
+
+.ticketTitle {
+	margin: var(--space-s) 0 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h2);
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.ticketOrg {
+	margin: var(--space-2xs) 0 0;
+	color: var(--muted);
+}
+
+.ticketFields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-s);
+	margin: var(--space-m) 0 0;
+}
+
+.ticketFields .wide {
+	grid-column: 1 / -1;
+}
+
+.ticketFields dt {
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.ticketFields dd {
+	margin: 0;
+	line-height: 1.4;
+}
+
+/* The tear line is an identity mark, allowed here because this is a
+   ticket. */
+.tear {
+	border-top: 1px dashed var(--perforation);
+}
+
+@media (min-width: 640px) {
+	.tear {
+		border-top: 0;
+		border-left: 1px dashed var(--perforation);
+	}
+}
+
+.ticketStub {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	padding: var(--space-m);
+}
+
+.stubMeta {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2xs);
+	margin: 0;
+}
+
+.stubAdmit {
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+/* ---------------------------------------------------------------
+   Community rows
+   --------------------------------------------------------------- */
+.rows {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	margin: var(--space-m) 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.eventRow {
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+	min-width: 0;
+	padding: var(--space-xs) 0;
+	border-top: 1px solid var(--perforation);
+}
+
+.eventDate {
+	flex: none;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: 40px;
+	line-height: 1.2;
+}
+
+.eventDate strong {
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-variant-numeric: tabular-nums;
+}
+
+.eventDate small {
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+.eventInfo {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.eventInfo strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 500;
+	font-size: var(--text-small);
+}
+
+.eventInfo small {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--text-small);
+	color: var(--muted);
+}
+
+.eventInfo svg {
+	flex: none;
+	width: 16px;
+	height: 16px;
+}
+
+.eventCount {
+	flex: none;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	font-size: var(--text-small);
+	color: var(--muted);
+	line-height: 1.2;
+}
+
+.eventCount strong {
+	color: var(--ink);
+}
+
+/* ---------------------------------------------------------------
+   Closing
+   --------------------------------------------------------------- */
+.closing {
+	display: grid;
+	gap: var(--space-l);
+	align-items: center;
+	padding: var(--space-l);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+}
+
+@media (min-width: 1024px) {
+	.closing {
+		grid-template-columns: minmax(0, 1fr) auto;
+		padding: var(--space-xl);
+	}
+}
+
+.closingAction {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--space-xs);
+}
+
+@media (min-width: 1024px) {
+	.closingAction {
+		align-items: flex-end;
+	}
+}

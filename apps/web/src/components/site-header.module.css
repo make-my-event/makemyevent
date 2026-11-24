@@ -1,0 +1,487 @@
+/* The header is a band floating over the page rather than a bar fixed to the
+   top of it: paper at 82% with the page blurred behind. The
+   wrapper is transparent and does the sticking; the band inside it does the
+   drawing, so the band can inset from the page margin. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "./ui/ui.module.css";
+}
+.header {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	padding: var(--space-xs) var(--space-s) 0;
+}
+
+@media (min-width: 640px) {
+	.header {
+		padding-inline: var(--space-xl);
+	}
+}
+
+.band {
+	/* Declared, not inherited from the backdrop-filter below, which also makes
+	   this a containing block: the visitor menu hangs off the band's edges,
+	   and that must not depend on a filter a browser might not support. */
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	/* Tight on mobile: the band must hold brand, theme and menu at 320px. */
+	gap: var(--space-xs);
+	max-width: 1360px;
+	margin-inline: auto;
+	/* The controls sit a hair inside the pill; the brand needs a full step,
+	   since it has no control box of its own to pad it off the edge. */
+	padding: var(--space-2xs) var(--space-2xs) var(--space-2xs) var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-full);
+	background: var(--band);
+	box-shadow: var(--shadow-overlay);
+	backdrop-filter: blur(var(--band-blur));
+	-webkit-backdrop-filter: blur(var(--band-blur));
+}
+
+/* Signed in, the band holds framed boxes at radius-m, not pills. Its corner
+   is theirs plus the gap and border around them, so the curves run parallel
+   instead of a box's corner cutting across a pill's round end. */
+.bandFramed {
+	border-radius: calc(var(--radius-m) + var(--space-2xs) + 1px);
+}
+
+/* On the dashboard: the same edges as the toolbar and list beneath it, whose
+   content is the dashboard width less its gutters. */
+.bandWide {
+	max-width: calc(var(--dashboard-width) - 2 * var(--dashboard-gutter));
+}
+
+/* The dashboard's 15px side margins, at every width. */
+.header.headerWide {
+	padding-inline: var(--dashboard-gutter);
+}
+
+/* Translucent without the blur would leave the page's text legible straight
+   through the band, so the fallback is solid. */
+@supports not (
+		(backdrop-filter: blur(1px)) or
+		(-webkit-backdrop-filter: blur(1px))
+	) {
+	.band {
+		background: var(--paper);
+	}
+}
+
+.brandLink {
+	display: inline-flex;
+	align-items: center;
+	/* Shrinks before anything overflows; never below its symbol. */
+	min-width: 0;
+	min-height: var(--control);
+	border-radius: var(--radius-full);
+}
+
+/* Primary links appear once there is room for them beside the actions. The
+   auto margins centre them in the band; with the links hidden, the
+   space-between on the band takes over and pushes brand and actions apart. */
+.links {
+	display: none;
+}
+
+@media (min-width: 1024px) {
+	.links {
+		display: flex;
+		gap: var(--space-2xs);
+		margin-inline: auto;
+	}
+}
+
+/* Text in the band is ink, not muted: muted clears 4.5:1 on solid paper by a
+   hair, and the page showing through takes that hair away.
+   Hover is an underline rather than a fill, since globals.css defines only the
+   hover and pressed mixes on filled controls, and rather than a colour shift,
+   which ink has nowhere safe to go. The pill radius is still load-bearing —
+   it shapes the focus ring to match the band. */
+.link {
+	display: inline-flex;
+	align-items: center;
+	height: var(--control);
+	padding-inline: var(--space-s);
+	border-radius: var(--radius-full);
+	font-size: var(--text-small);
+	color: var(--ink);
+	text-decoration-color: transparent;
+	text-underline-offset: 4px;
+	transition: text-decoration-color var(--motion);
+}
+
+.link:hover {
+	text-decoration-line: underline;
+	text-decoration-color: currentcolor;
+}
+
+.actions {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2xs);
+}
+
+/* The account control, in the band at every width: it is a signed-in
+   person's only disclosure, so there is nothing for it to be hidden behind.
+   Positioned, which anchors its panel to the profile button rather than to the
+   header — unlike the visitor menu, this one hangs off its own control. */
+.account {
+	position: relative;
+}
+
+/* The signed-in band's controls are framed boxes: surface fill, a
+   perforation hairline, radius-m. The text and icon inside each are what
+   identify it, so the hairline needs no contrast minimum. */
+.boxIcon,
+.boxButton,
+.profile {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	height: var(--control);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	color: var(--ink);
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: border-color var(--motion);
+}
+
+.boxIcon:hover,
+.boxButton:hover,
+.profile:hover,
+.profile[aria-expanded="true"] {
+	border-color: var(--border-strong);
+}
+
+/* The theme toggle, squared off into the same frame. Scoped to the band's
+   actions so it outranks the toggle's own round, borderless style. */
+.actions > .boxIcon {
+	justify-content: center;
+	width: var(--control);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	color: var(--ink);
+}
+
+.actions > .boxIcon:hover {
+	border-color: var(--border-strong);
+}
+
+.boxButton {
+	padding-inline: var(--space-s);
+	font-size: var(--text-small);
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+/* Initials on a stamp square, then the word, then a chevron. */
+.profile {
+	gap: calc(var(--space-xs) + var(--space-2xs));
+	padding: 0 calc(var(--space-xs) + var(--space-2xs)) 0 var(--space-2xs);
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+/* paper on stamp: 4.92:1 light, 5.31:1 dark. Mono, like a ticket code. */
+.profileMark {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--space-l);
+	height: var(--space-l);
+	border-radius: var(--radius-compact);
+	background: var(--stamp);
+	color: var(--paper);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	font-weight: 500;
+	line-height: 1;
+}
+
+.profileLabel {
+	/* A long first name stops short of crowding the band. */
+	max-width: 12ch;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.profileChevron {
+	flex: none;
+	width: var(--space-s);
+	height: var(--space-s);
+	color: var(--muted);
+	transition: rotate var(--motion);
+}
+
+.profile[aria-expanded="true"] .profileChevron {
+	rotate: 180deg;
+}
+
+/* Phones: the word goes, the initials and chevron stay. Hidden visually, not
+   removed, so the button is still announced by their first name. */
+@media (max-width: 639px) {
+	.profile {
+		gap: var(--space-2xs);
+		padding-inline-end: var(--space-xs);
+	}
+
+	.profileLabel {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.boxButton {
+		padding-inline: var(--space-xs);
+	}
+}
+
+/* Sized by its own longest item, so no width has to be invented for it. */
+.accountPanel {
+	position: absolute;
+	top: calc(100% + var(--space-xs));
+	inset-inline-end: 0;
+	width: max-content;
+	padding: var(--space-2xs);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--paper);
+	box-shadow: var(--shadow-overlay);
+}
+
+.accountName {
+	max-width: 22ch;
+	overflow: hidden;
+	margin: 0;
+	padding: var(--space-xs) var(--space-s);
+	border-bottom: 1px solid var(--perforation);
+	font-size: var(--text-small);
+	color: var(--muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.accountLink {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	min-height: var(--control);
+	padding-inline: var(--space-s);
+	border: 0;
+	border-radius: var(--radius-s);
+	background: none;
+	color: var(--ink);
+	font-size: var(--text-small);
+	text-align: start;
+	text-decoration-color: transparent;
+	text-underline-offset: 4px;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: text-decoration-color var(--motion);
+}
+
+.accountLink:hover {
+	text-decoration-line: underline;
+	text-decoration-color: currentcolor;
+}
+
+/* The page's sections, last in the panel and below the account's own rows:
+   a signed-in person's account comes before the tour of the landing page.
+   Above 1024px the band carries these, so the panel stops repeating them. */
+.panelNav {
+	margin-top: var(--space-2xs);
+	padding-top: var(--space-2xs);
+	border-top: 1px solid var(--perforation);
+}
+
+@media (min-width: 1024px) {
+	.panelNav {
+		display: none;
+	}
+}
+
+/* Separated from the rows above it: leaving is not one of the places to go.
+   It keeps the full radius its row started with — the panel's own padding
+   holds every row off the corners, so there is none to square off against. */
+.accountSignOut {
+	margin-top: var(--space-2xs);
+	border-top: 1px solid var(--perforation);
+	color: var(--muted);
+}
+
+.quiet {
+	display: none;
+	align-items: center;
+	height: var(--control);
+	padding-inline: var(--space-s);
+	border-radius: var(--radius-full);
+	font-size: var(--text-small);
+	font-weight: 500;
+	color: var(--ink);
+	text-decoration-color: transparent;
+	text-underline-offset: 4px;
+	transition: text-decoration-color var(--motion);
+}
+
+@media (min-width: 640px) {
+	.quiet {
+		display: inline-flex;
+	}
+}
+
+.quiet:hover {
+	text-decoration-line: underline;
+	text-decoration-color: currentcolor;
+}
+
+/* Buttons. Primary is an ink fill; stamp stays reserved for
+   confirmation and focus. The base radius is radius-s, which is what the
+   menu panel's buttons keep; only the band's own buttons go full. */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+	padding-inline: var(--space-s);
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	font-size: var(--text-small);
+	font-weight: 500;
+	line-height: 1.4;
+	white-space: nowrap;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		background-color var(--motion),
+		border-color var(--motion),
+		color var(--motion);
+}
+
+.actions > .btn {
+	/* Below 640px the band carries only brand, theme and menu. The call to
+	   action is in the menu and at the top of the page, so nothing is lost. */
+	display: none;
+	border-radius: var(--radius-full);
+	padding-inline: var(--space-m);
+}
+
+@media (min-width: 640px) {
+	.actions > .btn {
+		display: inline-flex;
+	}
+}
+
+.btnPrimary {
+	background: var(--ink);
+	color: var(--paper);
+}
+
+.btnPrimary:hover {
+	background: var(--ink-hover);
+}
+
+.btnPrimary:active {
+	background: var(--ink-pressed);
+}
+
+/* Not positioned, on purpose: the panel inside it anchors to the header, so
+   it spans the band's width instead of hanging off the button. The band's
+   button rules above are scoped to its direct children for the same reason:
+   the panel sits inside the actions, and its buttons are not band buttons. */
+.menuWrap {
+	display: inline-flex;
+}
+
+.menuButton {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--control);
+	height: var(--control);
+	padding: 0;
+	color: var(--muted);
+	background: none;
+	border: 0;
+	border-radius: var(--radius-full);
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: color var(--motion);
+}
+
+.menuButton:hover {
+	color: var(--ink);
+}
+
+.menuButton svg {
+	width: 20px;
+	height: 20px;
+}
+
+@media (min-width: 1024px) {
+	.menuButton {
+		display: none;
+	}
+}
+
+/* The menu is a panel the band opens beneath itself, not part of the band:
+   radius-m, and solid, because it is read.
+   Absolute, against the band: it covers the top of the page rather than
+   pushing it down, so opening the menu shifts no layout, and it takes the
+   band's own edges rather than having its width worked out a second time. */
+.menu {
+	position: absolute;
+	top: 100%;
+	inset-inline: 0;
+	margin-top: var(--space-xs);
+	padding: var(--space-2xs) var(--space-s) var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--paper);
+	box-shadow: var(--shadow-overlay);
+}
+
+@media (min-width: 1024px) {
+	.menu {
+		display: none;
+	}
+}
+
+.menuLink {
+	display: flex;
+	align-items: center;
+	min-height: var(--control);
+	padding-block: var(--space-s);
+	border-bottom: 1px solid var(--perforation);
+	font-size: var(--text-body);
+	font-weight: 500;
+}
+
+.menuBtn {
+	display: flex;
+	width: 100%;
+	margin-top: var(--space-s);
+}
+
+/* Sign-in sits in the band itself from 640px up, so the menu stops repeating
+   it and carries only the primary links. */
+@media (min-width: 640px) {
+	.menuAuth {
+		display: none;
+	}
+}

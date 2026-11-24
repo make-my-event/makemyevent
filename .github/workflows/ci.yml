@@ -19,11 +19,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
-          POSTGRES_DB: openevents_ci
+          POSTGRES_DB: makemyevent_ci
         ports:
           - "5432:5432"
         options: >-
@@ -33,20 +33,23 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/openevents_ci
-      DIRECT_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/openevents_ci
+      DATABASE_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/makemyevent_ci
+      DIRECT_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/makemyevent_ci
       RUN_DB_TESTS: "1"
-      AUTH_SECRET: test-auth-secret-for-ci
-      NEXTAUTH_SECRET: test-auth-secret-for-ci
-      NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # Placeholders: nothing in CI talks to a real Supabase project.
       SUPABASE_URL: https://example.supabase.co
-      SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
+      SUPABASE_SECRET_KEY: sb_secret_placeholder_for_ci
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder_for_ci
       RESEND_API_KEY: test-resend-api-key
       EMAIL_FROM: test@example.com
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The secret scan reads the commits this change adds.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -59,28 +62,46 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The gitleaks program itself, pinned and checksum-verified. (The
+      # gitleaks GitHub Action needs a paid licence on organisation repos.)
+      # Only this change's own commits are scanned: a pull request's, or a
+      # push's new ones.
+      - name: Secret scan
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+          # A new branch's first push has no "before": scan what it adds over
+          # development.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE=$(git merge-base origin/development "$HEAD" || git rev-list --max-parents=0 "$HEAD" | tail -1)
+          fi
+          "$RUNNER_TEMP/gitleaks" git --redact --no-banner --log-opts="$BASE..$HEAD" .
+
       - name: Lint and format (Biome)
         run: pnpm biome ci .
 
       - name: Prisma schema valid and client generated
         run: |
-          pnpm --filter db exec prisma validate
-          pnpm --filter db exec prisma generate
+          pnpm --filter @makemyevent/db exec prisma validate
+          pnpm --filter @makemyevent/db exec prisma generate
 
       - name: Migrations build a fresh DB that matches schema.prisma
         run: |
-          pnpm --filter db exec prisma migrate deploy
-          pnpm --filter db exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+          pnpm --filter @makemyevent/db exec prisma migrate deploy
+          pnpm --filter @makemyevent/db exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 
       - name: Type check
-        run: |
-          pnpm --filter web exec tsc --noEmit
-          pnpm --filter api exec tsc --noEmit
+        run: pnpm typecheck
 
       - name: Tests
-        run: |
-          pnpm --filter web exec vitest run
-          pnpm --filter api exec vitest run
+        run: pnpm -r --if-present test
 
       - name: Build web
-        run: pnpm --filter web build
+        run: pnpm --filter @makemyevent/web build

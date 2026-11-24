@@ -1,0 +1,52 @@
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "./ui/ui.module.css";
+}
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+	width: var(--control);
+	height: var(--control);
+	padding: 0;
+	color: var(--muted);
+	background: none;
+	border: 0;
+	/* An icon button is round wherever it appears: in the header band it has
+	   to be, and on the sign-in bar it reads the same way. */
+	border-radius: var(--radius-full);
+	cursor: pointer;
+	transition: color var(--motion);
+}
+
+.button:hover {
+	color: var(--ink);
+}
+
+.button svg {
+	width: 20px;
+	height: 20px;
+}
+
+.sun,
+.onDark {
+	display: none;
+}
+
+:global(.dark) .sun {
+	display: block;
+}
+
+:global(.dark) .onDark {
+	position: absolute;
+	display: block;
+}
+
+:global(.dark) .onLight {
+	display: none;
+}
+
+:global(.dark) .moon {
+	display: none;
+}

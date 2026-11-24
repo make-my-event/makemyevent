@@ -1,0 +1,17 @@
+{
+	"name": "@makemyevent/core",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"clean": "rm -rf dist .turbo *.tsbuildinfo",
+		"test": "node --test \"src/**/*.test.ts\""
+	},
+	"dependencies": {
+		"zod": "4.6.7"
+	},
+	"exports": {
+		".": "./src/index.ts"
+	}
+}

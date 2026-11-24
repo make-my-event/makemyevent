@@ -1,13 +1,10 @@
 {
-	"name": "config",
-	"version": "1.0.0",
-	"description": "",
-	"main": "index.js",
+	"name": "@makemyevent/config",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
-	"packageManager": "pnpm@10.30.3"
+		"typecheck": "tsc --noEmit",
+		"clean": "rm -rf dist .turbo *.tsbuildinfo"
+	}
 }

@@ -7,7 +7,16 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!**/apps/web/public"]
+		"includes": [
+			"**",
+			"!**/apps/web/public",
+			"!**/.agents",
+			"!**/scratch",
+			"!**/.next",
+			"!**/.next-*",
+			"!**/dist",
+			"!**/coverage"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -26,7 +35,8 @@
 	},
 	"css": {
 		"parser": {
-			"tailwindDirectives": true
+			"tailwindDirectives": true,
+			"cssModules": true
 		}
 	},
 	"assist": {

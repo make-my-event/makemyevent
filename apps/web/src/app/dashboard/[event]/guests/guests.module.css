@@ -1,0 +1,1583 @@
+/* The Guests tab: the cards under the Glance, the list, and the panel a
+   guest opens in. Same materials as the rest of the dashboard: surface
+   cards on paper, perforation hairlines, stamp for the one thing to do. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "../../../../components/ui/ui.module.css";
+}
+
+.bone {
+	composes: bone from "../../../../components/ui/ui.module.css";
+}
+
+.primary {
+	composes: primary from "../../../../components/ui/ui.module.css";
+	gap: var(--space-xs);
+}
+
+.secondary {
+	composes: secondary from "../../../../components/ui/ui.module.css";
+	gap: var(--space-xs);
+	text-decoration: none;
+}
+
+.select {
+	composes: select from "../../../../components/ui/ui.module.css";
+}
+
+.soonTag {
+	composes: soonTag from "../../../../components/ui/ui.module.css";
+}
+
+.primary svg,
+.secondary svg {
+	flex: none;
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+/* ---- Cards -------------------------------------------------------------- */
+
+.cards {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-s);
+	margin: var(--space-s) 0;
+	padding: 0;
+	list-style: none;
+}
+
+@media (min-width: 900px) {
+	.cards {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+.cardSlot {
+	display: grid;
+}
+
+.cardItem {
+	display: grid;
+	width: 100%;
+	color: var(--ink);
+	font: inherit;
+	text-align: start;
+	text-decoration: none;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	grid-template-rows: auto auto;
+	align-items: center;
+	gap: var(--space-2xs) var(--space-s);
+	padding: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+.cardIcon {
+	display: grid;
+	grid-row: 1 / span 2;
+	width: var(--control);
+	height: var(--control);
+	place-items: center;
+	border-radius: var(--radius-m);
+	background: var(--tint);
+	color: var(--ink);
+}
+
+.cardIcon svg {
+	width: 20px;
+	height: 20px;
+}
+
+.cardText {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.cardTitle {
+	font-family: var(--font-display);
+	font-size: var(--text-card-title);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.cardBody {
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.4;
+}
+
+.cardCount {
+	grid-row: 1;
+	grid-column: 3;
+	font-family: var(--font-mono);
+	font-size: var(--text-large);
+	font-variant-numeric: tabular-nums;
+	font-weight: 500;
+}
+
+/* Invites and Blocklist are themselves buttons: the whole card answers. */
+button.cardItem,
+a.cardItem {
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: border-color var(--motion);
+}
+
+button.cardItem:hover,
+a.cardItem:hover {
+	border-color: var(--border-strong);
+}
+
+button.cardItem:focus-visible,
+a.cardItem:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.cardGo {
+	display: grid;
+	grid-row: 2;
+	grid-column: 3;
+	justify-self: end;
+	color: var(--muted);
+	transition:
+		color var(--motion),
+		translate var(--motion);
+}
+
+.cardGo svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+button.cardItem:hover .cardGo,
+a.cardItem:hover .cardGo {
+	color: var(--ink);
+	translate: 2px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	button.cardItem:hover .cardGo,
+	a.cardItem:hover .cardGo {
+		translate: none;
+	}
+}
+
+.cardItem .soonTag {
+	grid-row: 2;
+	grid-column: 3;
+	justify-self: end;
+}
+
+/* ---- The list -------------------------------------------------------------- */
+
+.list {
+	container: guests / inline-size;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+.listHead {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: var(--space-xs) var(--space-s);
+	padding: var(--space-s);
+}
+
+.listTitle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.search {
+	position: relative;
+	grid-column: 1 / -1;
+}
+
+.searchIcon {
+	position: absolute;
+	top: 50%;
+	left: var(--space-s);
+	color: var(--muted);
+	translate: 0 -50%;
+	pointer-events: none;
+}
+
+.searchInput {
+	composes: input from "../../../../components/ui/ui.module.css";
+	padding-inline-start: calc(var(--space-s) * 2 + var(--space-xs));
+	background: var(--paper);
+}
+
+.tools {
+	display: flex;
+	flex-wrap: wrap;
+	grid-column: 1 / -1;
+	gap: var(--space-xs);
+}
+
+/* A wide list: the title on the left, search and tools beside it. */
+@container guests (min-width: 760px) {
+	.listHead {
+		grid-template-columns: auto minmax(200px, 300px) minmax(0, 1fr);
+	}
+
+	.listTitle {
+		grid-column: 1;
+		grid-row: 1;
+	}
+
+	.search {
+		grid-column: 2;
+		grid-row: 1;
+	}
+
+	.tools {
+		grid-column: 3;
+		grid-row: 1;
+		justify-content: flex-end;
+	}
+}
+
+.tool {
+	display: inline-flex;
+	text-decoration: none;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+	padding-inline: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 500;
+	white-space: nowrap;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: border-color var(--motion);
+}
+
+.tool:hover:not(:disabled) {
+	border-color: var(--border-strong);
+}
+
+.tool[aria-expanded="true"],
+.tool[aria-pressed="true"],
+.tool[data-active] {
+	border-color: var(--stamp);
+	background: var(--stamp-tint);
+}
+
+.tool:disabled {
+	color: var(--muted);
+	cursor: not-allowed;
+}
+
+.tool:focus-visible,
+.name:focus-visible,
+.iconButton:focus-visible,
+.chipClear:focus-visible,
+.clearAll:focus-visible,
+.code:focus-visible,
+.copyAnswer:focus-visible,
+.inline:focus-visible,
+.messageClose:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+/* Filter and Columns open here, under the head. */
+.drawer {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-s);
+	margin: 0 var(--space-s) var(--space-s);
+	padding: var(--space-s);
+	border: 1px dashed var(--perforation);
+	border-radius: var(--radius-m);
+}
+
+.drawerLegend {
+	float: left;
+	width: 100%;
+	padding: 0;
+	font-size: var(--text-small);
+	font-weight: 600;
+}
+
+.filterField {
+	display: flex;
+	flex: 1 1 12rem;
+	flex-direction: column;
+	gap: var(--space-2xs);
+}
+
+.filterLabel {
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+.check {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control-compact);
+	font-size: var(--text-small);
+	cursor: pointer;
+}
+
+.check input,
+.pickCell input {
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	accent-color: var(--stamp);
+}
+
+.chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-xs);
+	padding: 0 var(--space-s) var(--space-s);
+}
+
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	min-height: var(--control-compact);
+	padding-inline: var(--space-s) var(--space-2xs);
+	border-radius: var(--radius-full);
+	background: var(--stamp-tint);
+	font-size: var(--text-small);
+}
+
+.chipClear {
+	display: grid;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	place-items: center;
+	border: 0;
+	border-radius: var(--radius-full);
+	background: none;
+	color: var(--muted);
+	cursor: pointer;
+}
+
+.chipClear:hover {
+	background: var(--surface);
+	color: var(--ink);
+}
+
+.clearAll,
+.inline {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--stamp);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 600;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	cursor: pointer;
+}
+
+.bulkBar {
+	position: sticky;
+	top: calc(var(--header-height) + var(--space-xs));
+	z-index: 2;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-xs) var(--space-s);
+	margin: 0 var(--space-s) var(--space-s);
+	padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-s);
+	border: 1px solid var(--stamp);
+	border-radius: var(--radius-m);
+	background: var(--stamp-tint);
+}
+
+.bulkCount {
+	flex: 1;
+	margin: 0;
+	font-size: var(--text-small);
+	font-weight: 600;
+}
+
+.message {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+	margin: 0 var(--space-s) var(--space-s);
+	padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-s);
+	border-radius: var(--radius-m);
+	background: var(--tint);
+	font-size: var(--text-small);
+}
+
+.message[data-tone="error"] {
+	color: var(--alert);
+}
+
+.messageClose {
+	display: grid;
+	width: var(--control-compact);
+	height: var(--control-compact);
+	padding: 0;
+	place-items: center;
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: inherit;
+	cursor: pointer;
+}
+
+/* The table */
+
+.tableWrap {
+	overflow-x: auto;
+	border-top: 1px solid var(--perforation);
+	transition: opacity var(--motion);
+}
+
+/* Holding the old rows, dimmed, while the new ones come. */
+.tableWrap[aria-busy="true"] {
+	opacity: 0.6;
+}
+
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--text-small);
+}
+
+.table th {
+	padding: var(--space-xs) var(--space-s);
+	border-bottom: 1px solid var(--perforation);
+	background: var(--paper);
+	color: var(--muted);
+	font-size: var(--text-caption);
+	font-weight: 600;
+	text-align: start;
+	white-space: nowrap;
+}
+
+.table td {
+	padding: var(--space-xs) var(--space-s);
+	vertical-align: middle;
+}
+
+.table tbody tr + tr td {
+	border-top: 1px dashed var(--perforation);
+}
+
+.row {
+	cursor: pointer;
+}
+
+.table tbody tr:hover td,
+.table tbody tr[data-open] td {
+	background: var(--paper);
+}
+
+.table tbody tr[data-selected] td {
+	background: var(--stamp-tint);
+}
+
+.pickCell {
+	width: var(--control);
+}
+
+.guestTd {
+	min-width: 14rem;
+}
+
+.guestCell {
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+	min-width: 14rem;
+}
+
+.avatar,
+.avatarLarge {
+	display: grid;
+	flex: none;
+	width: var(--control);
+	height: var(--control);
+	place-items: center;
+	border-radius: var(--radius-full);
+	background: var(--tint);
+	color: var(--ink);
+	font-size: var(--text-caption);
+	font-weight: 700;
+}
+
+.who {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+/* The guest's name opens them: the row's one way in. */
+.name {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--ink);
+	font: inherit;
+	font-weight: 600;
+	text-align: start;
+	cursor: pointer;
+	overflow-wrap: anywhere;
+}
+
+.name:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.email {
+	color: var(--muted);
+	font-size: var(--text-caption);
+	overflow-wrap: anywhere;
+}
+
+.ticket {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	white-space: nowrap;
+}
+
+.statuses {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2xs);
+}
+
+/* Status as small marks: a tick for in, a ring for not yet, an envelope
+   for invited, an upload for imported. Each says itself in a tooltip and
+   to screen readers; the shape carries it, never colour alone. */
+.mark {
+	position: relative;
+	display: inline-grid;
+	width: var(--space-m);
+	height: var(--space-m);
+	place-items: center;
+	border-radius: var(--radius-full);
+	color: var(--muted);
+}
+
+.mark svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.mark[data-tone="in"] {
+	background: var(--stamp-tint);
+	color: var(--stamp);
+}
+
+/* Not yet: an empty ring, the tick's absence. */
+.mark[data-tone="out"]::before,
+.mark[data-tone="wait"]::before {
+	width: calc(var(--space-xs) + var(--space-2xs));
+	height: calc(var(--space-xs) + var(--space-2xs));
+	border: 2px solid currentColor;
+	border-radius: var(--radius-full);
+	content: "";
+}
+
+.mark[data-tone="wait"] {
+	color: var(--ink);
+}
+
+.mark[data-tone="wait"]::before {
+	border-style: dashed;
+}
+
+.answerHead,
+.answerCell {
+	max-width: 16rem;
+}
+
+.answerCell {
+	overflow-wrap: anywhere;
+}
+
+.none {
+	color: var(--muted);
+}
+
+.when {
+	color: var(--muted);
+	white-space: nowrap;
+	text-decoration: underline dotted var(--perforation);
+	text-underline-offset: 3px;
+}
+
+.actionsHead,
+.actionsCell {
+	width: 1%;
+	text-align: end;
+}
+
+.iconButton {
+	display: inline-grid;
+	width: var(--control-compact);
+	height: var(--control-compact);
+	padding: 0;
+	place-items: center;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--muted);
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		border-color var(--motion),
+		color var(--motion);
+}
+
+.iconButton:hover:not(:disabled) {
+	border-color: var(--border-strong);
+	color: var(--ink);
+}
+
+.iconButton:disabled {
+	cursor: not-allowed;
+	opacity: 0.4;
+}
+
+.flip {
+	rotate: 180deg;
+}
+
+.listFoot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	padding: var(--space-s);
+	border-top: 1px solid var(--perforation);
+}
+
+.range {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+	font-variant-numeric: tabular-nums;
+}
+
+.pager {
+	display: flex;
+	gap: var(--space-xs);
+}
+
+.empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-xs);
+	padding: var(--space-2xl) var(--space-s);
+	border-top: 1px solid var(--perforation);
+	text-align: center;
+}
+
+.emptyTitle {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+}
+
+.emptyBody {
+	max-width: 46ch;
+	margin: 0 0 var(--space-xs);
+	color: var(--muted);
+}
+
+/* Phones: each guest is a card, its cells labelled. */
+@media (max-width: 767px) {
+	.table thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+
+	.table,
+	.table tbody,
+	.table tr,
+	.table td {
+		display: block;
+	}
+
+	.table tr {
+		position: relative;
+		padding: var(--space-s);
+	}
+
+	.table tbody tr + tr {
+		border-top: 1px dashed var(--perforation);
+	}
+
+	.table tbody tr + tr td {
+		border-top: 0;
+	}
+
+	.table td {
+		padding: var(--space-2xs) 0;
+	}
+
+	.table td[data-label] {
+		display: grid;
+		grid-template-columns: 7rem minmax(0, 1fr);
+		gap: var(--space-xs);
+	}
+
+	.table td[data-label]::before {
+		content: attr(data-label);
+		color: var(--muted);
+		font-size: var(--text-caption);
+	}
+
+	.table td.guestTd {
+		min-width: 0;
+		padding-inline-end: calc(var(--control-compact) + var(--space-xs));
+	}
+
+	.actionsCell {
+		position: absolute;
+		top: var(--space-s);
+		right: var(--space-s);
+		width: auto;
+	}
+
+	.pickCell {
+		position: absolute;
+		top: calc(var(--space-s) + var(--control) + var(--space-2xs));
+		left: var(--space-s);
+	}
+}
+
+/* ---- The panel ---------------------------------------------------------- */
+
+/* A modal at the window's side, full height. */
+.panel {
+	composes: dialog from "../../../../components/ui/ui.module.css";
+	width: min(100%, 440px);
+	/* Browsers cap a dialog short of the window's edges; the panel takes
+	   the full width on a phone. */
+	max-width: 100%;
+	height: 100dvh;
+	max-height: none;
+	margin: 0 0 0 auto;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	border-width: 0 0 0 1px;
+	border-radius: var(--radius-l) 0 0 var(--radius-l);
+}
+
+.panelInner {
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+}
+
+.panelHead {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+	padding: var(--space-s) var(--space-m);
+	border-bottom: 1px solid var(--perforation);
+	background: var(--surface);
+}
+
+.panelHeadStart {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-width: 0;
+}
+
+.panelTitle {
+	display: inline-flex;
+	align-items: baseline;
+	gap: var(--space-xs);
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-card-title);
+	font-weight: 700;
+}
+
+.panelPlace {
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	font-weight: 400;
+}
+
+.panelNav {
+	display: flex;
+	gap: var(--space-2xs);
+}
+
+.panelBody {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-m);
+	padding: var(--space-m);
+}
+
+.panelNote {
+	margin: 0;
+	padding: var(--space-s) var(--space-m);
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.panelBody .panelNote {
+	padding: 0;
+}
+
+.panelError {
+	margin: 0;
+	color: var(--alert);
+	font-size: var(--text-small);
+}
+
+.person {
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+}
+
+.avatarLarge {
+	width: calc(var(--control) * 1.25);
+	height: calc(var(--control) * 1.25);
+	font-size: var(--text-small);
+}
+
+.personText {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	min-width: 0;
+}
+
+.personName {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+
+.personEmail {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+	overflow-wrap: anywhere;
+}
+
+/* Four facts as a ticket stub: perforated between them. */
+.facts {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	margin: 0;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+}
+
+.fact {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	min-width: 0;
+	padding: var(--space-s);
+}
+
+.fact:nth-child(odd) {
+	border-right: 1px dashed var(--perforation);
+}
+
+.fact:nth-child(n + 3) {
+	border-top: 1px dashed var(--perforation);
+}
+
+.fact dt {
+	color: var(--muted);
+	font-size: var(--text-caption);
+}
+
+.fact dd {
+	margin: 0;
+	font-size: var(--text-small);
+	font-weight: 500;
+	overflow-wrap: anywhere;
+}
+
+.code {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--ink);
+	font-family: var(--font-mono);
+	font-size: var(--text-small);
+	cursor: pointer;
+}
+
+.code svg {
+	flex: none;
+	color: var(--muted);
+}
+
+.checkState {
+	padding: var(--space-s);
+	border-radius: var(--radius-m);
+	background: var(--tint);
+}
+
+.checkState[data-in] {
+	background: var(--stamp-tint);
+}
+
+.checkLine {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	margin: 0;
+	font-weight: 600;
+}
+
+.checkState[data-in] .checkLine svg {
+	color: var(--stamp);
+}
+
+.checkList {
+	margin: var(--space-2xs) 0 0;
+	padding: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	list-style: none;
+}
+
+.panelActions {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-xs);
+}
+
+.panelActions [aria-disabled="true"] {
+	color: var(--muted);
+	cursor: not-allowed;
+}
+
+.answers {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+}
+
+.answersTitle {
+	margin: 0;
+	font-size: var(--text-small);
+	font-weight: 700;
+}
+
+.answerList {
+	margin: 0;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+}
+
+.answer {
+	display: grid;
+	grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+	gap: var(--space-s);
+	padding: var(--space-xs) var(--space-s);
+}
+
+.answer + .answer {
+	border-top: 1px dashed var(--perforation);
+}
+
+.answer dt {
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.answer dd {
+	margin: 0;
+	text-align: end;
+}
+
+.removed {
+	font-size: var(--text-caption);
+}
+
+/* Click to copy: the answer itself is the button. */
+.copyAnswer {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: flex-end;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	text-align: end;
+	overflow-wrap: anywhere;
+	cursor: copy;
+}
+
+.copyHint {
+	color: var(--muted);
+	font-size: var(--text-micro);
+	opacity: 0;
+	transition: opacity var(--motion);
+}
+
+.copyAnswer:hover .copyHint,
+.copyAnswer:focus-visible .copyHint {
+	opacity: 1;
+}
+
+.boneName {
+	width: 10rem;
+	height: calc(var(--text-h3) * 1.25);
+}
+
+.boneEmail {
+	width: 14rem;
+	height: calc(var(--text-small) * 1.4);
+}
+
+.boneFacts {
+	height: 9rem;
+	border-radius: var(--radius-m);
+}
+
+.boneAction {
+	height: var(--control);
+	border-radius: var(--radius-m);
+}
+
+@media (max-width: 479px) {
+	.panel {
+		border-radius: 0;
+	}
+
+	.panelBody {
+		padding: var(--space-s);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.panel[open] {
+		animation: slide var(--motion);
+	}
+}
+
+@keyframes slide {
+	from {
+		translate: var(--space-m) 0;
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tool,
+	.iconButton,
+	.tableWrap,
+	.copyHint {
+		transition: none;
+	}
+}
+
+/* ---- Skeleton -------------------------------------------------------------- */
+
+.boneTile.boneTile {
+	background: var(--perforation);
+	color: transparent;
+}
+
+.boneLine {
+	width: min(12rem, 70%);
+	height: calc(var(--text-small) * 1.4);
+}
+
+.boneField.boneField {
+	display: block;
+	border-color: var(--perforation);
+}
+
+.boneTools {
+	width: calc(var(--control) * 6);
+	height: var(--control);
+	border-radius: var(--radius-m);
+}
+
+/* A row's height: the avatar and its padding. */
+.boneRow {
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+	padding: var(--space-xs) var(--space-s);
+	border-top: 1px dashed var(--perforation);
+}
+
+/* ---- Invite and Edit ------------------------------------------------------- */
+
+.formRow {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+}
+
+.formLabel {
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+.switchRow {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-s);
+	font-size: var(--text-small);
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.switchRow input {
+	width: 18px;
+	height: 18px;
+	margin: 2px 0 0;
+	accent-color: var(--stamp);
+}
+
+.formHint {
+	display: block;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	font-weight: 400;
+}
+
+.codeInput {
+	composes: input from "../../../../components/ui/ui.module.css";
+	font-family: var(--font-mono);
+	letter-spacing: 0.04em;
+}
+
+.formFields {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	padding-top: var(--space-s);
+	border-top: 1px dashed var(--perforation);
+}
+
+.formNote {
+	margin: 0;
+	padding: var(--space-xs) var(--space-s);
+	border-radius: var(--radius-m);
+	background: var(--tint);
+	color: var(--muted);
+	font-size: var(--text-caption);
+}
+
+.fieldError {
+	color: var(--alert);
+	font-size: var(--text-small);
+}
+
+/* The panel's foot, held at the bottom while the form scrolls. */
+.panelFoot {
+	position: sticky;
+	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	margin-top: auto;
+	padding: var(--space-s) var(--space-m);
+	border-top: 1px solid var(--perforation);
+	background: var(--surface);
+}
+
+.footActions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-xs);
+}
+
+.formResult {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-xs) var(--space-s);
+	padding: var(--space-xs) var(--space-s);
+	border: 1px solid var(--alert);
+	border-radius: var(--radius-m);
+	font-size: var(--text-small);
+}
+
+.formResult p {
+	flex: 1 1 14rem;
+	margin: 0;
+	color: var(--alert);
+}
+
+/* ---- Panel: change the guest ------------------------------------------------ */
+
+.manage {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-xs);
+	padding-top: var(--space-s);
+	border-top: 1px dashed var(--perforation);
+}
+
+.danger {
+	composes: secondary discard from "../../../../components/ui/ui.module.css";
+	gap: var(--space-xs);
+}
+
+.cancelledNote {
+	margin: 0;
+	padding: var(--space-xs) var(--space-s);
+	border: 1px dashed var(--alert);
+	border-radius: var(--radius-m);
+	font-size: var(--text-small);
+}
+
+.popupText {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+/* ---- Pass ---------------------------------------------------------------- */
+
+.mailNote {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+}
+
+.mailNote[data-tone="ok"] {
+	color: var(--stamp);
+	font-weight: 600;
+}
+
+.mailNote[data-tone="error"] {
+	color: var(--alert);
+}
+
+.pass {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-xs);
+	text-align: center;
+}
+
+/* The QR at a size a scanner reads from arm's length; light whatever the
+   theme (lib/qr.ts). */
+.passQr {
+	width: min(100%, 280px);
+	aspect-ratio: 1;
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.passQr svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.passCode {
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-large);
+	letter-spacing: 0.04em;
+}
+
+/* ---- Import -------------------------------------------------------------- */
+
+.segmented {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 2px;
+	margin: 0;
+	padding: 2px;
+	border: 0;
+	border-radius: var(--radius-segment);
+	background: var(--tint);
+}
+
+.segment {
+	position: relative;
+	display: grid;
+	min-height: var(--control-compact);
+	place-items: center;
+	border-radius: var(--radius-compact);
+	font-size: var(--text-small);
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.segment input {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.segment:has(input:checked) {
+	background: var(--surface);
+	box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+.segment:has(input:focus-visible),
+.drop:has(input:focus-visible),
+.textLink:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+/* Where a file is dropped: dashed, like a tear line, until one is held. */
+.drop {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2xs);
+	padding: var(--space-m) var(--space-s);
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--radius-m);
+	text-align: center;
+	cursor: pointer;
+	transition:
+		border-color var(--motion),
+		background-color var(--motion);
+}
+
+.drop svg {
+	width: 20px;
+	height: 20px;
+	color: var(--muted);
+}
+
+.drop:hover,
+.drop[data-dragging] {
+	border-color: var(--stamp);
+	background: var(--stamp-tint);
+}
+
+.dropTitle {
+	font-size: var(--text-small);
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.textLink {
+	display: inline-flex;
+	align-items: center;
+	align-self: flex-start;
+	gap: var(--space-xs);
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--stamp);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.preview {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	padding-top: var(--space-s);
+	border-top: 1px dashed var(--perforation);
+}
+
+.previewSummary {
+	margin: 0;
+	font-size: var(--text-small);
+}
+
+.columnMap {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	font-size: var(--text-caption);
+	list-style: none;
+}
+
+.columnMap li {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	gap: var(--space-xs);
+}
+
+.columnMap li[data-ignored] {
+	color: var(--muted);
+}
+
+.previewTable {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--text-caption);
+}
+
+.previewTable th,
+.previewTable td {
+	padding: var(--space-2xs) var(--space-xs);
+	border-bottom: 1px dashed var(--perforation);
+	text-align: start;
+	vertical-align: top;
+	overflow-wrap: anywhere;
+}
+
+.previewTable th {
+	color: var(--muted);
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.drop {
+		transition: none;
+	}
+}
+
+/* ---- Tooltips --------------------------------------------------------- */
+
+/* Words for a control or mark drawn as an icon. The text is in the page
+   (screen readers read it as the name); it shows on hover and on keyboard
+   focus. */
+.tip {
+	position: absolute;
+	bottom: calc(100% + var(--space-2xs));
+	left: 50%;
+	z-index: 3;
+	padding: var(--space-2xs) var(--space-xs);
+	border-radius: var(--radius-compact);
+	background: var(--ink);
+	color: var(--paper);
+	font-size: var(--text-caption);
+	font-weight: 500;
+	line-height: 1.3;
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	translate: -50% 2px;
+	transition:
+		opacity var(--motion),
+		translate var(--motion);
+}
+
+.mark:hover .tip,
+.tipHost:hover .tip,
+.tipHost:focus-visible .tip,
+.toolIcon:hover .tip,
+.toolIcon:focus-visible .tip {
+	opacity: 1;
+	translate: -50% 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tip {
+		translate: -50% 0;
+	}
+}
+
+/* The list's own toolbar tips open below, inside the card. */
+.toolIcon .tip {
+	top: calc(100% + var(--space-2xs));
+	bottom: auto;
+}
+
+/* Near the right edge, a tip opens leftward so it stays on screen. */
+.toolIcon:last-child .tip,
+.tipHost .tip {
+	left: auto;
+	right: 0;
+	translate: 0 2px;
+}
+
+.toolIcon:last-child:hover .tip,
+.toolIcon:last-child:focus-visible .tip,
+.tipHost:hover .tip,
+.tipHost:focus-visible .tip {
+	translate: 0 0;
+}
+
+.tipHost,
+.toolIcon {
+	position: relative;
+}
+
+.toolIcon {
+	justify-content: center;
+	width: var(--control);
+	padding-inline: 0;
+}
+
+/* ---- Bulk upload, offered at the top of Invite ----------------------- */
+
+.bulkOffer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs) var(--space-s);
+	padding: var(--space-s);
+	border: 1px dashed var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--paper);
+}
+
+.bulkOfferText {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	font-size: var(--text-small);
+	font-weight: 600;
+}

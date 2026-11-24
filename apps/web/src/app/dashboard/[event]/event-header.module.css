@@ -1,0 +1,193 @@
+/* The event header: above the sidebar and the section, across both. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "../../../components/ui/ui.module.css";
+}
+
+.bone {
+	composes: bone from "../../../components/ui/ui.module.css";
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-width: 0;
+	/* Fixed, so the skeleton and the header are the same height. */
+	min-height: calc(var(--control) + 2 * var(--space-2xs));
+}
+
+/* Back to the list: a quiet square, the same size as a sidebar icon target. */
+.back {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--control);
+	height: var(--control);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--muted);
+	transition:
+		color var(--motion),
+		border-color var(--motion);
+}
+
+.back:hover {
+	border-color: var(--border-strong);
+	color: var(--ink);
+}
+
+.back:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.backIcon {
+	scale: -1 1;
+}
+
+/* The event's mark: ink with paper initials, like the cover placeholder on
+   the Organized list, so the same event looks the same on both screens. */
+.tile {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--control);
+	height: var(--control);
+	border-radius: var(--radius-compact);
+	background: var(--ink);
+	color: var(--paper);
+	font-family: var(--font-display);
+	font-size: var(--text-small);
+	font-weight: 700;
+	line-height: 1;
+	letter-spacing: 0.02em;
+}
+
+.text {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	min-width: 0;
+}
+
+.title {
+	margin: 0;
+	overflow: hidden;
+	font-family: var(--font-display);
+	font-size: var(--text-large);
+	font-weight: 700;
+	line-height: 1.25;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0 var(--space-s);
+	margin: 0;
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	line-height: 1.3;
+}
+
+.when {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	min-width: 0;
+	max-width: 100%;
+}
+
+/* One line, cut with "…" if it must be, so the header keeps its height. */
+.unset {
+	font-style: italic;
+}
+
+.when time,
+.when .unset {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.metaIcon {
+	flex: none;
+}
+
+/* The state in words, after a dot. Colour marks only the live phases; the
+   word is always there, so colour is never the only signal. */
+.status {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	color: var(--ink);
+	font-weight: 700;
+}
+
+.dot {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-full);
+}
+
+.status[data-phase="upcoming"] .dot,
+.status[data-phase="today"] .dot {
+	border-color: var(--stamp);
+	background: var(--stamp);
+}
+
+.status[data-phase="completed"] .dot {
+	background: var(--border-strong);
+}
+
+.countdown {
+	color: var(--muted);
+	font-weight: 400;
+	white-space: pre;
+}
+
+.boneTitle {
+	width: min(100%, 280px);
+	height: calc(var(--text-large) * 1.25);
+}
+
+.boneMeta {
+	width: min(100%, 220px);
+	height: calc(var(--text-caption) * 1.3);
+}
+
+.boneMetaPhone {
+	display: none;
+	width: min(100%, 120px);
+	height: calc(var(--text-caption) * 1.3);
+}
+
+/* Phones: date on one line, state on the next, always, so the header (and
+   its skeleton) is one height whatever the date's length. The zone's name
+   gives way for room; the time is still in the event's zone. */
+@media (max-width: 767px) {
+	.meta {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-2xs);
+	}
+
+	.zone {
+		display: none;
+	}
+
+	.boneMetaPhone {
+		display: block;
+	}
+}

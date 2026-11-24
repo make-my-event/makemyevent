@@ -1,0 +1,251 @@
+/* The Overview's Glance card: counts above, the share link below a tear.
+   Compact on purpose; every gap is the small end of the scale. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "../../../../components/ui/ui.module.css";
+}
+
+.bone {
+	composes: bone from "../../../../components/ui/ui.module.css";
+}
+
+.card {
+	padding: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+/* ---- Header ----------------------------------------------------------- */
+
+.header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2xs) var(--space-s);
+}
+
+.title {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-card-title);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.last {
+	margin: 0;
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	line-height: 1.3;
+}
+
+.lastWhen {
+	color: var(--ink);
+	font-weight: 700;
+}
+
+/* ---- Count, bar, legend ------------------------------------------------ */
+
+.body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	padding-top: var(--space-xs);
+}
+
+.total {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	margin: 0;
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+	line-height: 1.2;
+}
+
+.registered {
+	font-size: var(--text-h3);
+	font-weight: 700;
+}
+
+.of {
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.unit {
+	margin-inline-start: var(--space-xs);
+}
+
+.note {
+	margin-inline-start: var(--space-xs);
+	color: var(--muted);
+	font-size: var(--text-caption);
+}
+
+/* Where the limit is set: in words, in the body face. */
+.limitLink {
+	color: var(--ink);
+	font-family: var(--font-body);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.limitLink:hover {
+	color: var(--stamp);
+}
+
+.limitLink:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+	border-radius: var(--radius-badge);
+}
+
+/* At the door: how many are in, at the total's far end. */
+.checkedIn {
+	margin-inline-start: auto;
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.checkedInCount {
+	color: var(--ink);
+	font-weight: 700;
+}
+
+/* With one ticket the legend is the answers to a question: it names it. */
+.legendBy {
+	color: var(--muted);
+	font-size: var(--text-caption);
+	font-weight: 600;
+}
+
+.soldOut {
+	color: var(--alert);
+	font-weight: 700;
+}
+
+/* The track is the places still free; segments fill it from the start. Each
+   segment keeps a sliver of width, so one registration still shows. */
+.bar {
+	display: flex;
+	gap: 1px;
+	block-size: 10px;
+	padding: 1px;
+	overflow: hidden;
+	border-radius: var(--radius-full);
+	background: var(--perforation);
+}
+
+.segment {
+	flex: none;
+	min-inline-size: 4px;
+	border-radius: var(--radius-full);
+}
+
+/* The data colours (design-spec.md), biggest ticket first; the rest share
+   muted. Each is at least 3:1 against the track and the card. */
+.tone1 {
+	background: var(--series-1);
+}
+
+.tone2 {
+	background: var(--series-2);
+}
+
+.tone3 {
+	background: var(--series-3);
+}
+
+.tone4 {
+	background: var(--series-4);
+}
+
+.tone5 {
+	background: var(--series-5);
+}
+
+.toneRest {
+	background: var(--series-rest);
+}
+
+.legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2xs) var(--space-s);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: var(--text-caption);
+	line-height: 1.3;
+}
+
+.legendItem {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	min-width: 0;
+}
+
+.legendCount {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+}
+
+.legendName {
+	font-weight: 500;
+	overflow-wrap: anywhere;
+}
+
+.legendMuted {
+	color: var(--muted);
+}
+
+.legendMuted .legendName {
+	font-weight: 400;
+}
+
+.dot {
+	flex: none;
+	inline-size: 8px;
+	block-size: 8px;
+	border-radius: var(--radius-full);
+}
+
+.dotEmpty {
+	border: 1px solid var(--border-strong);
+	background: var(--perforation);
+}
+
+.boneTitle {
+	inline-size: 64px;
+	block-size: calc(var(--text-card-title) * 1.25);
+}
+
+.boneLast {
+	inline-size: 140px;
+	block-size: calc(var(--text-caption) * 1.3);
+}
+
+.boneTotal {
+	inline-size: 120px;
+	block-size: calc(var(--text-h3) * 1.2);
+}
+
+.boneLegend {
+	inline-size: 180px;
+	block-size: calc(var(--text-caption) * 1.3);
+}
+
+/* Phones: the last-registered line always gets its own row, whether or not
+   it would fit, so every state (and the skeleton) is the same height. */
+@media (max-width: 767px) {
+	.header {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+}

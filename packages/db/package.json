@@ -1,31 +1,26 @@
 {
-	"name": "db",
-	"version": "1.0.0",
-	"description": "",
-	"main": "index.js",
+	"name": "@makemyevent/db",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
 	"scripts": {
-		"build": "prisma generate",
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"clean": "rm -rf dist .turbo *.tsbuildinfo",
+		"deploy": "prisma migrate deploy",
+		"generate": "prisma generate",
+		"migrate": "prisma migrate dev",
+		"status": "prisma migrate status",
+		"studio": "prisma studio",
+		"typecheck": "tsc --noEmit",
+		"validate": "prisma validate"
 	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
-	"packageManager": "pnpm@10.30.3",
 	"devDependencies": {
-		"@types/pg": "^8.20.4",
-		"dotenv": "^17.4.2",
-		"prisma": "^7.9.1",
-		"tsx": "^4.23.10",
-		"typescript": "^7.0.2"
+		"prisma": "7.10.1"
 	},
 	"dependencies": {
-		"@prisma/adapter-pg": "^7.9.1",
-		"@prisma/client": "^7.9.1",
-		"pg": "^8.22.0"
+		"@prisma/adapter-pg": "7.10.1",
+		"@prisma/client": "7.10.1"
 	},
-	"exports": [
-		[
-			"./src/client.ts"
-		]
-	]
+	"exports": {
+		".": "./src/index.ts"
+	}
 }

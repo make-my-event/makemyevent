@@ -1,126 +1,90 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
-import type { JSX, ReactNode } from "react";
+import {
+	Bricolage_Grotesque,
+	IBM_Plex_Mono,
+	IBM_Plex_Sans,
+} from "next/font/google";
+import { headers } from "next/headers";
+import { NONCE_HEADER } from "@/lib/csp";
+import { THEME_SCRIPT } from "@/lib/theme-script.mjs";
 import "./globals.css";
-import { Providers } from "./providers";
 
-const archivo = Archivo({
+// Weights from design-spec.md: display 700; body 400, 500, 700.
+const display = Bricolage_Grotesque({
 	subsets: ["latin"],
-	weight: ["500", "600"],
-	variable: "--font-display",
-});
-const plexSans = IBM_Plex_Sans({
-	subsets: ["latin"],
-	weight: ["400", "500"],
-	variable: "--font-body",
-});
-const plexMono = IBM_Plex_Mono({
-	subsets: ["latin"],
-	weight: ["500"],
-	variable: "--font-mono",
+	weight: ["700"],
+	variable: "--face-display",
+	display: "swap",
 });
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://makemyevent.org";
+const body = IBM_Plex_Sans({
+	subsets: ["latin"],
+	weight: ["400", "500", "700"],
+	variable: "--face-body",
+	display: "swap",
+});
+
+// Only small details use the mono face — ticket codes and IDs — so it must
+// not compete for bandwidth with the text that decides first paint.
+const mono = IBM_Plex_Mono({
+	subsets: ["latin"],
+	weight: ["400"],
+	variable: "--face-mono",
+	display: "swap",
+	preload: false,
+});
 
 export const metadata: Metadata = {
-	metadataBase: new URL(baseUrl),
-	alternates: {
-		canonical: "./",
-	},
-	title: {
-		default: "makemyevent | Find and host community events",
-		template: "%s | makemyevent",
-	},
+	title: { default: "makemyevent", template: "%s — makemyevent" },
 	description:
-		"makemyevent is an open-source event management and ticketing platform for tech communities, meetups, hackathons, and open-source clubs.",
-	keywords: [
-		"makemyevent",
-		"events",
-		"ticketing",
-		"conferences",
-		"meetups",
-		"hackathons",
-		"open source",
-		"foss united",
-		"community events",
-		"rsvp platform",
-		"event management",
-	],
-	openGraph: {
-		type: "website",
-		locale: "en_US",
-		url: baseUrl,
-		title: "makemyevent | Find and host community events",
-		description:
-			"Open-source event ticketing and management platform for running conferences, workshops, fests, and meetups.",
-		siteName: "makemyevent",
-		images: [
-			{
-				url: "/makemyevent-symbol-575x630.png",
-				width: 1200,
-				height: 630,
-				alt: "makemyevent preview",
-			},
-		],
-	},
-	twitter: {
-		card: "summary_large_image",
-		title: "makemyevent | Find and host community events",
-		description: "Open-source event ticketing and management platform.",
-		images: ["/makemyevent-symbol-575x630.png"],
-	},
-	verification: {
-		google: "EO9SG-z--GhL_8DQ1ywwXUUHJPIIGJiLKhQITqxbdOQ",
-	},
-	robots: {
-		index: true,
-		follow: true,
-	},
+		"Free event pages, QR passes and certificates for your community. From the first registration to the last scan at the door.",
+	manifest: "/manifest.json",
 	icons: {
 		icon: [
-			{ url: "/makemyevent-symbol-467x512.svg", type: "image/svg+xml" },
-			{ url: "/favicon.ico", sizes: "any" },
-		],
-		shortcut: "/favicon.ico",
-		apple: [
-			{
-				url: "/makemyevent-symbol-164x180.png",
-				sizes: "180x180",
-				type: "image/png",
-			},
+			{ url: "/icon.svg", type: "image/svg+xml" },
+			{ url: "/favicon.ico" },
 		],
 	},
-	manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
-	width: "device-width",
-	initialScale: 1,
-	maximumScale: 1,
-	userScalable: false,
+	themeColor: [
+		{ media: "(prefers-color-scheme: light)", color: "#f7f6f2" },
+		{ media: "(prefers-color-scheme: dark)", color: "#131211" },
+	],
 };
 
-export interface RootLayoutProps {
-	children: ReactNode;
-}
+export default async function RootLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	// A fresh nonce per request, set by the middleware, so this one inline
+	// script is allowed while injected scripts are not.
+	const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
 
-export default function RootLayout({ children }: RootLayoutProps): JSX.Element {
 	return (
-		<html lang="en">
+		<html
+			lang="en"
+			className={`${display.variable} ${body.variable} ${mono.variable}`}
+			suppressHydrationWarning
+		>
 			<head>
-				<link
-					rel="icon"
-					href="/makemyevent-symbol-467x512.svg"
-					type="image/svg+xml"
-					sizes="any"
+				{/*
+				  Once a nonce-based CSP is active the browser blanks the nonce
+				  attribute in the DOM (the value lives only on the element's
+				  `nonce` property), so React would report a mismatch against
+				  the string the server wrote. The script has already run by
+				  then; nothing needs patching, only the warning silenced.
+				*/}
+				<script
+					nonce={nonce}
+					suppressHydrationWarning
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed string with no user input, carrying the request nonce
+					dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
 				/>
-				<link rel="apple-touch-icon" href="/makemyevent-symbol-164x180.png" />
 			</head>
-			<body
-				className={`${archivo.variable} ${plexSans.variable} ${plexMono.variable} antialiased`}
-			>
-				<Providers>{children}</Providers>
-			</body>
+			<body>{children}</body>
 		</html>
 	);
 }
