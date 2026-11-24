@@ -1,3 +1,8 @@
+import { env } from "./env";
+
+/** Map styles, tiles, fonts and icons for the venue map: one host. */
+const MAP_TILES = "https://tiles.openfreemap.org";
+
 const isProduction = process.env.NODE_ENV === "production";
 
 /**
@@ -21,9 +26,14 @@ export function contentSecurityPolicy(nonce: string): string {
 		// so this is the one allowance made.
 		"style-src 'self' 'unsafe-inline'",
 		`script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isProduction ? "" : " 'unsafe-eval'"}`,
-		"img-src 'self' data: blob:",
+		// Event posters and logos are served from our Supabase project's
+		// Storage, and from nowhere else.
+		// The venue map's tiles come from OpenFreeMap.
+		`img-src 'self' data: blob: ${new URL(env.supabaseUrl).origin} ${MAP_TILES}`,
 		"font-src 'self'",
-		`connect-src 'self'${isProduction ? "" : " ws: http://localhost:*"}`,
+		`connect-src 'self' ${MAP_TILES}${isProduction ? "" : " ws: http://localhost:*"}`,
+		// The map draws in a worker it creates from a blob.
+		"worker-src 'self' blob:",
 		"manifest-src 'self'",
 		// Nothing is embedded, and nothing may embed us: clickjacking is impossible.
 		"frame-src 'none'",

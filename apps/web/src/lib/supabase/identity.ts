@@ -4,8 +4,8 @@ import { createClient } from "./server";
 
 /**
  * Header the middleware uses to hand the signed-in person's display name to
- * the render. The middleware has already verified the session against
- * Supabase, so the page chrome does not have to ask a second time.
+ * the render. The middleware has already verified the session token
+ * (signature and expiry), so the page chrome does not have to ask again.
  *
  * The middleware sets this on every request it handles, and deletes it when
  * nobody is signed in, so a value sent by a browser never reaches a page.
@@ -36,7 +36,12 @@ export async function getDisplayName(): Promise<string | null> {
 /**
  * The verified user, for anything that gates access or reads their data.
  *
- * cache() keeps it to one call for each request, however many components ask.
+ * Asks Supabase live (getUser), rather than checking the token locally as the
+ * middleware does, so a session that was signed out or revoked is refused at
+ * once and not only when its access token expires (OWASP ASVS 3.3.1: logout
+ * and expiration invalidate the session token). It costs one round trip to
+ * the Auth server per request; cache() keeps it to one however many
+ * components ask.
  */
 export const getCurrentUser = cache(async () => {
 	const supabase = await createClient();

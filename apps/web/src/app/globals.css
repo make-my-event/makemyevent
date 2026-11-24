@@ -17,6 +17,15 @@
 	--tint: #eeece5;
 	--stamp-tint: #e6eee9;
 
+	/* Data colours (design-spec.md): Open Color, for telling ticket types and
+	   other same-kind things apart. Never for state. */
+	--series-1: var(--stamp);
+	--series-2: #1971c2;
+	--series-3: #c2255c;
+	--series-4: #7048e8;
+	--series-5: #0b7285;
+	--series-rest: var(--muted);
+
 	/* States. ink fills move toward paper, 15% at most.
      stamp and alert fills move toward ink, never lighter. */
 	--ink-hover: color-mix(in srgb, var(--paper) 8%, var(--ink));
@@ -62,9 +71,9 @@
 	--space-3xl: 120px;
 
 	/* Radius */
-	--radius-2xs: 5px;
+	--radius-badge: 5px;
 	--radius-s: 6px;
-	--radius-xs: 8px;
+	--radius-compact: 8px;
 	--radius-segment: 10px;
 	--radius-m: 12px;
 	--radius-l: 18px;
@@ -86,6 +95,10 @@
 	--motion: 160ms ease;
 
 	--header-height: 64px;
+	/* The dashboard's side margin and content width, from the Figma frame:
+	   15px gutters around 1444px of content. */
+	--dashboard-gutter: 15px;
+	--dashboard-width: calc(1444px + 2 * var(--dashboard-gutter));
 
 	color-scheme: light;
 }
@@ -99,6 +112,10 @@
 	--surface: #1a1917;
 	--tint: #26251f;
 	--stamp-tint: #17281e;
+	--series-2: #4dabf7;
+	--series-3: #f783ac;
+	--series-4: #b197fc;
+	--series-5: #3bc9db;
 	--shadow-overlay: none;
 	/* Dark paper sits further from anything that can pass behind it, so the
 	   band can give up a little more and still hold its text. */

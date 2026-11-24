@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Brand } from "./brand";
 import styles from "./site-footer.module.css";
 
@@ -44,9 +45,9 @@ export function SiteFooter() {
 							<ul className={styles.list}>
 								{column.links.map((link) => (
 									<li key={link.label}>
-										<a className={styles.link} href={link.href}>
+										<Link className={styles.link} href={link.href}>
 											{link.label}
-										</a>
+										</Link>
 									</li>
 								))}
 							</ul>

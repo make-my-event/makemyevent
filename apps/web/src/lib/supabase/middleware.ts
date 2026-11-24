@@ -10,6 +10,27 @@ function hasAuthCookie(request: NextRequest): boolean {
 	return request.cookies.getAll().some(({ name }) => name.startsWith("sb-"));
 }
 
+/**
+ * A page read signed out that only works signed in: sent to sign-in and back
+ * here, with a real 307, before anything renders. Without this the page would
+ * start streaming its loading skeleton and could only redirect from inside
+ * the page. Only reads (GET, HEAD): a form post goes on to its own handler,
+ * which answers for itself.
+ *
+ * This is a courtesy, not the gate. Every dashboard page still checks the
+ * session live (getCurrentUser) and runs its queries under row-level security.
+ */
+function signInFirst(request: NextRequest): NextResponse | null {
+	const { pathname, search } = request.nextUrl;
+	if (request.method !== "GET" && request.method !== "HEAD") return null;
+	if (pathname !== "/dashboard" && !pathname.startsWith("/dashboard/"))
+		return null;
+	const url = request.nextUrl.clone();
+	url.pathname = "/signin";
+	url.search = `?${new URLSearchParams({ next: `${pathname}${search}` })}`;
+	return NextResponse.redirect(url, 307);
+}
+
 /** Keeps the sign-in session fresh, and sets the per-request security policy. */
 export async function updateSession(request: NextRequest) {
 	const nonce = crypto.randomUUID().replaceAll("-", "");
@@ -27,6 +48,8 @@ export async function updateSession(request: NextRequest) {
 	// the whole Supabase round trip is skipped. Public pages are the bulk of
 	// the traffic and almost all of it arrives signed out.
 	if (!hasAuthCookie(request)) {
+		const toSignIn = signInFirst(request);
+		if (toSignIn) return toSignIn;
 		const response = NextResponse.next({ request: { headers } });
 		response.headers.set("Content-Security-Policy", csp);
 		return response;
@@ -56,21 +79,30 @@ export async function updateSession(request: NextRequest) {
 		},
 	);
 
-	// Do not put code between createServerClient and getUser: getUser is what
-	// validates the token with Supabase and refreshes it when needed.
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	// Do not put code between createServerClient and getClaims: it reads the
+	// session, refreshes it when the access token has expired (the only time
+	// this makes a network call), and verifies the token's signature and
+	// expiry locally against the project's cached public key (ES256). It
+	// decides nothing about access, so a local check is enough here; anything
+	// that gates access calls getCurrentUser, which asks Supabase live.
+	const { data } = await supabase.auth.getClaims();
+	const claims = data?.claims;
 
 	// Hand the verified name forward so the page chrome needs no second call.
-	const metadata = (user?.user_metadata ?? {}) as {
-		full_name?: string;
-		name?: string;
+	const metadata = (claims?.user_metadata ?? {}) as {
+		full_name?: unknown;
+		name?: unknown;
 	};
-	const name = metadata.full_name ?? metadata.name ?? user?.email ?? null;
+	const name =
+		[metadata.full_name, metadata.name, claims?.email].find(
+			(value): value is string => typeof value === "string" && value !== "",
+		) ?? null;
 	if (name) headers.set(DISPLAY_NAME_HEADER, encodeDisplayName(name));
 
-	const response = NextResponse.next({ request: { headers } });
+	// A session that could not be verified or refreshed is signed out. Any
+	// cookies Supabase cleared go with the redirect.
+	const toSignIn = claims ? null : signInFirst(request);
+	const response = toSignIn ?? NextResponse.next({ request: { headers } });
 	response.headers.set("Content-Security-Policy", csp);
 	for (const cookie of refreshed) {
 		response.cookies.set(cookie.name, cookie.value, cookie.options);

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useId } from "react";
 import type { NavLink } from "./nav-links";
 import styles from "./site-header.module.css";
@@ -52,34 +53,34 @@ export function VisitorMenu({ links }: { links: readonly NavLink[] }) {
 			<div className={styles.menu} id={menuId} hidden={!open}>
 				<nav aria-label="Primary">
 					{links.map((link) => (
-						<a
+						<Link
 							key={link.href}
 							className={styles.menuLink}
 							href={link.href}
 							onClick={() => setOpen(false)}
 						>
 							{link.label}
-						</a>
+						</Link>
 					))}
 				</nav>
 
 				{/* Sign-in sits in the band itself from 640px up, so this block
 				    goes quiet there and the menu carries only the links. */}
 				<div className={styles.menuAuth}>
-					<a
+					<Link
 						className={styles.menuLink}
 						href="/signin"
 						onClick={() => setOpen(false)}
 					>
 						Log in
-					</a>
-					<a
+					</Link>
+					<Link
 						className={`${styles.btn} ${styles.btnPrimary} ${styles.menuBtn}`}
-						href="/signin"
+						href="/events/new"
 						onClick={() => setOpen(false)}
 					>
 						Host an event
-					</a>
+					</Link>
 				</div>
 			</div>
 		</div>

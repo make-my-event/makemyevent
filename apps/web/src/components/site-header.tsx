@@ -6,7 +6,10 @@ import { HeaderNav } from "./header-nav";
  * filled in from a session it had already verified, so rendering this costs
  * no further call to Supabase. That matters here: this header sits on the
  * public pages, where traffic arrives in bursts.
+ *
+ * `wide` matches the band to the dashboard's wider content, so its edges line
+ * up with the toolbar beneath it.
  */
-export async function SiteHeader() {
-	return <HeaderNav signedInAs={await getDisplayName()} />;
+export async function SiteHeader({ wide = false }: { wide?: boolean }) {
+	return <HeaderNav signedInAs={await getDisplayName()} wide={wide} />;
 }

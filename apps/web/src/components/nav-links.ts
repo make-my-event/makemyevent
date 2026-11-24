@@ -24,11 +24,12 @@ export const PRIMARY_LINKS: readonly NavLink[] = [
  */
 export const DASHBOARD: NavLink = {
 	label: "Dashboard",
-	href: "/dashboard/organized",
+	href: "/dashboard",
 };
 
 /** The rest of the account, which only ever appears in the account panel. */
 export const ACCOUNT_LINKS: readonly NavLink[] = [
-	{ label: "My tickets", href: "/tickets" },
-	{ label: "Manage organizations", href: "/organizations" },
+	// Events they hold tickets for: the Attending list. Organizations get a
+	// link here when they exist.
+	{ label: "My tickets", href: "/dashboard/attending" },
 ];

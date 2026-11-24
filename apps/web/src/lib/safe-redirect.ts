@@ -1,4 +1,8 @@
-export const DEFAULT_REDIRECT = "/";
+/**
+ * Where someone goes after signing in when nothing asked for somewhere
+ * else, such as from "Log in": their events, the reason they signed in.
+ */
+export const DEFAULT_REDIRECT = "/dashboard";
 
 /**
  * Where to send someone after sign-in. Only paths on this site are allowed,

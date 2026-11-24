@@ -2,6 +2,11 @@
    top of it: paper at 82% with the page blurred behind. The
    wrapper is transparent and does the sticking; the band inside it does the
    drawing, so the band can inset from the page margin. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "./ui/ui.module.css";
+}
 .header {
 	position: sticky;
 	top: 0;
@@ -36,6 +41,24 @@
 	box-shadow: var(--shadow-overlay);
 	backdrop-filter: blur(var(--band-blur));
 	-webkit-backdrop-filter: blur(var(--band-blur));
+}
+
+/* Signed in, the band holds framed boxes at radius-m, not pills. Its corner
+   is theirs plus the gap and border around them, so the curves run parallel
+   instead of a box's corner cutting across a pill's round end. */
+.bandFramed {
+	border-radius: calc(var(--radius-m) + var(--space-2xs) + 1px);
+}
+
+/* On the dashboard: the same edges as the toolbar and list beneath it, whose
+   content is the dashboard width less its gutters. */
+.bandWide {
+	max-width: calc(var(--dashboard-width) - 2 * var(--dashboard-gutter));
+}
+
+/* The dashboard's 15px side margins, at every width. */
+.header.headerWide {
+	padding-inline: var(--dashboard-gutter);
 }
 
 /* Translucent without the blur would leave the page's text legible straight
@@ -106,35 +129,126 @@
 
 /* The account control, in the band at every width: it is a signed-in
    person's only disclosure, so there is nothing for it to be hidden behind.
-   Positioned, which anchors its panel to the avatar rather than to the
+   Positioned, which anchors its panel to the profile button rather than to the
    header — unlike the visitor menu, this one hangs off its own control. */
 .account {
 	position: relative;
 }
 
-/* An outline rather than a fill: a filled circle would compete with the
-   primary pill sitting next to it, and the palette has no tint to spend. */
-.avatar {
+/* The signed-in band's controls are framed boxes: surface fill, a
+   perforation hairline, radius-m. The text and icon inside each are what
+   identify it, so the hairline needs no contrast minimum. */
+.boxIcon,
+.boxButton,
+.profile {
 	display: inline-flex;
+	flex: none;
 	align-items: center;
-	justify-content: center;
-	width: var(--control);
 	height: var(--control);
-	padding: 0;
-	border: 1px solid var(--border-strong);
-	border-radius: var(--radius-full);
-	background: transparent;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
 	color: var(--ink);
-	font-size: var(--text-small);
-	font-weight: 500;
-	line-height: 1;
 	cursor: pointer;
 	touch-action: manipulation;
 	transition: border-color var(--motion);
 }
 
-.avatar:hover {
-	border-color: var(--ink);
+.boxIcon:hover,
+.boxButton:hover,
+.profile:hover,
+.profile[aria-expanded="true"] {
+	border-color: var(--border-strong);
+}
+
+/* The theme toggle, squared off into the same frame. Scoped to the band's
+   actions so it outranks the toggle's own round, borderless style. */
+.actions > .boxIcon {
+	justify-content: center;
+	width: var(--control);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	color: var(--ink);
+}
+
+.actions > .boxIcon:hover {
+	border-color: var(--border-strong);
+}
+
+.boxButton {
+	padding-inline: var(--space-s);
+	font-size: var(--text-small);
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+/* Initials on a stamp square, then the word, then a chevron. */
+.profile {
+	gap: calc(var(--space-xs) + var(--space-2xs));
+	padding: 0 calc(var(--space-xs) + var(--space-2xs)) 0 var(--space-2xs);
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+/* paper on stamp: 4.92:1 light, 5.31:1 dark. Mono, like a ticket code. */
+.profileMark {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--space-l);
+	height: var(--space-l);
+	border-radius: var(--radius-compact);
+	background: var(--stamp);
+	color: var(--paper);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	font-weight: 500;
+	line-height: 1;
+}
+
+.profileLabel {
+	/* A long first name stops short of crowding the band. */
+	max-width: 12ch;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.profileChevron {
+	flex: none;
+	width: var(--space-s);
+	height: var(--space-s);
+	color: var(--muted);
+	transition: rotate var(--motion);
+}
+
+.profile[aria-expanded="true"] .profileChevron {
+	rotate: 180deg;
+}
+
+/* Phones: the word goes, the initials and chevron stay. Hidden visually, not
+   removed, so the button is still announced by their first name. */
+@media (max-width: 639px) {
+	.profile {
+		gap: var(--space-2xs);
+		padding-inline-end: var(--space-xs);
+	}
+
+	.profileLabel {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.boxButton {
+		padding-inline: var(--space-xs);
+	}
 }
 
 /* Sized by its own longest item, so no width has to be invented for it. */
@@ -210,19 +324,6 @@
 	color: var(--muted);
 }
 
-/* Visually hidden, still read aloud. */
-.srOnly {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	margin: -1px;
-	padding: 0;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-	border: 0;
-}
-
 .quiet {
 	display: none;
 	align-items: center;
@@ -283,22 +384,6 @@
 @media (min-width: 640px) {
 	.actions > .btn {
 		display: inline-flex;
-	}
-}
-
-/* The one action that survives every width. Signing in is what the band hides
-   below 640px, because the page itself asks twice over; a dashboard is not on
-   the page, and putting a tap between someone and their own events to save
-   100px is the wrong trade. The padding is the narrow step until there is room
-   for the wide one. */
-.actions > .btnAlways {
-	display: inline-flex;
-	padding-inline: var(--space-s);
-}
-
-@media (min-width: 640px) {
-	.actions > .btnAlways {
-		padding-inline: var(--space-m);
 	}
 }
 

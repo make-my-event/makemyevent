@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AccountMenu } from "./account-menu";
 import { Brand } from "./brand";
 import { DASHBOARD, PRIMARY_LINKS } from "./nav-links";
@@ -14,55 +15,75 @@ import { VisitorMenu } from "./visitor-menu";
  * The two states differ in what the band offers, not in how it is built:
  *
  *   visitor    brand ·············· theme  Log in  Host an event  (menu)
- *   signed in  brand ·············· theme  Dashboard              (avatar)
+ *   signed in  brand ·············· [theme] [Dashboard] [AM Asha ⌄]
  *
  * Below 1024px the links move out of the band into whichever disclosure is
  * present. Below 640px the visitor's Log in and Host an event move with them;
  * Dashboard does not, because it is what a signed-in person opened the site
  * to reach.
  */
-export function HeaderNav({ signedInAs }: { signedInAs: string | null }) {
+export function HeaderNav({
+	signedInAs,
+	wide = false,
+}: {
+	signedInAs: string | null;
+	wide?: boolean;
+}) {
 	return (
-		<header className={styles.header}>
-			<div className={styles.band}>
-				<a className={styles.brandLink} href="/" aria-label="makemyevent home">
+		<header
+			className={`${styles.header}${wide ? ` ${styles.headerWide}` : ""}`}
+		>
+			<div
+				className={[
+					styles.band,
+					wide ? styles.bandWide : "",
+					signedInAs ? styles.bandFramed : "",
+				]
+					.filter(Boolean)
+					.join(" ")}
+			>
+				<Link
+					className={styles.brandLink}
+					href="/"
+					aria-label="makemyevent home"
+				>
 					{/* Signed in, the band carries two more controls, and on the
 					    narrowest phones the symbol stands in for the full mark. */}
 					<Brand tight={signedInAs !== null} />
-				</a>
+				</Link>
 
 				<nav className={styles.links} aria-label="Primary">
 					{PRIMARY_LINKS.map((link) => (
-						<a key={link.href} className={styles.link} href={link.href}>
+						<Link key={link.href} className={styles.link} href={link.href}>
 							{link.label}
-						</a>
+						</Link>
 					))}
 				</nav>
 
 				<div className={styles.actions}>
-					<ThemeToggle />
-
 					{signedInAs ? (
 						<>
-							<a
-								className={`${styles.btn} ${styles.btnPrimary} ${styles.btnAlways}`}
-								href={DASHBOARD.href}
-							>
+							{/* Signed in, the controls are framed boxes: the theme,
+							    the way to the dashboard (at every width, since it is
+							    why a signed-in person came back), and the profile. */}
+							<ThemeToggle className={styles.boxIcon} />
+							<Link className={styles.boxButton} href={DASHBOARD.href}>
 								{DASHBOARD.label}
-							</a>
+							</Link>
 							<AccountMenu name={signedInAs} links={PRIMARY_LINKS} />
 						</>
 					) : (
 						<>
-							<a className={styles.quiet} href="/signin">
+							<ThemeToggle />
+							<Link className={styles.quiet} href="/signin">
 								Log in
-							</a>
-							<a
+							</Link>
+							<Link
 								className={`${styles.btn} ${styles.btnPrimary}`}
-								href="/signin"
+								href="/events/new"
 							>
 								Host an event
-							</a>
+							</Link>
 							<VisitorMenu links={PRIMARY_LINKS} />
 						</>
 					)}

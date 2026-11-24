@@ -11,8 +11,10 @@ const KEY = "makemyevent-theme";
  * so it is already correct on the first paint: the theme class is set by the
  * script in the document head, and CSS hides whichever label does not apply.
  * A hidden (display: none) span takes no part in the accessible name.
+ *
+ * `className` lets a caller add its own frame, as the signed-in header does.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string | undefined }) {
 	function toggle() {
 		const next = !document.documentElement.classList.contains("dark");
 		document.documentElement.classList.toggle("dark", next);
@@ -24,7 +26,11 @@ export function ThemeToggle() {
 	}
 
 	return (
-		<button type="button" className={styles.button} onClick={toggle}>
+		<button
+			type="button"
+			className={`${styles.button}${className ? ` ${className}` : ""}`}
+			onClick={toggle}
+		>
 			<span className={`${styles.srOnly} ${styles.onLight}`}>
 				Switch to dark theme
 			</span>
