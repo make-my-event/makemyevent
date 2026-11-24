@@ -6,6 +6,7 @@ import {
 } from "next/font/google";
 import { headers } from "next/headers";
 import { NONCE_HEADER } from "@/lib/csp";
+import { SITE_ORIGIN } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme-script.mjs";
 import "./globals.css";
 
@@ -35,6 +36,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+	// Relative canonical and share-card addresses resolve against this.
+	metadataBase: new URL(SITE_ORIGIN),
 	title: { default: "makemyevent", template: "%s — makemyevent" },
 	description:
 		"Free event pages, QR passes and certificates for your community. From the first registration to the last scan at the door.",

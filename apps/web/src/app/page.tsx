@@ -1,16 +1,19 @@
-import type { Metadata } from "next";
 import { QrPattern } from "@/components/qr-pattern";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { publicPageMetadata } from "@/lib/site";
 import { CheckInDemo } from "./_landing/check-in-demo";
 import { CreateCta } from "./_landing/create-cta";
 import { CopyLink } from "./_landing/copy-link";
 import { PassDeck, type SamplePass } from "./_landing/pass-deck";
 import styles from "./landing.module.css";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
+	path: "/",
 	title: { absolute: "makemyevent — event pages, QR passes and certificates" },
-};
+	description:
+		"Free event pages, QR passes and certificates for your community. From the first registration to the last scan at the door.",
+});
 
 const PASSES: SamplePass[] = [
 	{

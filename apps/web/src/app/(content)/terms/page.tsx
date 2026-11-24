@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/site";
 import styles from "../../content.module.css";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
+	path: "/terms",
 	title: "Terms of service",
 	description:
 		"The rules for using makemyevent, for organisers and for attendees.",
-};
+});
 
 function NoteIcon() {
 	return (
