@@ -1,4 +1,10 @@
 {
 	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		// Node runs the tests straight from TypeScript, which needs the
+		// .ts extension in their imports (as in packages/core).
+		"noEmit": true,
+		"allowImportingTsExtensions": true
+	},
 	"include": ["src"]
 }
