@@ -15,6 +15,7 @@
 		"dev": "turbo run dev",
 		"format": "biome check --write .",
 		"lint": "biome check .",
+		"postinstall": "pnpm db:generate",
 		"prepare": "husky",
 		"quality": "pnpm quality:a11y && pnpm quality:lighthouse && pnpm quality:load",
 		"quality:a11y": "node quality/a11y.mjs",
