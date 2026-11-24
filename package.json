@@ -36,7 +36,10 @@
 	},
 	"pnpm": {
 		"overrides": {
-			"sharp": "0.35.5"
+			"sharp": "0.35.5",
+			"next>postcss": "8.5.23",
+			"@prisma/config>effect": "3.22.1",
+			"get-uri>basic-ftp": "6.2.6"
 		}
 	}
 }
