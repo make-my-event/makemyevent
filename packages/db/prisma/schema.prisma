@@ -7,6 +7,10 @@
 // Models are added one screen at a time, alongside the screen that needs them.
 // Nothing is defined ahead of its use.
 //
+// created_at and updated_at: Prisma sends its own clock's time on insert;
+// a trigger in the migrations replaces it with the database's, so no client
+// can set either.
+//
 // Connection URLs live in prisma.config.ts, not here: Prisma 7 no longer
 // accepts them in the schema file.
 
@@ -17,4 +21,447 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// A person with an account. One row per Supabase Auth user, sharing its id,
+// written on first sign-in from the session the server has just verified.
+//
+// Only what a screen uses today: the email (to reach them, and to claim guest
+// tickets bought with it) and the name shown in the header and as the
+// personal host. No avatar URL: initials are drawn from the name, so no
+// third-party image is fetched.
+//
+// The id is not a foreign key to auth.users. Local development runs plain
+// Postgres, which has no auth schema, and one migration has to apply
+// everywhere. Deleting an account therefore deletes this row in our own code,
+// in the same request that deletes the auth user.
+//
+// Rules Prisma cannot express live in the migration: emails stored lowercase,
+// a length limit on the name, and row-level security (each person reads and
+// renames only their own row).
+model User {
+  id          String   @id @db.Uuid
+  email       String   @unique
+  displayName String   @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  hostedEvents  Event[]
+  registrations Registration[]
+  memberships   EventMember[]    @relation("member")
+  invitations   EventMember[]    @relation("inviter")
+  invitedGuests Registration[]   @relation("invitedGuests")
+  checkIns      CheckIn[]        @relation("checkIns")
+  blocked       BlockedContact[] @relation("blockedContacts")
+  auditActions  AuditLog[]       @relation("auditActions")
+
+  @@map("users")
+}
+
+// An event, from the moment it is named in the Create Event popup. Most
+// fields are empty while it is a draft; the migration's checks require the
+// dates, time zone and (for offline and hybrid) the venue before it can be
+// published.
+//
+// Hosted by a person for now. Organizations will add a second, exclusive
+// host column when that screen is built.
+model Event {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hostUserId   String  @map("host_user_id") @db.Uuid
+  // The public address: /event/{slug}. Lowercase words joined by hyphens; a
+  // clash gets -2, -3. Kept when the title changes, so shared links work.
+  slug         String  @unique
+  title        String
+  // The About text: the editor's document as JSON, rebuilt from an
+  // allowlist on the server (packages/core/src/about.ts), never HTML.
+  about        Json?   @db.JsonB
+  // offline, online or hybrid.
+  format       String  @default("offline")
+  venueName    String? @map("venue_name")
+  venueAddress String? @map("venue_address")
+  // Where the pin sits on the map, from the address search or a click on
+  // the map. Both or neither.
+  venueLat     Float?  @map("venue_lat")
+  venueLng     Float?  @map("venue_lng")
+  // Where online guests join (online and hybrid events): https only.
+  onlineUrl    String? @map("online_url")
+
+  // IANA name, e.g. Asia/Kolkata. Every date is shown in it.
+  timeZone String?   @map("time_zone")
+  startsAt DateTime? @map("starts_at") @db.Timestamptz
+  endsAt   DateTime? @map("ends_at") @db.Timestamptz
+
+  // Empty opens on publishing / closes when the event starts.
+  registrationOpensAt  DateTime? @map("registration_opens_at") @db.Timestamptz
+  registrationClosesAt DateTime? @map("registration_closes_at") @db.Timestamptz
+  // Set by "Close registration"; cleared to reopen.
+  registrationPausedAt DateTime? @map("registration_paused_at") @db.Timestamptz
+
+  // Places across every ticket; empty means no limit.
+  // Defaults to 250 for a new event; empty means no limit.
+  capacity BigInt? @default(250)
+  // ISO 4217, e.g. INR. Every ticket price is in it, as minor units. Empty
+  // on a fresh draft; required before publishing.
+  currency String?
+
+  // Storage paths, not URLs: the bucket and its rules decide who reads them.
+  logoPath   String? @map("logo_path")
+  posterPath String? @map("poster_path")
+  // The poster described in words, for the public page's alt text.
+  posterAlt  String? @map("poster_alt")
+
+  // draft, published or cancelled. Listed adds it to public browsing; a
+  // published event that is not listed is reachable only by its link.
+  status      String    @default("draft")
+  listed      Boolean   @default(false)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  host             User   @relation(fields: [hostUserId], references: [id], onDelete: Restrict)
+  // Raised by one on each save of the registration form, so a save made
+  // from an older copy is refused rather than overwriting newer work.
+  formVersion      BigInt @default(1) @map("form_version")
+  // Signs this event's QR passes with the server's key; raised to retire
+  // every pass issued before.
+  ticketKeyVersion Int    @default(1) @map("ticket_key_version")
+
+  links         EventLink[]
+  days          EventDay[]
+  ticketTypes   TicketType[]
+  registrations Registration[]
+  members       EventMember[]
+  formFields    FormField[]
+  blocked       BlockedContact[]
+  auditLog      AuditLog[]
+  addresses     EventAddress[]
+
+  @@index([hostUserId, startsAt])
+  @@map("events")
+}
+
+// The event's social and web links, in the order the host set.
+model EventLink {
+  id       BigInt @id @default(autoincrement())
+  eventId  String @map("event_id") @db.Uuid
+  // One of LINK_KINDS in packages/core/src/links.ts.
+  kind     String
+  // https for the web, mailto: for email, tel: for a phone.
+  url      String
+  // 0 to 11: the order on the page, and the cap of twelve.
+  position Int
+
+  event   Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  answers RegistrationAnswer[]
+
+  @@unique([eventId, position])
+  @@map("event_links")
+}
+
+// The registration form: one row per question, in order. What a whole form
+// may hold is checked by checkForm (packages/core/src/form.ts) before each
+// save; the database checks each row on its own.
+model FormField {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId     String    @map("event_id") @db.Uuid
+  // One of FIELD_KINDS.
+  kind        String
+  // "name" or "email": made with the event, always asked, never removed.
+  core        String?
+  label       String
+  placeholder String    @default("")
+  help        String    @default("")
+  required    Boolean   @default(false)
+  // 0 to 59 on the form; empty once archived. Unique per event, checked at
+  // commit, so a reorder can pass through a shared place.
+  position    Int?
+  // Options and validation (FieldSettings).
+  settings    Json      @default("{}")
+  // "Show if" conditions (ShowIf), or empty.
+  showIf      Json?     @map("show_if")
+  // Deleted after guests answered it: off the form, answers kept.
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  event               Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registrationAnswers RegistrationAnswer[]
+
+  @@unique([eventId, position])
+  @@unique([eventId, core])
+  @@map("form_fields")
+}
+
+// Each calendar day the event runs, in its own time zone. Tickets name the
+// days they admit; check-in is once per day per ticket.
+model EventDay {
+  id      BigInt   @id @default(autoincrement())
+  eventId String   @map("event_id") @db.Uuid
+  day     DateTime @db.Date
+
+  event    Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets  TicketTypeDay[]
+  checkIns CheckIn[]
+
+  @@unique([eventId, day])
+  // Target of the composite keys that keep a ticket's days in its own event.
+  @@unique([id, eventId])
+  @@map("event_days")
+}
+
+// A kind of ticket: "General Pass", created with every event, or any the
+// host adds. Each limit is off while its column is empty or false.
+model TicketType {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId         String    @map("event_id") @db.Uuid
+  name            String
+  // In the event's currency, minor units: 70000 is 700.00. 0 is free.
+  priceMinor      BigInt    @default(0) @map("price_minor")
+  capacity        BigInt?
+  maxPerPerson    Int?      @map("max_per_person")
+  waitlistEnabled Boolean   @default(false) @map("waitlist_enabled")
+  inviteOnly      Boolean   @default(false) @map("invite_only")
+  // Set by "Close ticket"; cleared to reopen.
+  closedAt        DateTime? @map("closed_at") @db.Timestamptz
+  position        Int       @default(0)
+  // Confirmed registrations, kept by a trigger on registrations, so counts
+  // are a read of one row rather than a count of many. No one writes it.
+  registeredCount BigInt    @default(0) @map("registered_count")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  event         Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  days          TicketTypeDay[]
+  invites       TicketInvite[]
+  registrations Registration[]
+
+  @@unique([id, eventId])
+  @@index([eventId, position])
+  @@map("ticket_types")
+}
+
+// Which days a ticket admits: a 1-day carnival pass has one row, the 2-day
+// pass two. The shared event_id makes a ticket unable to name another
+// event's day.
+model TicketTypeDay {
+  ticketTypeId String @map("ticket_type_id") @db.Uuid
+  eventDayId   BigInt @map("event_day_id")
+  eventId      String @map("event_id") @db.Uuid
+
+  ticketType TicketType @relation(fields: [ticketTypeId, eventId], references: [id, eventId], onDelete: Cascade)
+  eventDay   EventDay   @relation(fields: [eventDayId, eventId], references: [id, eventId], onDelete: Cascade)
+
+  @@id([ticketTypeId, eventDayId])
+  @@index([eventDayId, eventId])
+  @@map("ticket_type_days")
+}
+
+// Who may take an invite-only ticket. Either one named email, or a code the
+// host shares, optionally with a use limit. Revoking keeps the row, so past
+// registrations still show how they got in.
+model TicketInvite {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketTypeId String    @map("ticket_type_id") @db.Uuid
+  eventId      String    @map("event_id") @db.Uuid
+  // email or code.
+  kind         String
+  email        String?
+  code         String?
+  maxUses      Int?      @map("max_uses")
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  ticketType TicketType @relation(fields: [ticketTypeId, eventId], references: [id, eventId], onDelete: Cascade)
+
+  @@unique([ticketTypeId, email])
+  // A code is typed in on the event page, before a ticket is chosen, so it
+  // is unique across the whole event.
+  @@unique([eventId, code])
+  @@map("ticket_invites")
+}
+
+// One person's place at an event, on one ticket type. The name and email are
+// the attendee's, as entered at registration; they need not have an account
+// (guest checkout), and user_id is set when they have one or claim it later.
+//
+// Nothing here is written by app_user yet: registering arrives with the
+// public event page and checkout, through its own narrow path. The host reads
+// their event's registrations; an attendee reads their own.
+model Registration {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId       String    @map("event_id") @db.Uuid
+  ticketTypeId  String    @map("ticket_type_id") @db.Uuid
+  userId        String?   @map("user_id") @db.Uuid
+  attendeeName  String    @map("attendee_name")
+  // Stored lowercase.
+  attendeeEmail String    @map("attendee_email")
+  // confirmed, waitlisted or cancelled. Only confirmed ones hold a place.
+  status        String    @default("confirmed")
+  // MME-XXXX-XXXX by default (app.new_ticket_code()); unique everywhere.
+  ticketCode    String    @unique @default(dbgenerated("app.new_ticket_code()")) @map("ticket_code")
+  // self, invite or bulk.
+  source        String    @default("self")
+  invitedById   String?   @map("invited_by_id") @db.Uuid
+  // When the pass was last emailed.
+  ticketSentAt  DateTime? @map("ticket_sent_at") @db.Timestamptz
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  event      Event                @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  // The shared event_id keeps a registration on a ticket of its own event.
+  ticketType TicketType           @relation(fields: [ticketTypeId, eventId], references: [id, eventId], onDelete: Restrict)
+  user       User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  invitedBy  User?                @relation("invitedGuests", fields: [invitedById], references: [id], onDelete: SetNull)
+  answers    RegistrationAnswer[]
+  checkIns   CheckIn[]
+
+  @@unique([id, eventId])
+  // The newest-first lists: Overview and Guests, keyset-paged.
+  @@index([eventId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([ticketTypeId, eventId])
+  @@index([userId])
+  @@index([invitedById])
+  @@index([eventId, source])
+  @@map("registrations")
+}
+
+// One guest's answer to one question on the form. Name and email are on
+// the registration itself, not here.
+model RegistrationAnswer {
+  registrationId String   @map("registration_id") @db.Uuid
+  eventId        String   @map("event_id") @db.Uuid
+  fieldId        String   @map("field_id") @db.Uuid
+  // As packages/core's Answer.
+  value          Json
+  otherText      String?  @map("other_text")
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  registration Registration @relation(fields: [registrationId, eventId], references: [id, eventId], onDelete: Cascade)
+  field        FormField    @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+  eventLink    EventLink?   @relation(fields: [eventLinkId], references: [id])
+  eventLinkId  BigInt?
+
+  @@id([registrationId, fieldId])
+  @@index([fieldId])
+  @@index([eventId])
+  @@map("registration_answers")
+}
+
+// A guest let in: once per event day, or once for an event without days.
+// When and by whom come from the database, never from what was sent.
+model CheckIn {
+  id             BigInt   @id @default(autoincrement())
+  registrationId String   @map("registration_id") @db.Uuid
+  eventId        String   @map("event_id") @db.Uuid
+  eventDayId     BigInt?  @map("event_day_id")
+  checkedInAt    DateTime @default(now()) @map("checked_in_at") @db.Timestamptz
+  checkedInBy    String?  @map("checked_in_by") @db.Uuid
+  // manual or scan.
+  method         String   @default("manual")
+
+  registration Registration @relation(fields: [registrationId, eventId], references: [id, eventId], onDelete: Cascade)
+  eventDay     EventDay?    @relation(fields: [eventDayId, eventId], references: [id, eventId], onDelete: Cascade)
+  by           User?        @relation("checkIns", fields: [checkedInBy], references: [id], onDelete: SetNull)
+
+  @@unique([registrationId, eventDayId], map: "check_ins_once")
+  @@index([eventId])
+  @@index([eventDayId])
+  @@index([checkedInBy])
+  @@map("check_ins")
+}
+
+// An email or phone number that can't register for this event.
+model BlockedContact {
+  id        BigInt   @id @default(autoincrement())
+  eventId   String   @map("event_id") @db.Uuid
+  // email or phone.
+  kind      String
+  // Email lowercased; phone as E.164.
+  value     String
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  by    User? @relation("blockedContacts", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, kind, value], map: "blocked_contacts_once")
+  @@index([createdBy])
+  @@map("blocked_contacts")
+}
+
+// Append-only record of privileged actions: exports, edits to a guest,
+// cancellations. Nothing updates or deletes a row.
+model AuditLog {
+  id       BigInt   @id @default(autoincrement())
+  eventId  String?  @map("event_id") @db.Uuid
+  actorId  String?  @map("actor_id") @db.Uuid
+  action   String
+  targetId String?  @map("target_id")
+  details  Json     @default("{}")
+  at       DateTime @default(now()) @db.Timestamptz
+
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  actor User?  @relation("auditActions", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, at(sort: Desc)])
+  @@index([actorId])
+  @@map("audit_log")
+}
+
+// Someone on an event's team besides its host (the host is the owner, from
+// events.host_user_id, and is never a row here).
+//
+//   admin      everything, the team included, except deleting the event
+//   organizer  the event page, tickets and guests; not the team
+//   volunteer  the guest list and check-in only
+//
+// Added by email, with a name the host chooses. Until that person signs in
+// with that email the row is an invitation (user_id empty); signing in claims
+// it, through app.claim_invites(), the only way user_id is ever set.
+model EventMember {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId     String    @map("event_id") @db.Uuid
+  // Stored lowercase.
+  email       String
+  displayName String    @map("display_name")
+  role        String
+  userId      String?   @map("user_id") @db.Uuid
+  joinedAt    DateTime? @map("joined_at") @db.Timestamptz
+  invitedById String?   @map("invited_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  // Deleting an account takes its memberships with it.
+  user      User? @relation("member", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User? @relation("inviter", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, email])
+  @@unique([eventId, userId])
+  // Claiming invitations on sign-in looks them up by email.
+  @@index([email])
+  @@index([userId])
+  @@index([invitedById])
+  @@map("event_members")
+}
+
+// Every public address an event has held, its current one included. An
+// address is unique here across the whole site, for good: once an event has
+// been reachable at it, no other event can take it, and opening it finds the
+// event (and its current address) however often it has been renamed since.
+//
+// A draft's renames are not kept, since no one has its link yet. Triggers on
+// events write this table; no one writes it directly.
+model EventAddress {
+  slug      String   @id
+  eventId   String   @map("event_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_addresses")
 }
