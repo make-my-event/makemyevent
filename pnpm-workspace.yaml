@@ -1,3 +1,12 @@
 packages:
   - apps/*
   - packages/*
+
+# Install scripts we deliberately do not run. Prisma generates its client in
+# the root postinstall and needs no engine download for that. Puppeteer only
+# comes in through @axe-core/puppeteer; the quality scripts drive an installed
+# Chrome (CHROME_PATH) through puppeteer-core, so its Chrome download is waste.
+ignoredBuiltDependencies:
+  - "@prisma/engines"
+  - prisma
+  - puppeteer
