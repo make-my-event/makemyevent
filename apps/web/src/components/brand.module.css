@@ -1,0 +1,68 @@
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "./ui/ui.module.css";
+}
+.brand {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	/* A flex item's floor is its content unless it is told otherwise, and
+	   without this the mark runs out over the control beside it rather than
+	   giving way. The wordmark below is what gives. */
+	min-width: 0;
+}
+
+.symbol {
+	flex: none;
+	width: 28px;
+	height: 28px;
+	background-image: url("../assets/icon.svg");
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+	/* Backgrounds are dropped from print by default; the logo should survive. */
+	print-color-adjust: exact;
+}
+
+/* Gives way before the header row can overflow: `contain` keeps the drawing's
+   proportions instead of stretching it, as object-fit did for the <img>. */
+.wordmark {
+	flex: 0 1 auto;
+	min-width: 0;
+	width: 144px;
+	height: 18px;
+	background-repeat: no-repeat;
+	background-position: left center;
+	background-size: contain;
+	/* Backgrounds are dropped from print by default; the logo should survive. */
+	print-color-adjust: exact;
+}
+
+.onLight {
+	background-image: url("../assets/makemyevent-wordmark-light.svg");
+}
+
+.onDark {
+	display: none;
+	background-image: url("../assets/makemyevent-wordmark-dark.svg");
+}
+
+:global(.dark) .onLight {
+	display: none;
+}
+
+:global(.dark) .onDark {
+	display: block;
+}
+
+/* On a phone the symbol carries the mark on its own, for a caller that asked
+   to be tight. 480px is where a band holding two more controls stops having
+   room for 144px of wordmark; below it, shrinking the drawing to fit would
+   cost more than dropping it. Both selectors are spelled out so this wins
+   over the theme rules above whatever order the bundler emits them in. */
+@media (max-width: 479px) {
+	.tight .wordmark,
+	:global(.dark) .tight .wordmark {
+		display: none;
+	}
+}

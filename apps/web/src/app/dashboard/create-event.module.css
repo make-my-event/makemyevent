@@ -1,0 +1,349 @@
+/* The Create Event popup and its host picker. Same materials as the
+   dashboard: surface panels, perforation hairlines, stamp for the primary
+   action, border-strong on anything typed into or chosen. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.srOnly {
+	composes: srOnly from "../../components/ui/ui.module.css";
+}
+
+.primary {
+	composes: primary from "../../components/ui/ui.module.css";
+}
+
+.secondary {
+	composes: secondary from "../../components/ui/ui.module.css";
+}
+
+.discard {
+	composes: discard from "../../components/ui/ui.module.css";
+}
+
+.dialog {
+	composes: dialog from "../../components/ui/ui.module.css";
+	/* The search box's height, so every typed-into field matches. */
+	--field-height: 44px;
+
+	width: min(100% - 2 * var(--dashboard-gutter), 480px);
+	overflow: visible;
+}
+
+.soonTag {
+	composes: soonTag from "../../components/ui/ui.module.css";
+}
+
+/* ---- Dialog -------------------------------------------------------- */
+
+.panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-m);
+	padding: var(--space-m);
+}
+
+.head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+}
+
+.title {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--step-h3-m);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.close {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--control);
+	height: var(--control);
+	margin: calc(var(--space-xs) * -1);
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-m);
+	background: none;
+	color: var(--muted);
+	cursor: pointer;
+	transition: color var(--motion);
+}
+
+.close:hover {
+	color: var(--ink);
+}
+
+.close svg {
+	width: 20px;
+	height: 20px;
+}
+
+/* A sentence under the title, for popups that ask rather than collect. */
+.lead {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+	line-height: 1.5;
+}
+
+/* /events/new: the same panel, centred on a page instead of in a popup. */
+.page {
+	display: grid;
+	place-items: center;
+	min-height: 100dvh;
+	padding: var(--space-m) var(--dashboard-gutter);
+}
+
+.pageCard {
+	width: min(100%, 480px);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+/* ---- Fields -------------------------------------------------------- */
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+}
+
+.label {
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+/* Body size: 16px keeps iOS from zooming the page on focus. */
+.input {
+	width: 100%;
+	height: var(--field-height);
+	padding-inline: var(--space-s);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	color: var(--ink);
+	font-size: var(--text-body);
+	transition: border-color var(--motion);
+}
+
+.input::placeholder {
+	color: var(--muted);
+}
+
+.input:hover {
+	border-color: var(--ink);
+}
+
+.input[aria-invalid="true"] {
+	border-color: var(--alert);
+}
+
+/* alert with an icon and words, never colour alone. */
+.error {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	margin: 0;
+	color: var(--alert);
+	font-size: var(--text-small);
+}
+
+.error svg {
+	flex: none;
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+/* ---- Host picker --------------------------------------------------- */
+
+.picker {
+	position: relative;
+}
+
+.pickerButton {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	width: 100%;
+	min-height: var(--field-height);
+	padding: var(--space-2xs) var(--space-s) var(--space-2xs) var(--space-xs);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	color: var(--ink);
+	font-size: var(--text-small);
+	text-align: start;
+	cursor: pointer;
+	transition: border-color var(--motion);
+}
+
+.pickerButton:hover,
+.pickerButton[aria-expanded="true"] {
+	border-color: var(--ink);
+}
+
+.chevron {
+	flex: none;
+	width: var(--space-s);
+	height: var(--space-s);
+	color: var(--muted);
+	transition: rotate var(--motion);
+}
+
+.pickerButton[aria-expanded="true"] .chevron {
+	rotate: 180deg;
+}
+
+/* Anchored under the button, the same width, over whatever is below. */
+.pickerPanel {
+	position: absolute;
+	top: calc(100% + var(--space-2xs));
+	inset-inline: 0;
+	z-index: 1;
+	padding: var(--space-2xs);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	box-shadow: var(--shadow-overlay);
+}
+
+.option {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+	padding-inline: var(--space-2xs) var(--space-s);
+	border-radius: var(--radius-compact);
+	font-size: var(--text-small);
+	cursor: pointer;
+}
+
+.option:hover {
+	background: var(--tint);
+}
+
+/* The radio itself is invisible; the row is what is drawn. Focus is shown
+   on the row, so the keyboard can see which host it is on. */
+.radio {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.option:has(.radio:focus-visible) {
+	outline: 2px solid var(--stamp);
+	outline-offset: -2px;
+}
+
+.tick {
+	flex: none;
+	width: var(--space-s);
+	height: var(--space-s);
+	margin-inline-start: auto;
+	color: var(--stamp);
+	visibility: hidden;
+}
+
+.option:has(.radio:checked) .tick {
+	visibility: visible;
+}
+
+.host {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: center;
+	gap: var(--space-xs);
+	min-width: 0;
+}
+
+/* Initials on a square, mono like a code. Personal on stamp, as in the
+   header's account button; organizations on ink. */
+.mark {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--space-l);
+	height: var(--space-l);
+	border-radius: var(--radius-compact);
+	background: var(--ink);
+	color: var(--paper);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	font-weight: 500;
+	line-height: 1;
+}
+
+.markPersonal {
+	background: var(--stamp);
+}
+
+.hostName {
+	min-width: 0;
+	overflow: hidden;
+	font-weight: 500;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.hostKind {
+	flex: none;
+	color: var(--muted);
+	font-size: var(--text-caption);
+}
+
+.newOrg {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+	margin-top: var(--space-2xs);
+	padding-inline: var(--space-s);
+	border-top: 1px solid var(--perforation);
+	border-radius: 0 0 var(--radius-compact) var(--radius-compact);
+	color: var(--ink);
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+.newOrg:hover {
+	background: var(--tint);
+}
+
+/* Not built yet: shown, said, and not pressable. */
+.newOrg[aria-disabled="true"] {
+	color: var(--muted);
+	cursor: not-allowed;
+}
+
+.newOrg[aria-disabled="true"]:hover {
+	background: none;
+}
+
+.newOrg svg {
+	width: var(--space-s);
+	height: var(--space-s);
+	color: var(--muted);
+}
+
+/* ---- Actions ------------------------------------------------------- */
+
+.actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-xs);
+}
+
+/* Phones: both actions full width, stacked, Continue first. */
+@media (max-width: 479px) {
+	.actions {
+		flex-direction: column-reverse;
+	}
+}

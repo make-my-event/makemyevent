@@ -1,0 +1,630 @@
+/* Schedule & Registration, and Venue: two cards side by side on a wide
+   screen, stacked on a narrow one. Built like Registration behaviour: a
+   heading with a short lead, then one card of fields. */
+
+/* Shared parts (components/ui/ui.module.css). */
+.input {
+	composes: input from "../../../../components/ui/ui.module.css";
+}
+
+.select {
+	composes: select from "../../../../components/ui/ui.module.css";
+}
+
+.pairRow {
+	display: grid;
+	grid-column: 1 / -1;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-m);
+	/* Both cards as tall as the taller one. */
+	align-items: stretch;
+}
+
+@media (min-width: 1024px) {
+	.pairRow {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	min-width: 0;
+}
+
+.panelHead {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+}
+
+.panelTitle {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.panelLead {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.card {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: var(--space-s);
+	padding: var(--space-m);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+/* ---- Fields ------------------------------------------------------------ */
+
+.field,
+.moment,
+.formatSet {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.label {
+	padding: 0;
+	color: var(--ink);
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+/* The browser's own date and time pickers, in the theme's colours. */
+.input::-webkit-calendar-picker-indicator {
+	cursor: pointer;
+	opacity: 0.7;
+}
+
+.pair {
+	display: grid;
+	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+	gap: var(--space-xs);
+}
+
+.hint {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.4;
+}
+
+.error {
+	color: var(--alert);
+}
+
+/* ---- Duration ---------------------------------------------------------- */
+
+/* The event's length, read off a short span with a stop at each end: the
+   two moments above, joined. */
+.summary {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	margin: 0;
+	padding: var(--space-xs) var(--space-s);
+	border-radius: var(--radius-compact);
+	background: var(--tint);
+	color: var(--muted);
+	font-size: var(--text-small);
+	font-variant-numeric: tabular-nums;
+}
+
+.summaryTrack {
+	position: relative;
+	flex: none;
+	width: var(--space-l);
+	height: 2px;
+	background: currentColor;
+	opacity: 0.6;
+}
+
+.summaryTrack::before,
+.summaryTrack::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	width: var(--space-xs);
+	height: var(--space-xs);
+	border-radius: var(--radius-full);
+	background: currentColor;
+	translate: 0 -50%;
+}
+
+.summaryTrack::before {
+	left: calc(var(--space-xs) / -2);
+}
+
+.summaryTrack::after {
+	right: calc(var(--space-xs) / -2);
+}
+
+.summaryText {
+	min-width: 0;
+}
+
+.summary[data-tone="ok"] {
+	background: var(--stamp-tint);
+	color: var(--ink);
+}
+
+.summary[data-tone="ok"] .summaryTrack {
+	color: var(--stamp);
+	opacity: 1;
+}
+
+.summary[data-tone="error"] {
+	color: var(--alert);
+}
+
+/* ---- Registration window ---------------------------------------------- */
+
+.window {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-xs) var(--space-s);
+	padding-top: var(--space-s);
+	border-top: 1px dashed var(--border-strong);
+}
+
+.windowHead {
+	display: flex;
+	flex: 1 1 6rem;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.windowTitle {
+	margin: 0;
+	font-weight: 600;
+}
+
+.windowLead {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.4;
+}
+
+/* From → to. Each side keeps a whole date and time; on a narrow card the
+   pair drops under the heading, and below that they stack. */
+.windowFields {
+	display: flex;
+	flex: 0 1 auto;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-xs);
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+/* Compact, so a whole date and time fits twice beside the heading. */
+.windowFields .input {
+	flex: 1 1 auto;
+	width: auto;
+	padding-inline: var(--space-xs);
+	font-size: var(--text-small);
+}
+
+.windowArrow {
+	flex: none;
+	color: var(--muted);
+}
+
+.window > .hint {
+	flex-basis: 100%;
+}
+
+/* Too narrow for the row: from above to, the arrow pointing down. */
+.window {
+	container-type: inline-size;
+}
+
+@container (max-width: 500px) {
+	.windowFields {
+		flex: 1 1 100%;
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.windowArrow {
+		align-self: center;
+		rotate: 90deg;
+	}
+}
+
+/* ---- Format ------------------------------------------------------------ */
+
+.segments {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--space-2xs);
+	padding: var(--space-2xs);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-segment);
+	background: var(--tint);
+}
+
+.segment {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: var(--control-compact);
+	padding-inline: var(--space-2xs);
+	border: 1px solid transparent;
+	border-radius: var(--radius-compact);
+	color: var(--muted);
+	font-size: var(--text-small);
+	font-weight: 500;
+	text-align: center;
+	white-space: nowrap;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition:
+		background-color var(--motion),
+		border-color var(--motion),
+		color var(--motion);
+}
+
+.segment:hover {
+	color: var(--ink);
+}
+
+/* On: raised to the surface with a border, not colour alone. */
+.segment:has(:checked) {
+	border-color: var(--border-strong);
+	background: var(--surface);
+	color: var(--ink);
+}
+
+.segment:has(:focus-visible) {
+	outline: 2px solid var(--stamp);
+	outline-offset: 1px;
+}
+
+/* The real radio stays, under the label, for keyboards and screen readers. */
+.segmentInput {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.segmentText {
+	position: relative;
+	pointer-events: none;
+}
+
+/* ---- Place search ------------------------------------------------------ */
+
+.searchBox {
+	position: relative;
+}
+
+.searchIcon {
+	position: absolute;
+	top: 50%;
+	left: var(--space-s);
+	width: var(--space-s);
+	height: var(--space-s);
+	color: var(--muted);
+	translate: 0 -50%;
+	pointer-events: none;
+}
+
+.input.searchInput {
+	padding-inline-start: calc(var(--space-s) * 2 + var(--space-xs));
+}
+
+.options {
+	position: absolute;
+	top: calc(100% + var(--space-2xs));
+	right: 0;
+	left: 0;
+	z-index: 6;
+	max-height: calc(var(--control) * 6);
+	margin: 0;
+	padding: var(--space-2xs);
+	overflow-y: auto;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	box-shadow: var(--shadow-overlay);
+	list-style: none;
+}
+
+.options[hidden] {
+	display: none;
+}
+
+.option {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: var(--space-xs) var(--space-s);
+	border-radius: var(--radius-compact);
+	cursor: pointer;
+}
+
+.option[aria-selected="true"] {
+	background: var(--stamp-tint);
+}
+
+.optionName {
+	color: var(--ink);
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+.optionLabel {
+	overflow: hidden;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Clear location: full width under the fields, quiet until pointed at. */
+.clearButton {
+	min-height: var(--control);
+	padding-inline: var(--space-s);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 500;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: background-color var(--motion);
+}
+
+.clearButton:hover {
+	background: var(--tint);
+}
+
+.clearButton:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 1px;
+}
+
+/* ---- Map --------------------------------------------------------------- */
+
+.mapBlock {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+}
+
+/* Fixed shape, so nothing moves when the map arrives. */
+.mapFrame {
+	position: relative;
+	overflow: hidden;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--tint);
+}
+
+/* Sized by the frame. Not absolutely placed: MapLibre's stylesheet sets
+   its own position on this element, which would collapse it to no height. */
+.map {
+	width: 100%;
+	height: 100%;
+}
+
+.map :global(.maplibregl-canvas):focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: -2px;
+}
+
+/* The map's own controls in the site's materials. */
+.map :global(.maplibregl-ctrl-group) {
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	box-shadow: none;
+}
+
+.map :global(.maplibregl-ctrl-group[hidden]) {
+	display: none;
+}
+
+/* Show the pin: the same size as the zoom buttons above it. */
+.map .showPin {
+	display: grid;
+	place-items: center;
+	color: var(--ink);
+	cursor: pointer;
+}
+
+.map .showPin:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: -2px;
+}
+
+.map :global(.maplibregl-ctrl-attrib) {
+	background: var(--surface);
+	color: var(--muted);
+	font-size: var(--text-micro);
+}
+
+.map :global(.maplibregl-ctrl-attrib a) {
+	color: inherit;
+}
+
+.mapFallback {
+	display: grid;
+	height: 100%;
+	margin: 0;
+	padding: var(--space-m);
+	place-items: center;
+	color: var(--muted);
+	font-size: var(--text-small);
+	text-align: center;
+}
+
+.chips {
+	position: absolute;
+	top: var(--space-xs);
+	left: var(--space-xs);
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--space-2xs);
+	/* Clear of the zoom buttons on the right. */
+	max-width: calc(100% - var(--control) - var(--space-m));
+	pointer-events: none;
+}
+
+.chipName,
+.chipCoords {
+	max-width: 100%;
+	padding: var(--space-2xs) var(--space-xs);
+	overflow: hidden;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-s);
+	background: var(--surface);
+	color: var(--ink);
+	font-size: var(--text-caption);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.chipName {
+	font-weight: 600;
+}
+
+.chipCoords {
+	font-variant-numeric: tabular-nums;
+}
+
+.chipCoords[data-empty] {
+	color: var(--muted);
+}
+
+/* The pin: a drop of stamp colour, ringed in paper so it reads on any tile.
+   The outer element is MapLibre's to place; its tip sits on the spot. */
+.pin {
+	width: calc(var(--control-compact) * 0.875);
+	height: calc(var(--control-compact) * 1.125);
+	cursor: grab;
+}
+
+.pin:active {
+	cursor: grabbing;
+}
+
+.pinDrop {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: calc(var(--control-compact) * 0.875);
+	height: calc(var(--control-compact) * 0.875);
+	border: 3px solid var(--paper);
+	border-radius: 50% 50% 50% 0;
+	background: var(--stamp);
+	box-shadow: var(--shadow-overlay);
+	rotate: -45deg;
+}
+
+@media (max-width: 767px) {
+	.card {
+		padding: var(--space-s);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.segment,
+	.clearButton {
+		transition: none;
+	}
+}
+
+/* ---- Venue layout ------------------------------------------------------ */
+
+/* The card's width decides: wide enough, the map takes the right half,
+   edge to edge and as tall as the row; narrower, it sits under the
+   fields. */
+.venuePanel {
+	container-type: inline-size;
+}
+
+.card.venueCard {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 0;
+	padding: 0;
+	overflow: hidden;
+}
+
+.venueFields {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	min-width: 0;
+	padding: var(--space-m);
+}
+
+.venueMap {
+	min-width: 0;
+	padding: 0 var(--space-m) var(--space-m);
+}
+
+.venueMap .mapFrame {
+	height: calc(var(--control) * 4.5);
+}
+
+@container (min-width: 540px) {
+	.card.venueCard[data-map] {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	}
+
+	.venueCard[data-map] .venueMap {
+		padding: 0;
+	}
+
+	.venueCard[data-map] .venueMap > *,
+	.venueCard[data-map] .venueMap .mapFrame {
+		height: 100%;
+	}
+
+	/* Flush with the card's right edge; the card's own corners clip it. */
+	.venueCard[data-map] .venueMap .mapFrame {
+		min-height: calc(var(--control) * 6);
+		border: 0;
+		border-inline-start: 1px solid var(--perforation);
+		border-radius: 0;
+	}
+}
+
+@media (max-width: 767px) {
+	.venueFields {
+		padding: var(--space-s);
+	}
+
+	.venueMap {
+		padding: 0 var(--space-s) var(--space-s);
+	}
+}

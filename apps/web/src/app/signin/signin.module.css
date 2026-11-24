@@ -1,0 +1,439 @@
+/* Sign-in screen. Colours and type come from design-spec.md; every other value is a token in globals.css. */
+
+/* ---------------------------------------------------------------
+   Layout. One column until 1024px. From there the whole screen is
+   one hairline card centred in the viewport, pitch and form side
+   by side. Flat, no shadow: it sits in the page flow.
+   --------------------------------------------------------------- */
+.shell {
+	min-height: 100dvh;
+}
+
+.page {
+	display: grid;
+	grid-template-columns: 1fr;
+	min-height: 100dvh;
+}
+
+@media (min-width: 1024px) {
+	.shell {
+		display: grid;
+		place-items: center;
+		padding: var(--space-xl);
+	}
+
+	.page {
+		grid-template-columns: 1fr 1fr;
+		width: 100%;
+		max-width: 1040px;
+		min-height: 0;
+		padding: var(--space-s);
+		border: 1px solid var(--perforation);
+		border-radius: var(--radius-m);
+	}
+}
+
+/* The form comes first in the page. Below 1024px it fills the first
+   screen and the pitch follows underneath, lined up with the form
+   column. From 1024px the pitch is placed in the left half. */
+.pitchSide {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xl);
+	padding: var(--space-xl) var(--space-s);
+	border-top: 1px solid var(--perforation);
+}
+
+.pitchSide > * {
+	width: 100%;
+	max-width: 400px;
+	margin-inline: auto;
+}
+
+.pitchSide > .pitchBrand {
+	display: none;
+}
+
+@media (min-width: 640px) {
+	.pitchSide {
+		padding: var(--space-xl);
+	}
+
+	.pitchSide > * {
+		max-width: 560px;
+	}
+}
+
+@media (min-width: 1024px) {
+	.pitchSide {
+		order: -1;
+		justify-content: space-between;
+		gap: var(--space-2xl);
+		border: 1px solid var(--perforation);
+		border-radius: var(--radius-m);
+	}
+
+	.pitchSide > * {
+		max-width: none;
+		margin-inline: 0;
+	}
+
+	.pitchSide > .pitchBrand {
+		display: inline-flex;
+		width: auto;
+	}
+}
+
+.formSide {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-height: 100dvh;
+	padding: var(--space-xl) var(--space-s);
+}
+
+@media (min-width: 640px) {
+	.formSide {
+		padding: var(--space-xl);
+	}
+}
+
+@media (min-width: 1024px) {
+	.formSide {
+		min-height: 0;
+		padding: var(--space-2xl) var(--space-xl);
+	}
+}
+
+.formInner {
+	width: 100%;
+	max-width: 400px;
+	margin: 0 auto;
+}
+
+/* ---------------------------------------------------------------
+   Pitch
+   --------------------------------------------------------------- */
+
+/* H1 type style on a paragraph: the page's real heading is the
+   form's. Half of a 1040px card has no room for the largest step, so it
+   holds the middle one on desktop. */
+.pitch {
+	margin: 0;
+	max-width: 18ch;
+	font-family: var(--font-display);
+	font-weight: 700;
+	font-size: var(--text-h1);
+	line-height: 1.1;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+
+@media (min-width: 1024px) {
+	.pitch {
+		font-size: var(--step-h1-m);
+	}
+}
+
+.pitchSub {
+	margin: var(--space-m) 0 0;
+	max-width: 40ch;
+	font-size: var(--text-large);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.points {
+	list-style: none;
+	margin: var(--space-xl) 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+}
+
+.points li {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-s);
+}
+
+.points svg {
+	flex: none;
+	width: 20px;
+	height: 20px;
+	margin-top: 2px;
+	color: var(--muted);
+}
+
+.pitchFoot {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-s) var(--space-m);
+	padding-top: var(--space-m);
+	border-top: 1px solid var(--perforation);
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+/* ---------------------------------------------------------------
+   Top bar: logo and theme switch
+   --------------------------------------------------------------- */
+.bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+	margin-bottom: var(--space-l);
+}
+
+@media (min-width: 1024px) {
+	.bar {
+		position: absolute;
+		top: var(--space-s);
+		right: var(--space-s);
+		justify-content: flex-end;
+		margin: 0;
+	}
+
+	.bar > .barBrand {
+		display: none;
+	}
+}
+
+/* ---------------------------------------------------------------
+   Form
+   --------------------------------------------------------------- */
+
+.title {
+	margin: 0;
+	font-family: var(--font-display);
+	font-weight: 700;
+	font-size: var(--text-h2);
+	line-height: 1.2;
+	letter-spacing: -0.01em;
+}
+
+.title:focus {
+	outline: none;
+}
+
+.lede {
+	margin: var(--space-xs) 0 var(--space-l);
+	color: var(--muted);
+	overflow-wrap: anywhere;
+}
+
+.strong {
+	font-weight: 500;
+	color: var(--ink);
+}
+
+.form,
+.actions {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+}
+
+.label {
+	font-weight: 500;
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.input {
+	height: var(--control);
+	width: 100%;
+	padding: 0 var(--space-s);
+	/* Body size keeps iOS from zooming the page on focus. */
+	font-size: var(--text-body);
+	color: var(--ink);
+	background: transparent;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-s);
+	transition: border-color var(--motion);
+}
+
+.input::placeholder {
+	color: var(--muted);
+	opacity: 1;
+}
+
+.input:hover:not(:disabled) {
+	border-color: var(--ink);
+}
+
+.input[aria-invalid="true"] {
+	border-color: var(--alert);
+}
+
+.input:disabled {
+	color: var(--muted);
+	border-color: var(--perforation);
+	cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------
+   Buttons
+   --------------------------------------------------------------- */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+	width: 100%;
+	padding: 0 var(--space-s);
+	font-weight: 500;
+	font-size: var(--text-body);
+	line-height: 1.5;
+	text-align: center;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	transition:
+		background-color var(--motion),
+		border-color var(--motion),
+		color var(--motion);
+}
+
+.btnPrimary {
+	background: var(--ink);
+	color: var(--paper);
+}
+
+.btnPrimary:hover:not(:disabled) {
+	background: var(--ink-hover);
+}
+
+.btnPrimary:active:not(:disabled) {
+	background: var(--ink-pressed);
+}
+
+.btnSecondary {
+	background: transparent;
+	color: var(--ink);
+	border-color: var(--border-strong);
+}
+
+.btnSecondary:hover:not(:disabled) {
+	border-color: var(--ink);
+}
+
+.btnQuiet {
+	background: transparent;
+	color: var(--muted);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.btnQuiet:hover:not(:disabled) {
+	color: var(--ink);
+}
+
+/* Disabled: muted text, perforation border, no fill. Never opacity. */
+.btn:disabled {
+	color: var(--muted);
+	background: transparent;
+	border-color: var(--perforation);
+	cursor: not-allowed;
+}
+
+.google {
+	flex: none;
+	width: 20px;
+	height: 20px;
+}
+
+.divider {
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+	margin: var(--space-m) 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.divider::before,
+.divider::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--perforation);
+}
+
+/* ---------------------------------------------------------------
+   Messages. Icon plus words, never colour alone.
+   --------------------------------------------------------------- */
+.error {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-xs);
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--alert);
+}
+
+.error[data-shown="false"] {
+	display: none;
+}
+
+.error svg {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	margin-top: 2px;
+}
+
+.link {
+	color: var(--muted);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	transition: color var(--motion);
+}
+
+.link:hover {
+	color: var(--ink);
+}
+
+.foot {
+	margin: var(--space-l) 0 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+	text-align: center;
+}
+
+.fine {
+	margin-top: var(--space-s);
+}
+
+/* Short laptop screens: tighten the card so the whole form stays in view. */
+@media (min-width: 1024px) and (max-height: 820px) {
+	.shell {
+		padding: var(--space-m);
+	}
+
+	.pitchSide {
+		gap: var(--space-xl);
+		padding: var(--space-l);
+	}
+
+	.formSide {
+		padding: var(--space-xl);
+	}
+
+	.points {
+		margin-top: var(--space-l);
+	}
+}

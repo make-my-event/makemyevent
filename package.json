@@ -1,22 +1,42 @@
 {
 	"name": "makemyevent",
-	"version": "1.0.0",
-	"description": "",
-	"main": "index.js",
-	"scripts": {
-		"dev": "turbo dev",
-		"build": "turbo build",
-		"test": "echo \"Error: no test specified\" && exit 1",
-		"prepare": "husky"
-	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
+	"private": true,
 	"packageManager": "pnpm@10.30.3",
+	"engines": {
+		"node": ">=22",
+		"pnpm": ">=10"
+	},
+	"scripts": {
+		"build": "turbo run build",
+		"clean": "turbo run clean && rm -rf node_modules",
+		"db:generate": "pnpm --filter @makemyevent/db generate",
+		"db:migrate": "pnpm --filter @makemyevent/db migrate",
+		"db:studio": "pnpm --filter @makemyevent/db studio",
+		"dev": "turbo run dev",
+		"format": "biome check --write .",
+		"lint": "biome check .",
+		"postinstall": "pnpm db:generate",
+		"prepare": "husky",
+		"quality": "pnpm quality:a11y && pnpm quality:lighthouse && pnpm quality:load",
+		"quality:a11y": "node quality/a11y.mjs",
+		"quality:lighthouse": "node quality/lighthouse.mjs",
+		"quality:load": "node quality/load.mjs",
+		"test": "turbo run test",
+		"typecheck": "turbo run typecheck"
+	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.7",
-		"husky": "^9.1.7",
-		"lint-staged": "^17.3.0",
-		"turbo": "^2.10.8"
+		"@axe-core/puppeteer": "4.14.0",
+		"@biomejs/biome": "2.5.7",
+		"@lhci/cli": "0.16.1",
+		"axe-core": "4.14.0",
+		"husky": "9.1.7",
+		"puppeteer-core": "25.17.0",
+		"turbo": "^2",
+		"typescript": "^5"
+	},
+	"pnpm": {
+		"overrides": {
+			"sharp": "0.35.5"
+		}
 	}
 }
