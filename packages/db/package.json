@@ -9,6 +9,7 @@
 		"generate": "prisma generate",
 		"migrate": "prisma migrate dev",
 		"status": "prisma migrate status",
+		"test": "node --test \"src/**/*.test.ts\"",
 		"studio": "prisma studio",
 		"typecheck": "tsc --noEmit",
 		"validate": "prisma validate"

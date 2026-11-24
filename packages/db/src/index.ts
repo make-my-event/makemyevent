@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { type Prisma, PrismaClient } from "../generated/client/client";
+import { poolOptions } from "./tls";
 
 export { Prisma } from "../generated/client/client";
 export type { PrismaClient };
@@ -7,9 +8,14 @@ export type { PrismaClient };
 /** A transaction handle, as passed to the callback of `asUser`. */
 export type Tx = Prisma.TransactionClient;
 
-/** A client over one connection string, through the node-postgres driver. */
+/**
+ * A client over one connection string, through the node-postgres driver.
+ * Supabase connections are encrypted and verified (see ./tls).
+ */
 export function createClient(connectionString: string): PrismaClient {
-	return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+	return new PrismaClient({
+		adapter: new PrismaPg(poolOptions(connectionString)),
+	});
 }
 
 /**
