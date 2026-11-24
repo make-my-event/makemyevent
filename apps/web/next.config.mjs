@@ -4,8 +4,23 @@ const isProduction = process.env.NODE_ENV === "production";
 const nextConfig = {
 	reactStrictMode: true,
 	poweredByHeader: false,
+	// Workspace packages ship TypeScript source; Next compiles them with the app.
+	transpilePackages: ["@makemyevent/core", "@makemyevent/db"],
 	// Lets a second build or CI run sit beside a running dev server without sharing its output folder.
 	distDir: process.env.NEXT_DIST_DIR || ".next",
+	// The Organized list moved from /dashboard/organized to /dashboard. Old
+	// links and bookmarks still arrive: a permanent redirect, query and all,
+	// before the middleware and the render. "organized" stays a reserved
+	// event address (events_slug_not_reserved) because this redirect owns it.
+	async redirects() {
+		return [
+			{
+				source: "/dashboard/organized",
+				destination: "/dashboard",
+				permanent: true,
+			},
+		];
+	},
 	async headers() {
 		const security = [
 			{ key: "X-Content-Type-Options", value: "nosniff" },

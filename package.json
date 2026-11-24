@@ -32,5 +32,10 @@
 		"puppeteer-core": "25.17.0",
 		"turbo": "^2",
 		"typescript": "^5"
+	},
+	"pnpm": {
+		"overrides": {
+			"sharp": "0.35.5"
+		}
 	}
 }

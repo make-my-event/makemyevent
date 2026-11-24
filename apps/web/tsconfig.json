@@ -1,6 +1,6 @@
 {
 	"extends": "../../tsconfig.base.json",
-	"include": [".next/types/**/*.ts", "src"],
+	"include": [".next/types/**/*.ts", "src", ".next-quality/types/**/*.ts"],
 	"compilerOptions": {
 		"allowJs": true,
 		"noEmit": true,
