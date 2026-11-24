@@ -152,8 +152,7 @@ model EventLink {
   // 0 to 11: the order on the page, and the cap of twelve.
   position Int
 
-  event   Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  answers RegistrationAnswer[]
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, position])
   @@map("event_links")
@@ -185,7 +184,7 @@ model FormField {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
 
-  event               Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event               Event                @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   registrationAnswers RegistrationAnswer[]
 
   @@unique([eventId, position])
@@ -314,7 +313,7 @@ model Registration {
   // The shared event_id keeps a registration on a ticket of its own event.
   ticketType TicketType           @relation(fields: [ticketTypeId, eventId], references: [id, eventId], onDelete: Restrict)
   user       User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
-  invitedBy  User?                @relation("invitedGuests", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitedBy  User?                @relation("invitedGuests", fields: [invitedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
   answers    RegistrationAnswer[]
   checkIns   CheckIn[]
 
@@ -325,6 +324,9 @@ model Registration {
   @@index([userId])
   @@index([invitedById])
   @@index([eventId, source])
+  // Guest search: "contains" on names and emails (pg_trgm).
+  @@index([attendeeName(ops: raw("gin_trgm_ops"))], type: Gin, map: "registrations_attendee_name_trgm_idx")
+  @@index([attendeeEmail(ops: raw("gin_trgm_ops"))], type: Gin, map: "registrations_attendee_email_trgm_idx")
   @@map("registrations")
 }
 
@@ -339,10 +341,8 @@ model RegistrationAnswer {
   otherText      String?  @map("other_text")
   updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  registration Registration @relation(fields: [registrationId, eventId], references: [id, eventId], onDelete: Cascade)
-  field        FormField    @relation(fields: [fieldId], references: [id], onDelete: Restrict)
-  eventLink    EventLink?   @relation(fields: [eventLinkId], references: [id])
-  eventLinkId  BigInt?
+  registration Registration @relation(fields: [registrationId, eventId], references: [id, eventId], onDelete: Cascade, onUpdate: NoAction, map: "registration_answers_registration_fkey")
+  field        FormField    @relation(fields: [fieldId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@id([registrationId, fieldId])
   @@index([fieldId])
@@ -362,9 +362,9 @@ model CheckIn {
   // manual or scan.
   method         String   @default("manual")
 
-  registration Registration @relation(fields: [registrationId, eventId], references: [id, eventId], onDelete: Cascade)
-  eventDay     EventDay?    @relation(fields: [eventDayId, eventId], references: [id, eventId], onDelete: Cascade)
-  by           User?        @relation("checkIns", fields: [checkedInBy], references: [id], onDelete: SetNull)
+  registration Registration @relation(fields: [registrationId, eventId], references: [id, eventId], onDelete: Cascade, onUpdate: NoAction, map: "check_ins_registration_fkey")
+  eventDay     EventDay?    @relation(fields: [eventDayId, eventId], references: [id, eventId], onDelete: Cascade, onUpdate: NoAction, map: "check_ins_event_day_fkey")
+  by           User?        @relation("checkIns", fields: [checkedInBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@unique([registrationId, eventDayId], map: "check_ins_once")
   @@index([eventId])
@@ -384,8 +384,8 @@ model BlockedContact {
   createdBy String?  @map("created_by") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  by    User? @relation("blockedContacts", fields: [createdBy], references: [id], onDelete: SetNull)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  by    User? @relation("blockedContacts", fields: [createdBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@unique([eventId, kind, value], map: "blocked_contacts_once")
   @@index([createdBy])
@@ -403,8 +403,8 @@ model AuditLog {
   details  Json     @default("{}")
   at       DateTime @default(now()) @db.Timestamptz
 
-  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  actor User?  @relation("auditActions", fields: [actorId], references: [id], onDelete: SetNull)
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  actor User?  @relation("auditActions", fields: [actorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([eventId, at(sort: Desc)])
   @@index([actorId])
