@@ -97,6 +97,9 @@ jobs:
           pnpm --filter @makemyevent/db exec prisma migrate deploy
           pnpm --filter @makemyevent/db exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 
+      - name: app_user can insert every column Prisma sends
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/insert-grants.sql
+
       - name: Type check
         run: pnpm typecheck
 

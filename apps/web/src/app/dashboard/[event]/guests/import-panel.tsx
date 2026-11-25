@@ -125,7 +125,7 @@ export function ImportPanel({
 			return;
 		}
 		if (file.size > IMPORT_TEXT_LIMIT) {
-			setMessage("That file is too large: up to about 1 MB.");
+			setMessage("That file is too large: up to about 500 KB.");
 			return;
 		}
 		setFileName(file.name);

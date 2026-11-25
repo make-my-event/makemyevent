@@ -18,6 +18,9 @@ export const metadata: Metadata = {
 	robots: { index: false, follow: false },
 };
 
+/** Seconds its actions may run: an import, or a batch of emailed passes. */
+export const maxDuration = 60;
+
 type Props = {
 	params: Promise<{ event: string }>;
 	searchParams: Promise<Record<string, string | string[] | undefined>>;

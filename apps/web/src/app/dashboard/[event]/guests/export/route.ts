@@ -6,6 +6,7 @@ import {
 	isFieldKind,
 	readGuestQuery,
 } from "@makemyevent/core";
+import { BULK_LIMITS } from "@makemyevent/db";
 import { asUser } from "@/lib/db";
 import { loadManagedEvent } from "../../load-event";
 import { exactTime } from "../../overview/time-ago";
@@ -23,6 +24,9 @@ type ExportRow = {
 	checkIns: { checkedInAt: Date }[];
 	answers: { fieldId: string; value: unknown; otherText: string | null }[];
 };
+
+/** Seconds this route may run: BULK_LIMITS and room to send the file. */
+export const maxDuration = 60;
 
 /** Far beyond any event; one export never reads more. */
 const EXPORT_LIMIT = 50_000;
@@ -64,117 +68,125 @@ export async function GET(
 	);
 	const filter = guestWhere(event.id, { ...query, after: null });
 
-	const body = await asUser(event.viewerId, async (tx) => {
-		const fields = (
-			await tx.formField.findMany({
-				where: { eventId: event.id, archivedAt: null, core: null },
-				orderBy: { position: "asc" },
-				select: { id: true, kind: true, label: true, settings: true },
-			})
-		).filter((f) => isFieldKind(f.kind) && f.kind !== "heading");
-		const tickets = new Map(event.ticketTypes.map((t) => [t.id, t.name]));
+	const body = await asUser(
+		event.viewerId,
+		async (tx) => {
+			const fields = (
+				await tx.formField.findMany({
+					where: { eventId: event.id, archivedAt: null, core: null },
+					orderBy: { position: "asc" },
+					select: { id: true, kind: true, label: true, settings: true },
+				})
+			).filter((f) => isFieldKind(f.kind) && f.kind !== "heading");
+			const tickets = new Map(event.ticketTypes.map((t) => [t.id, t.name]));
 
-		let csv = `﻿${csvLine([
-			"Name",
-			"Email",
-			"Ticket",
-			"Ticket code",
-			"Status",
-			"Joined by",
-			"Registered",
-			"Checked in",
-			...fields.map((f) => f.label),
-		])}`;
-		let count = 0;
-		let after: { at: Date; id: string } | null = null;
-		while (count < EXPORT_LIMIT) {
-			const cursor: { at: Date; id: string } | null = after;
-			const rows: ExportRow[] = await tx.registration.findMany({
-				where: cursor
-					? {
-							AND: [
-								filter,
-								{
-									OR: [
-										{ createdAt: { lt: cursor.at } },
-										{ createdAt: cursor.at, id: { lt: cursor.id } },
-									],
-								},
-							],
-						}
-					: filter,
-				orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-				take: CHUNK,
-				select: {
-					id: true,
-					attendeeName: true,
-					attendeeEmail: true,
-					ticketTypeId: true,
-					ticketCode: true,
-					status: true,
-					source: true,
-					createdAt: true,
-					checkIns: {
-						orderBy: { checkedInAt: "asc" },
-						take: 1,
-						select: { checkedInAt: true },
+			let csv = `﻿${csvLine([
+				"Name",
+				"Email",
+				"Ticket",
+				"Ticket code",
+				"Status",
+				"Joined by",
+				"Registered",
+				"Checked in",
+				...fields.map((f) => f.label),
+			])}`;
+			let count = 0;
+			let after: { at: Date; id: string } | null = null;
+			while (count < EXPORT_LIMIT) {
+				const cursor: { at: Date; id: string } | null = after;
+				const rows: ExportRow[] = await tx.registration.findMany({
+					where: cursor
+						? {
+								AND: [
+									filter,
+									{
+										OR: [
+											{ createdAt: { lt: cursor.at } },
+											{ createdAt: cursor.at, id: { lt: cursor.id } },
+										],
+									},
+								],
+							}
+						: filter,
+					orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+					take: CHUNK,
+					select: {
+						id: true,
+						attendeeName: true,
+						attendeeEmail: true,
+						ticketTypeId: true,
+						ticketCode: true,
+						status: true,
+						source: true,
+						createdAt: true,
+						checkIns: {
+							orderBy: { checkedInAt: "asc" },
+							take: 1,
+							select: { checkedInAt: true },
+						},
+						answers: {
+							select: { fieldId: true, value: true, otherText: true },
+						},
 					},
-					answers: { select: { fieldId: true, value: true, otherText: true } },
+				});
+				for (const row of rows) {
+					const answers = new Map(row.answers.map((a) => [a.fieldId, a]));
+					const checked = row.checkIns[0]?.checkedInAt;
+					csv += csvLine([
+						row.attendeeName,
+						row.attendeeEmail,
+						tickets.get(row.ticketTypeId) ?? "",
+						row.ticketCode,
+						STATUS[row.status] ?? row.status,
+						SOURCE[row.source] ?? row.source,
+						exactTime(row.createdAt, event.timeZone),
+						checked ? exactTime(checked, event.timeZone) : "",
+						...fields.map((field) => {
+							const answer = answers.get(field.id);
+							return answer && isFieldKind(field.kind)
+								? answerText(
+										{
+											kind: field.kind,
+											settings: field.settings as FieldSettings,
+										},
+										answer.value as Answer,
+										answer.otherText,
+									)
+								: "";
+						}),
+					]);
+				}
+				count += rows.length;
+				const last = rows[rows.length - 1];
+				if (rows.length < CHUNK || !last) break;
+				after = { at: last.createdAt, id: last.id };
+			}
+			await tx.auditLog.create({
+				data: {
+					eventId: event.id,
+					action: "guests.export",
+					details: {
+						count,
+						filters: {
+							q: query.q || null,
+							ticket: query.ticket,
+							checked: query.checked,
+							source: query.source,
+							cancelled: query.cancelled,
+						},
+					},
 				},
 			});
-			for (const row of rows) {
-				const answers = new Map(row.answers.map((a) => [a.fieldId, a]));
-				const checked = row.checkIns[0]?.checkedInAt;
-				csv += csvLine([
-					row.attendeeName,
-					row.attendeeEmail,
-					tickets.get(row.ticketTypeId) ?? "",
-					row.ticketCode,
-					STATUS[row.status] ?? row.status,
-					SOURCE[row.source] ?? row.source,
-					exactTime(row.createdAt, event.timeZone),
-					checked ? exactTime(checked, event.timeZone) : "",
-					...fields.map((field) => {
-						const answer = answers.get(field.id);
-						return answer && isFieldKind(field.kind)
-							? answerText(
-									{
-										kind: field.kind,
-										settings: field.settings as FieldSettings,
-									},
-									answer.value as Answer,
-									answer.otherText,
-								)
-							: "";
-					}),
-				]);
-			}
-			count += rows.length;
-			const last = rows[rows.length - 1];
-			if (rows.length < CHUNK || !last) break;
-			after = { at: last.createdAt, id: last.id };
-		}
-		await tx.auditLog.create({
-			data: {
-				eventId: event.id,
-				action: "guests.export",
-				details: {
-					count,
-					filters: {
-						q: query.q || null,
-						ticket: query.ticket,
-						checked: query.checked,
-						source: query.source,
-						cancelled: query.cancelled,
-					},
-				},
-			},
-		});
-		return csv;
-	});
+			return csv;
+		},
+		BULK_LIMITS,
+	);
 
 	const date = new Date().toISOString().slice(0, 10);
-	return new Response(body, {
+	// Streamed: the host caps a response sent whole at 4.5 MB, and a big
+	// event's list is larger.
+	return new Response(new Blob([body]).stream(), {
 		headers: {
 			"Content-Type": "text/csv; charset=utf-8",
 			"Content-Disposition": `attachment; filename="${slug}-guests-${date}.csv"`,
