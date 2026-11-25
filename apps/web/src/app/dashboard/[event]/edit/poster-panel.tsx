@@ -7,7 +7,8 @@ import styles from "./event-page.module.css";
 
 type Kind = "poster" | "logo";
 const ACCEPT = "image/jpeg,image/png,image/webp";
-const MAX_BYTES = 10 * 1024 * 1024;
+// As the server, whose host refuses bodies over 4.5 MB.
+const MAX_BYTES = 4 * 1024 * 1024;
 
 export type Media = {
 	poster: { large: string; small: string } | null;
@@ -58,7 +59,7 @@ export function PosterPanel({
 			return;
 		}
 		if (file.size > MAX_BYTES) {
-			setError("Use an image under 10 MB.");
+			setError("Use an image under 4 MB.");
 			return;
 		}
 		setPreview({ kind, url: URL.createObjectURL(file) });
@@ -172,7 +173,7 @@ export function PosterPanel({
 						<span className={styles.posterTitle}>Upload event poster</span>
 						<span className={styles.posterChip}>1080 × 1350 · 4:5</span>
 						<span className={styles.srOnly}>
-							Or drop an image here. JPG, PNG or WebP, up to 10 MB.
+							Or drop an image here. JPG, PNG or WebP, up to 4 MB.
 						</span>
 					</button>
 				)}

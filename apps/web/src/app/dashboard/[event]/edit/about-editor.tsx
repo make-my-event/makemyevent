@@ -145,6 +145,11 @@ export default function AboutEditor({
 			setImageError("Use a JPG, PNG or WebP image.");
 			return;
 		}
+		// As the server, whose host refuses bodies over 4.5 MB.
+		if (file.size > 4 * 1024 * 1024) {
+			setImageError("Use an image under 4 MB.");
+			return;
+		}
 		setImage({ stage: "uploading" });
 		try {
 			const body = new FormData();

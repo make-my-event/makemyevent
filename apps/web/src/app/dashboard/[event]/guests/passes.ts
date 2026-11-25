@@ -16,7 +16,7 @@ import { passHtml, passSubject, passText } from "./pass-email";
  */
 
 const NO_KEY =
-	"Passes aren't set up yet: add TICKET_SIGNING_KEY to apps/web/.env.local.";
+	"Passes aren't set up on this site yet. It needs TICKET_SIGNING_KEY.";
 /** One email per guest per minute, however often Resend is pressed. */
 const RESEND_GAP_MS = 60_000;
 /** Guests per call, so a big send is many short calls the page can follow. */

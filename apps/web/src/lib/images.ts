@@ -12,7 +12,8 @@ import sharp from "sharp";
  * data such as location is dropped (sharp writes no metadata unless asked).
  */
 
-export const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+/** Under the 4.5 MB body the host (Vercel) accepts, form parts included. */
+export const UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 /** Refuses decompression bombs: a small file that would unpack to gigabytes. */
 const MAX_INPUT_PIXELS = 40_000_000;
 const ALLOWED = new Set(["jpeg", "png", "webp"]);
@@ -22,7 +23,7 @@ export class ImageRejected extends Error {}
 async function decode(input: Buffer) {
 	if (input.byteLength === 0) throw new ImageRejected("That file is empty.");
 	if (input.byteLength > UPLOAD_MAX_BYTES)
-		throw new ImageRejected("Use an image under 10 MB.");
+		throw new ImageRejected("Use an image under 4 MB.");
 	const image = sharp(input, {
 		limitInputPixels: MAX_INPUT_PIXELS,
 		failOn: "error",
