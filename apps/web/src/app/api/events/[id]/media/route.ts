@@ -10,6 +10,7 @@ import {
 	UPLOAD_MAX_BYTES,
 } from "@/lib/images";
 import { imageUrl, putImage, removeImages } from "@/lib/storage";
+import { limited, tooMany } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 /**
@@ -51,7 +52,11 @@ function uploadKindOf(value: unknown): UploadKind | null {
 }
 
 /** Signed in, an event id, and the database's word that they may change it. */
-async function authorise(request: Request, params: Params["params"]) {
+async function authorise(
+	request: Request,
+	params: Params["params"],
+	limit: "event.media" | "event.write",
+) {
 	if (!fromThisSite(request))
 		return { error: answer(403, "Requests must come from this site.") };
 	const user = await getCurrentUser();
@@ -59,6 +64,8 @@ async function authorise(request: Request, params: Params["params"]) {
 	const { id } = await params;
 	if (!recordId.safeParse(id).success)
 		return { error: answer(404, "That event was not found.") };
+	const slow = await limited(limit, { user: user.id });
+	if (slow) return { error: tooMany(slow) };
 	const [row] = await asUser(
 		user.id,
 		(tx) =>
@@ -89,7 +96,7 @@ async function revalidate(eventId: string, userId: string) {
 }
 
 export async function POST(request: Request, { params }: Params) {
-	const auth = await authorise(request, params);
+	const auth = await authorise(request, params, "event.media");
 	if ("error" in auth) return auth.error;
 	const { user, eventId } = auth;
 
@@ -174,7 +181,7 @@ export async function POST(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-	const auth = await authorise(request, params);
+	const auth = await authorise(request, params, "event.write");
 	if ("error" in auth) return auth.error;
 	const { user, eventId } = auth;
 	const kind = kindOf(new URL(request.url).searchParams.get("kind"));

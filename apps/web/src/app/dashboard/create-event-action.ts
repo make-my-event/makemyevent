@@ -8,6 +8,7 @@ import {
 import { Prisma } from "@makemyevent/db";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
+import { limited } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 import { displayNameOf } from "./workspaces";
 
@@ -49,6 +50,9 @@ export async function createEvent(
 		return { field, message: issue?.message ?? "Check the event name." };
 	}
 	const { title } = parsed.data;
+
+	const slow = await limited("event.create", { user: user.id });
+	if (slow) return { field: null, message: slow.message };
 
 	const base = slugFromTitle(title);
 	let slug: string | null = null;

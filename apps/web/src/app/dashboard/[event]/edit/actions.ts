@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { imageUrl } from "@/lib/storage";
+import { limited } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 /**
@@ -154,6 +155,9 @@ export async function saveEventPage(
 			...(links.index === null ? {} : { linkIndex: links.index }),
 		};
 
+	const slow = await limited("event.write", { user: user.id });
+	if (slow) return { ok: false, field: null, message: slow.message };
+
 	let before: string | null = null;
 	try {
 		const saved = await asUser(user.id, async (tx) => {
@@ -222,7 +226,7 @@ export async function saveEventPage(
 	return { ok: true, address: values.address };
 }
 
-export type AddressCheck = "available" | "taken" | "invalid";
+export type AddressCheck = "available" | "taken" | "invalid" | "slow";
 
 /**
  * Whether an address is free for this event, as the host types it. The
@@ -237,6 +241,7 @@ export async function checkAddress(
 	if (!user || !recordId.safeParse(eventId).success) return "invalid";
 	const parsed = eventAddress.safeParse(candidate);
 	if (!parsed.success) return "invalid";
+	if (await limited("event.address", { user: user.id })) return "slow";
 	const [row] = await asUser(
 		user.id,
 		(tx) =>
@@ -260,6 +265,9 @@ export async function setListing(
 	if (!user) redirect("/signin?next=%2Fdashboard");
 	if (!recordId.safeParse(eventId).success || typeof listed !== "boolean")
 		return { ok: false, message: "That event was not found." };
+
+	const slow = await limited("event.write", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	const { count } = await asUser(user.id, (tx) =>
 		tx.event.updateMany({ where: { id: eventId }, data: { listed } }),
 	);

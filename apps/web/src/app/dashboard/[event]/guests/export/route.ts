@@ -8,6 +8,7 @@ import {
 } from "@makemyevent/core";
 import { BULK_LIMITS } from "@makemyevent/db";
 import { asUser } from "@/lib/db";
+import { limited } from "@/lib/rate-limit";
 import { loadManagedEvent } from "../../load-event";
 import { exactTime } from "../../overview/time-ago";
 import { guestWhere } from "../guests-data";
@@ -62,6 +63,15 @@ export async function GET(
 	if (event.role === "volunteer")
 		return new Response("Only those who manage the event can export guests.", {
 			status: 403,
+		});
+	const slow = await limited("guest.export", { user: event.viewerId });
+	if (slow)
+		return new Response(slow.message, {
+			status: 429,
+			headers: {
+				"Retry-After": String(slow.retryAfter),
+				"Cache-Control": "no-store",
+			},
 		});
 	const query = readGuestQuery(
 		Object.fromEntries(new URL(request.url).searchParams),

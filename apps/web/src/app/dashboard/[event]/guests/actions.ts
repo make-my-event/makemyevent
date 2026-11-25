@@ -12,6 +12,7 @@ import { Prisma, type Tx } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
+import { limited } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 /**
@@ -205,6 +206,9 @@ export async function checkInMany(
 		!ids.every((id) => recordId.safeParse(id).success)
 	)
 		return { ok: false, message: "Choose up to 200 guests to check in." };
+
+	const slow = await limited("guest.check_in", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	try {
 		const result = await asUser(user.id, async (tx) => {
 			const day = await today(tx, eventId);
@@ -247,6 +251,9 @@ export async function undoCheckIn(
 		!recordId.safeParse(registrationId).success
 	)
 		return { ok: false, message: "That guest was not found." };
+
+	const slow = await limited("guest.check_in", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	const result = await asUser(user.id, async (tx) => {
 		const day = await today(tx, eventId);
 		const dayId = day.ok ? day.dayId : null;

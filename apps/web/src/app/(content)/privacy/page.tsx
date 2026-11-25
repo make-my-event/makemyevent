@@ -1,4 +1,5 @@
 import { publicPageMetadata } from "@/lib/site";
+import { turnstileSiteKey } from "@/lib/turnstile";
 import styles from "../../content.module.css";
 
 export const metadata = publicPageMetadata({
@@ -25,6 +26,10 @@ function NoteIcon() {
 	);
 }
 
+/**
+ * Says what the code does today: a service is named here in the change that
+ * starts using it, and what it is given is what is really sent to it.
+ */
 export default function PrivacyPage() {
 	return (
 		<main className={styles.page}>
@@ -36,7 +41,7 @@ export default function PrivacyPage() {
 						with it.
 					</p>
 					<p className={styles.updated}>
-						Draft, last reviewed 15 November 2026
+						Draft, last reviewed 25 November 2026
 					</p>
 
 					<div className={styles.callout}>
@@ -64,6 +69,13 @@ export default function PrivacyPage() {
 							is paid, we also store the amount, the currency and a payment
 							reference from Stripe.
 						</p>
+						<h3>When an organiser adds you</h3>
+						<p>
+							Organisers can add guests themselves, one at a time or from a
+							file. We then hold what they entered: your name, your email
+							address and answers to their form. They can also block an email
+							address or phone number from registering, and we keep it for that.
+						</p>
 						<h3>When you create an account</h3>
 						<p>
 							Your email address, and the name and profile picture Google gives
@@ -84,6 +96,11 @@ export default function PrivacyPage() {
 							timestamp and an approximate location derived from the network
 							address. These are used to find faults and to spot abuse.
 						</p>
+						<p>
+							To stop abuse we also count how often something is done. Your
+							email address and network address are scrambled before they are
+							counted, and a count is kept for a day at most.
+						</p>
 
 						<h2>Card details</h2>
 						<p>
@@ -95,30 +112,60 @@ export default function PrivacyPage() {
 						<h2>Who else sees your data</h2>
 						<ul>
 							<li>
-								<strong>The organiser of an event you registered for.</strong>{" "}
-								They see your name, email address, answers to their questions,
-								and whether you checked in. They cannot see events you
-								registered for elsewhere.
+								<strong>The organiser of an event you are a guest of,</strong>{" "}
+								and the team they choose. They see your name, email address,
+								answers to their questions, and whether you checked in. They
+								cannot see your registrations for other people&rsquo;s events.
 							</li>
 							<li>
-								<strong>Stripe</strong>, for payments and payouts.
+								<strong>Vercel</strong>, which runs the website. Every request
+								passes through it, with your network address.
 							</li>
 							<li>
-								<strong>Supabase</strong>, which hosts the database and handles
-								sign-in.
+								<strong>Supabase</strong>, which holds the database and uploaded
+								images, and handles sign-in.
 							</li>
 							<li>
-								<strong>Nobody else.</strong> We do not sell personal data and
-								we do not run advertising trackers.
+								<strong>Resend</strong>, which delivers our email. It is given
+								your email address and what the email says. For a pass, that is
+								your name, the event, and your ticket with its QR code.
+							</li>
+							<li>
+								<strong>Upstash</strong>, which holds the counts that stop
+								abuse, with the scrambled addresses described above.
+							</li>
+							<li>
+								<strong>Google</strong>, if you sign in with it.
+							</li>
+							{turnstileSiteKey() ? (
+								<li>
+									<strong>Cloudflare</strong>, when you open the sign-in page.
+									Its Turnstile check tells people from bots, and sees your
+									network address and details about your browser to do it.
+								</li>
+							) : null}
+							<li>
+								<strong>OpenFreeMap</strong> and <strong>komoot</strong>, when
+								an organiser sets a venue. OpenFreeMap draws the map and sees
+								their network address. komoot looks up the place they type, and
+								sees only our server.
+							</li>
+							<li>
+								<strong>Stripe</strong>, for payments and payouts, once paid
+								tickets are available. They are not yet.
 							</li>
 						</ul>
+						<p>
+							These services work for us or for the organiser. We do not sell
+							personal data and we do not run advertising trackers.
+						</p>
 
 						<h2>Your QR pass</h2>
 						<p>
 							A pass is a signed token, not your account identifier. Someone who
 							photographs it can present it at that one event and nothing else.
-							Organisers can rotate the key for an event, which invalidates
-							every pass issued before the rotation.
+							The key that signs an event&rsquo;s passes can be changed, which
+							invalidates every pass issued before the change.
 						</p>
 
 						<h2>What you can ask for</h2>
@@ -142,9 +189,10 @@ export default function PrivacyPage() {
 
 						<h2>Cookies</h2>
 						<p>
-							We set cookies to keep you signed in and to remember whether you
-							chose the light or the dark theme. There are no advertising or
-							analytics cookies.
+							We set cookies to keep you signed in, to bring you back to the
+							page you were on, and to remember choices you make in the
+							dashboard. Your light or dark theme is remembered in your browser.
+							There are no advertising or analytics cookies.
 						</p>
 
 						<h2>Changes</h2>

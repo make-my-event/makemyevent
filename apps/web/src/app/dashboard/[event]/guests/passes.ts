@@ -7,6 +7,7 @@ import { asUser } from "@/lib/db";
 import { EMAIL_NOT_SET_UP, emailConfigured, sendEmail } from "@/lib/email";
 import { masterKey, signPass } from "@/lib/pass-token";
 import { qrPng, qrSvg } from "@/lib/qr";
+import { limited } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 import { passHtml, passSubject, passText } from "./pass-email";
 
@@ -124,7 +125,12 @@ export type SendResult =
 			skipped: { name: string; reason: string }[];
 			failed: { name: string; reason: string }[];
 	  }
-	| { ok: false; message: string };
+	| {
+			ok: false;
+			message: string;
+			/** Too fast, or paused: nothing was sent; worth trying again after this many seconds. */
+			retryAfter?: number;
+	  };
 
 /**
  * Emails passes to up to ten guests. Each email has the QR inside it and
@@ -186,6 +192,14 @@ export async function sendPasses(
 	if (!data.manages)
 		return { ok: false, message: "You can't send passes for this event." };
 
+	const slow = await limited(
+		"passes.send",
+		{ user: user.id },
+		data.guests.length,
+	);
+	if (slow)
+		return { ok: false, message: slow.message, retryAfter: slow.retryAfter };
+
 	const event = data.event;
 	const now = Date.now();
 	const skipped: { name: string; reason: string }[] = [];
@@ -206,6 +220,16 @@ export async function sendPasses(
 			skipped.push({
 				name: guest.attendeeName,
 				reason: "emailed less than a minute ago",
+			});
+			continue;
+		}
+		const inbox = await limited("passes.recipient", {
+			email: guest.attendeeEmail,
+		});
+		if (inbox) {
+			failed.push({
+				name: guest.attendeeName,
+				reason: inbox.message.replace(/\.$/, ""),
 			});
 			continue;
 		}
