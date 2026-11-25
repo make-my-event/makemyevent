@@ -31,6 +31,10 @@ export function createClient(connectionString: string): PrismaClient {
  * How long a transaction may take, in milliseconds. Prisma's own limits (2 s
  * to connect, 5 s to finish) are shorter than a cold server's first
  * connection or a big event's work can need.
+ *
+ * `app_login` carries the database's own limits: one statement may take 30 s,
+ * and a transaction may wait 15 s between two. Work that needs longer needs
+ * them changed first, in a migration.
  */
 export type Limits = {
 	/** Waiting for a connection: a cold server makes its first, with TLS. */
@@ -49,11 +53,11 @@ export const BULK_LIMITS: Limits = { maxWait: 10_000, timeout: 50_000 };
  * Runs `work` in one transaction as the signed-in person, under row-level
  * security.
  *
- * The connection's own login owns the tables and so bypasses every policy;
- * user traffic never runs as it. Each transaction drops to the `app_user`
- * role and names the person, both for that transaction only, so a pooled
- * connection carries nothing to the next request. `userId` null is a visitor:
- * the policies show them only what is public.
+ * The connection's own login (`app_login`) holds no rights but to become
+ * `app_user`, so a query outside this function is refused. Each transaction
+ * takes that role and names the person, both for that transaction only, so a
+ * pooled connection carries nothing to the next request. `userId` null is a
+ * visitor: the policies show them only what is public.
  *
  * `userId` must come from a session the server has verified, never from the
  * request.
