@@ -98,3 +98,6 @@ jobs:
 
       - name: Confirm app_user can insert every column Prisma sends
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/insert-grants.sql
+
+      - name: Confirm nothing is open to Supabase's web API
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/api-access.sql
