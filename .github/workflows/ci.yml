@@ -33,7 +33,9 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/makemyevent_ci
+      # As deployed: the app's own login, which the migrations make, and the
+      # owner for migrations alone.
+      DATABASE_URL: postgresql://app_login:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/makemyevent_ci
       DIRECT_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/makemyevent_ci
       RUN_DB_TESTS: "1"
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -101,8 +103,16 @@ jobs:
       - name: app_user can insert every column Prisma sends
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/insert-grants.sql
 
-      - name: Nothing is open to Supabase's web API
+      - name: Nothing is open to Supabase's web API or to the app's bare login
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/api-access.sql
+
+      - name: The app's login can only become app_user
+        env:
+          LOGIN_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+        run: |
+          psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -v password="$LOGIN_PASSWORD" \
+            <<< "ALTER ROLE app_login PASSWORD :'password'"
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/app-login.sql
 
       - name: Row-level security on guests
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/guest-access.sql
