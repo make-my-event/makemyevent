@@ -69,16 +69,6 @@
 	background: var(--ink-pressed);
 }
 
-/* Skeletons are sized to the rows they stand in for, so nothing moves when
-   the real ones arrive. perforation as a fill is allowed where nothing is
-   read on it. */
-.skeletonRow {
-	height: 96px;
-	margin-bottom: var(--space-s);
-	border-radius: var(--radius-m);
-	background: var(--perforation);
-}
-
 .boneEmptyTitle {
 	inline-size: min(16rem, 80%);
 	block-size: calc(var(--text-h3) * 1.25);

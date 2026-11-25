@@ -14,7 +14,8 @@
  * checkForm has passed the whole form.
  */
 
-import { EMAIL, onHost, phoneDigits, webUrl } from "./links.ts";
+import { EMAIL, onHost, webUrl } from "./links.ts";
+import { phoneDigits } from "./phone.ts";
 
 // ---- Kinds ---------------------------------------------------------------
 
@@ -84,7 +85,7 @@ export const FIELD_KIND_INFO: Record<FieldKind, KindInfo> = {
 	},
 	phone: {
 		label: "Phone",
-		description: "With the country code, for calls or WhatsApp",
+		description: "With a country picker, for calls or WhatsApp",
 		newLabel: "Phone number",
 		placeholder: true,
 		answers: true,
@@ -501,7 +502,7 @@ export function startingForm(): FormField[] {
 			kind: "phone",
 			core: null,
 			label: "Phone number",
-			placeholder: "+91 98765 43210",
+			placeholder: "98765 43210",
 			help: "",
 			required: false,
 			settings: {},
@@ -1299,7 +1300,7 @@ export function answerProblem(
 		case "phone":
 			return phoneDigits(value)
 				? null
-				: "Enter the number with its country code, like +91 98765 43210.";
+				: "Enter a whole phone number, like 98765 43210.";
 		case "number": {
 			const n = Number(value);
 			if (!value || !Number.isFinite(n)) return "Enter a number.";
@@ -1501,7 +1502,7 @@ export const FIELD_PRESETS: readonly FieldPreset[] = [
 		build: () =>
 			preset("phone", "Emergency contact number", {
 				help: "Someone we can call if something happens at the event",
-				placeholder: "+91 98765 43210",
+				placeholder: "98765 43210",
 			}),
 	},
 	{

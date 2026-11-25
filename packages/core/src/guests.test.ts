@@ -122,7 +122,11 @@ test("blocklist entries are stored one way", () => {
 		ok: true,
 		value: "+919876543210",
 	});
-	assert.equal(normalizeContact("phone", "98765 43210").ok, false);
+	assert.deepEqual(normalizeContact("phone", "98765 43210"), {
+		ok: true,
+		value: "+919876543210",
+	});
+	assert.equal(normalizeContact("phone", "98765 4321").ok, false);
 	assert.deepEqual(splitContacts("a@b.com, c@d.com\n\na@b.com;e@f.com"), [
 		"a@b.com",
 		"c@d.com",

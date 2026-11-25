@@ -1,8 +1,10 @@
 "use client";
 
-import { durationLabel, utcOffsetLabel, zonedToUtc } from "@makemyevent/core";
-import { useEffect, useId, useMemo, useState } from "react";
+import { durationLabel, zonedToUtc } from "@makemyevent/core";
+import { useEffect, useId, useState } from "react";
+import { browserZone } from "@/lib/browser-zone";
 import styles from "./schedule-venue.module.css";
+import { ZonePicker } from "./zone-picker";
 
 export type ScheduleValues = {
 	timeZone: string;
@@ -16,29 +18,6 @@ export type ScheduleValues = {
 };
 
 type Field = "timeZone" | "start" | "end" | "opensAt" | "closesAt";
-
-/** Every zone the browser knows, A to Z, with UTC first. Built once. */
-let zones: string[] | null = null;
-function allZones(): string[] {
-	if (!zones) {
-		const known =
-			typeof Intl.supportedValuesOf === "function"
-				? Intl.supportedValuesOf("timeZone")
-				: [];
-		zones = ["UTC", ...known.filter((zone) => zone !== "UTC")];
-	}
-	return zones;
-}
-
-export function browserZone(): string {
-	try {
-		return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-	} catch {
-		return "UTC";
-	}
-}
-
-const zoneName = (zone: string) => zone.replaceAll("_", " ");
 
 /** "Sat, 12 Dec" in the host's language, for the summary line. */
 function shortDate(date: string): string {
@@ -57,7 +36,7 @@ function shortDate(date: string): string {
  * happens, and when people can register. The summary under the dates says
  * how long it runs, so a slip like 9:30 pm for 9:30 am shows at once.
  *
- *   Time zone  [Asia/Kolkata  UTC+05:30      ▾]
+ *   Time zone  [Asia/Kolkata (UTC+05:30)     ▾]
  *   Starts     [12/12/2026] [09:30]
  *   Ends       [12/12/2026] [17:30]
  *   ─ Runs 8h 00m, Sat 12 Dec ────────────────
@@ -74,7 +53,6 @@ export function ScheduleCard({
 }) {
 	const id = useId();
 	const ids = {
-		zone: `${id}zone`,
 		startDate: `${id}sd`,
 		startTime: `${id}st`,
 		endDate: `${id}ed`,
@@ -86,27 +64,9 @@ export function ScheduleCard({
 	const errorFor = (field: Field) =>
 		error?.field === field ? error.message : null;
 
-	// The full list of zones only once in the browser: the server's list and
-	// offsets may differ from the browser's, and 400 options are not worth
-	// sending in the page.
+	// Dates in the host's own format, only in the browser (see the summary).
 	const [mounted, setMounted] = useState(false);
 	useEffect(() => setMounted(true), []);
-	const options = useMemo(() => {
-		if (!mounted) return null;
-		const now = new Date();
-		const list = allZones();
-		const withCurrent =
-			value.timeZone && !list.includes(value.timeZone)
-				? [value.timeZone, ...list]
-				: list;
-		return withCurrent.map((zone) => {
-			let offset = "";
-			try {
-				offset = utcOffsetLabel(zone, now);
-			} catch {}
-			return { zone, label: `${zoneName(zone)} (${offset})` };
-		});
-	}, [mounted, value.timeZone]);
 
 	// A date put in first picks the host's own zone, so nothing is left
 	// half set; they can change it after.
@@ -167,33 +127,12 @@ export function ScheduleCard({
 			</header>
 
 			<div className={styles.card}>
-				<div className={styles.field}>
-					<label className={styles.label} htmlFor={ids.zone}>
-						Time zone
-					</label>
-					<select
-						id={ids.zone}
-						className={styles.select}
-						value={value.timeZone}
-						onChange={(event) => onChange({ timeZone: event.target.value })}
-						aria-invalid={errorFor("timeZone") ? true : undefined}
-						aria-describedby={errorFor("timeZone") ? `${ids.zone}e` : undefined}
-					>
-						<option value="">Choose a time zone</option>
-						{options
-							? options.map((option) => (
-									<option key={option.zone} value={option.zone}>
-										{option.label}
-									</option>
-								))
-							: value.timeZone && (
-									<option value={value.timeZone}>
-										{zoneName(value.timeZone)}
-									</option>
-								)}
-					</select>
-					<FieldError id={`${ids.zone}e`} message={errorFor("timeZone")} />
-				</div>
+				<ZonePicker
+					value={value.timeZone}
+					at={startsAt}
+					error={errorFor("timeZone")}
+					onChange={(timeZone) => onChange({ timeZone })}
+				/>
 
 				<fieldset className={styles.moment}>
 					<legend className={styles.label}>Starts</legend>

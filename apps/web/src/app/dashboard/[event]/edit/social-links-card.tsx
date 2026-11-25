@@ -39,9 +39,9 @@ const MORE = LINK_KINDS.filter((kind) => !COMMON.includes(kind));
 /** Under an empty row: what this platform takes. */
 function emptyTip(kind: LinkKind): string {
 	if (kind === "email") return "An email address";
-	if (kind === "phone") return "With the country code";
+	if (kind === "phone") return "+91 unless you write another code";
 	if (kind === "whatsapp")
-		return "A number with its country code, or a group link";
+		return "A number (+91 unless you write another code), or a group link";
 	if (kind === "mastodon") return "Your full handle, or a link to your profile";
 	return PLATFORMS[kind].handle
 		? "A handle or a link to your profile"

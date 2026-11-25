@@ -161,7 +161,7 @@ function Column({
 						inputMode={email ? "email" : "tel"}
 						autoComplete="off"
 						spellCheck={false}
-						placeholder={email ? "name@example.com" : "+91 98765 43210"}
+						placeholder={email ? "name@example.com" : "98765 43210"}
 						value={text}
 						aria-describedby={`${id}hint ${id}message`}
 						onChange={(event) => {
@@ -198,7 +198,7 @@ function Column({
 				<p className={styles.hint} id={`${id}hint`}>
 					{email
 						? "Paste many at once, separated by commas or new lines."
-						: "With the country code. Paste many at once, separated by commas."}
+						: "+91 unless you write another code. Paste many at once, separated by commas."}
 				</p>
 				<p
 					className={styles.message}

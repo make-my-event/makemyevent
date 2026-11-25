@@ -8,6 +8,8 @@
  * tel: for a phone. The database checks the same shapes.
  */
 
+import { phoneDigits } from "./phone.ts";
+
 export const LINK_KINDS = [
 	"website",
 	"instagram",
@@ -199,13 +201,6 @@ export const PLATFORMS: Record<LinkKind, Platform> = {
 const URL_MAX = 2048;
 export const EMAIL = /^[^\s@<>()[\]\\,;:"]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
 
-/** "+91 98765-43210" to "+919876543210", or null: E.164, the country code first. */
-export function phoneDigits(raw: string): string | null {
-	const compact = raw.replace(/[\s().-]/g, "");
-	if (!/^\+[1-9][0-9]{6,14}$/.test(compact)) return null;
-	return compact;
-}
-
 /** A web address from what was typed, https only; a bare domain gets https. */
 export function webUrl(raw: string): URL | null {
 	const text = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
@@ -261,7 +256,8 @@ export function normalizeLink(kind: LinkKind, input: string): LinkResult {
 			? { ok: true, url: `tel:${digits}` }
 			: {
 					ok: false,
-					message: "Start with + and the country code, like +91 98765 43210.",
+					message:
+						"Enter a whole phone number. Outside India, add its country code, like +44 20 7946 0958.",
 				};
 	}
 
