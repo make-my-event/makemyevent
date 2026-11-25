@@ -189,6 +189,7 @@
 /* ---- Card ---------------------------------------------------------- */
 
 .card {
+	position: relative;
 	display: flex;
 	align-items: stretch;
 	gap: var(--card-gap);
@@ -400,6 +401,14 @@
 		background-color var(--motion);
 }
 
+/* Over the whole card, so a press anywhere on it is this link. */
+.manage::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: var(--radius-l);
+}
+
 .manage:hover {
 	border-color: var(--stamp);
 	background: var(--stamp-tint);
@@ -422,7 +431,10 @@
 	gap: var(--space-xs);
 }
 
+/* Above the card's own link. */
 .action {
+	position: relative;
+	z-index: 1;
 	display: inline-flex;
 	flex: none;
 	align-items: center;

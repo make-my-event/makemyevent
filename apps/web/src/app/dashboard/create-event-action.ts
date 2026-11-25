@@ -2,6 +2,7 @@
 
 import {
 	createEventInput,
+	isTimeZone,
 	numberedSlug,
 	slugFromTitle,
 } from "@makemyevent/core";
@@ -50,6 +51,9 @@ export async function createEvent(
 		return { field, message: issue?.message ?? "Check the event name." };
 	}
 	const { title } = parsed.data;
+	// The host's own zone, as a start; without one the Event Page asks.
+	const zone = form.get("timeZone");
+	const timeZone = typeof zone === "string" && isTimeZone(zone) ? zone : null;
 
 	const slow = await limited("event.create", { user: user.id });
 	if (slow) return { field: null, message: slow.message };
@@ -61,7 +65,7 @@ export async function createEvent(
 			attempt <= NUMBERED_ATTEMPTS
 				? numberedSlug(base, attempt)
 				: numberedSlug(base, 1000 + Math.floor(Math.random() * 9000));
-		slug = await insertDraft(user, title, candidate);
+		slug = await insertDraft(user, title, timeZone, candidate);
 	}
 	if (!slug)
 		return {
@@ -81,6 +85,7 @@ export async function createEvent(
 async function insertDraft(
 	user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
 	title: string,
+	timeZone: string | null,
 	slug: string,
 ): Promise<string | null> {
 	try {
@@ -102,6 +107,7 @@ async function insertDraft(
 					hostUserId: user.id,
 					slug,
 					title,
+					timeZone,
 					ticketTypes: { create: { name: "General Pass" } },
 				},
 				select: { id: true },

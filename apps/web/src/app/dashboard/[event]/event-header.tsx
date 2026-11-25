@@ -1,5 +1,7 @@
+import { zoneShort } from "@makemyevent/core";
 import Link from "next/link";
 import { CalendarIcon, RightIcon } from "@/components/icons";
+import { imageUrl } from "@/lib/storage";
 import { initialsOf } from "../organized-events";
 import { PHASE_LABELS } from "../types";
 import { daysUntil, eventPhase } from "./event-phase";
@@ -16,7 +18,7 @@ const relative = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
  *      │UC│  📅 Sat, Nov 22, 2026 · 6:00 PM GMT+5:30   ● Upcoming · tomorrow
  *      └──┘
  *
- * The tile is the event's logo once uploads exist; until then its initials,
+ * The tile is the event's logo; without one its initials,
  * drawn like the cover on the Organized list. The last part counts down in
  * the event's own calendar days, so a host sees at once how close it is.
  *
@@ -34,7 +36,7 @@ export function EventHeaderView({
 }: {
 	event: Pick<
 		ManagedEvent,
-		"title" | "status" | "startsAt" | "endsAt" | "timeZone"
+		"title" | "status" | "startsAt" | "endsAt" | "timeZone" | "logoPath"
 	>;
 	now: Date;
 }) {
@@ -50,7 +52,17 @@ export function EventHeaderView({
 			</Link>
 
 			<div className={styles.tile} aria-hidden="true">
-				{initialsOf(event.title) || "E"}
+				{event.logoPath ? (
+					// biome-ignore lint/performance/noImgElement: user-uploaded artwork from storage, not a build-time asset
+					<img
+						className={styles.tileImage}
+						src={imageUrl(`${event.logoPath}-256.webp`)}
+						alt=""
+						decoding="async"
+					/>
+				) : (
+					initialsOf(event.title) || "E"
+				)}
 			</div>
 
 			<div className={styles.text}>
@@ -65,7 +77,7 @@ export function EventHeaderView({
 								{formatStart(event.startsAt, event.timeZone)}
 								<span className={styles.zone}>
 									{" "}
-									{zoneName(event.startsAt, event.timeZone)}
+									{zoneShort(event.startsAt, event.timeZone)}
 								</span>
 							</time>
 						) : (
@@ -104,18 +116,6 @@ function formatStart(startsAt: Date, timeZone: string | null): string {
 		minute: "2-digit",
 	}).format(startsAt);
 	return `${date} · ${time}`;
-}
-
-/** The zone's short name at that moment: "GMT+5:30", "PST". */
-function zoneName(at: Date, timeZone: string | null): string {
-	return (
-		new Intl.DateTimeFormat("en-US", {
-			timeZone: timeZone ?? "UTC",
-			timeZoneName: "short",
-		})
-			.formatToParts(at)
-			.find((part) => part.type === "timeZoneName")?.value ?? ""
-	);
 }
 
 /** The header's shape while the event loads: tile, a title line, a meta line. */

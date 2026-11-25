@@ -10,7 +10,8 @@ import {
 	RightIcon,
 } from "@/components/icons";
 import styles from "./events.module.css";
-import { formatWhen, initialsOf } from "./organized-events";
+import { cardWhen } from "@/lib/event-text";
+import { initialsOf } from "./organized-events";
 import type { OrganizedEvent } from "./types";
 
 const registered = new Intl.NumberFormat("en-US");
@@ -20,13 +21,17 @@ const registered = new Intl.NumberFormat("en-US");
  *
  *   ┌──────┐ Title                          [⧉]
  *   │ art  │ #CODE  Venue
- *   │      │ 📅 Nov 24, 2026 · 11:00 AM
+ *   │      │ 📅 Nov 24, 2026 · 11:00 AM GMT+5:30
  *   │      │ 👥 640 registered
  *   │      │ - - - - - - - - - - - - - - - - - -
  *   └──────┘ [Manage ›]              ✎  🔗  🗑
  *
  * Every line is one line: the title truncates rather than wraps, so every
  * card is the same height and the skeleton can be sized to it exactly.
+ *
+ * A press anywhere on the card is Manage: its link is stretched over the
+ * card, so there is one link, not two, for the keyboard and screen readers.
+ * The other controls sit above it.
  *
  * Manage, Edit and Duplicate are URLs, so they work without script and open
  * in a new tab. Copying the link and deleting act here; Delete asks first in
@@ -106,10 +111,12 @@ export function EventCard({ event }: { event: OrganizedEvent }) {
 						<CalendarIcon className={styles.metaIcon} />
 						{event.startsAt ? (
 							<time className={styles.when} dateTime={event.startsAt}>
-								{formatWhen(event)}
+								{cardWhen(event.startsAt, event.timeZone)}
 							</time>
 						) : (
-							<span className={styles.when}>{formatWhen(event)}</span>
+							<span className={styles.when}>
+								{cardWhen(event.startsAt, event.timeZone)}
+							</span>
 						)}
 					</p>
 
@@ -133,7 +140,11 @@ export function EventCard({ event }: { event: OrganizedEvent }) {
 				<div className={styles.manageArea}>
 					<div className={styles.tear} />
 					<div className={styles.footer}>
-						<Link className={styles.manage} href={`${base}/overview`}>
+						<Link
+							className={styles.manage}
+							href={`${base}/overview`}
+							title={event.title}
+						>
 							Manage
 							<span className={styles.srOnly}> {event.title}</span>
 							<RightIcon className={styles.manageIcon} />

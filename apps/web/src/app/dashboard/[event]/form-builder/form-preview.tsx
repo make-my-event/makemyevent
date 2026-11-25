@@ -9,6 +9,7 @@ import {
 	visibleFields,
 } from "@makemyevent/core";
 import { useId, useMemo, useState } from "react";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { AlertIcon } from "./kind-icon";
 import styles from "./form-builder.module.css";
 
@@ -356,6 +357,16 @@ export function PreviewField({
 					aria-describedby={describedBy}
 					onChange={(event) => onAnswer(event.target.files?.[0]?.name ?? null)}
 				/>
+			) : field.kind === "phone" ? (
+				<PhoneInput
+					id={id}
+					label={field.label || "Phone number"}
+					value={text}
+					placeholder={field.placeholder}
+					invalid={problem !== null}
+					describedBy={describedBy}
+					onChange={(value) => onAnswer(value || null)}
+				/>
 			) : (
 				<input
 					id={id}
@@ -363,33 +374,27 @@ export function PreviewField({
 					type={
 						field.kind === "email"
 							? "email"
-							: field.kind === "phone"
-								? "tel"
-								: field.kind === "url"
-									? "url"
-									: field.kind === "date"
-										? "date"
-										: "text"
+							: field.kind === "url"
+								? "url"
+								: field.kind === "date"
+									? "date"
+									: "text"
 					}
 					inputMode={
 						field.kind === "number"
 							? "decimal"
-							: field.kind === "phone"
-								? "tel"
-								: field.kind === "email"
-									? "email"
-									: field.kind === "url"
-										? "url"
-										: undefined
+							: field.kind === "email"
+								? "email"
+								: field.kind === "url"
+									? "url"
+									: undefined
 					}
 					autoComplete={
 						field.core === "name"
 							? "name"
 							: field.kind === "email"
 								? "email"
-								: field.kind === "phone"
-									? "tel"
-									: "off"
+								: "off"
 					}
 					placeholder={field.placeholder}
 					value={text}

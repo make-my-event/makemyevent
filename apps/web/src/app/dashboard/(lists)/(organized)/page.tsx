@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { MemberRole } from "@makemyevent/core";
 import { asUser } from "@/lib/db";
 import { env } from "@/lib/env";
+import { imageUrl } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase/identity";
 import styles from "../../dashboard.module.css";
 import { claimInvites } from "../../claim-invites";
@@ -92,6 +93,7 @@ async function workspaceEvents(
 				startsAt: true,
 				endsAt: true,
 				timeZone: true,
+				posterPath: true,
 				status: true,
 				hostUserId: true,
 				ticketTypes: { select: { registeredCount: true } },
@@ -117,7 +119,9 @@ async function workspaceEvents(
 			event.hostUserId === userId
 				? "owner"
 				: ((event.members[0]?.role as MemberRole | undefined) ?? "volunteer"),
-		coverUrl: null,
+		coverUrl: event.posterPath
+			? imageUrl(`${event.posterPath}-540.webp`)
+			: null,
 		publicUrl: `${env.appUrl}/event/${encodeURIComponent(event.slug)}`,
 	}));
 }

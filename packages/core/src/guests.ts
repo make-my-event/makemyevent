@@ -17,7 +17,8 @@ import {
 	OTHER_OPTION,
 	visibleFields,
 } from "./form.ts";
-import { EMAIL, phoneDigits } from "./links.ts";
+import { EMAIL } from "./links.ts";
+import { phoneDigits } from "./phone.ts";
 
 /** Guests per page: a screenful and a half, on one index scan. */
 export const GUEST_PAGE_SIZE = 50;
@@ -192,7 +193,7 @@ export function normalizeContact(
 		? { ok: true, value }
 		: {
 				ok: false,
-				message: `"${text}" needs its country code, like +91 98765 43210.`,
+				message: `"${text}" is not a whole phone number. Outside India, add its country code, like +44 20 7946 0958.`,
 			};
 }
 

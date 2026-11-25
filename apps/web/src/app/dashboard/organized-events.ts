@@ -92,25 +92,6 @@ export function listOrganized(
 	return { shown: [...ahead, ...past], counts, hasAny: events.length > 0 };
 }
 
-/** "Nov 24, 2026 · 11:00 AM", in the event's zone; "Date not set" without one. */
-export function formatWhen(event: OrganizedEvent): string {
-	if (!event.startsAt) return "Date not set";
-	const starts = new Date(event.startsAt);
-	const zone = event.timeZone ?? "UTC";
-	const date = new Intl.DateTimeFormat("en-US", {
-		timeZone: zone,
-		month: "short",
-		day: "2-digit",
-		year: "numeric",
-	}).format(starts);
-	const time = new Intl.DateTimeFormat("en-US", {
-		timeZone: zone,
-		hour: "numeric",
-		minute: "2-digit",
-	}).format(starts);
-	return `${date} · ${time}`;
-}
-
 /** Up to three letters for the artwork placeholder: "AI & Spatial…" → "A&S". */
 export function initialsOf(title: string): string {
 	return title
