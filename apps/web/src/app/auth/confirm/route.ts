@@ -1,5 +1,6 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
+import { limited } from "@/lib/rate-limit";
 import { NEXT_COOKIE, safeRedirectPath } from "@/lib/safe-redirect";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,6 +26,15 @@ export async function GET(request: NextRequest) {
 	};
 
 	if (!tokenHash || !type || !ALLOWED.includes(type)) return fail();
+
+	// The link is not used up: it still works after the wait, and so does
+	// where it was going.
+	const slow = await limited("signin.finish", {});
+	if (slow)
+		return NextResponse.redirect(new URL("/signin?error=busy", request.url), {
+			status: 303,
+			headers: { "Retry-After": String(slow.retryAfter) },
+		});
 
 	const supabase = await createClient();
 	const { error } = await supabase.auth.verifyOtp({

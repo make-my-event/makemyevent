@@ -4,6 +4,7 @@ import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 import { getCurrentUser } from "@/lib/supabase/identity";
+import { turnstileSiteKey } from "@/lib/turnstile";
 import { SignInForm, type UrlError } from "./sign-in-form";
 import styles from "./signin.module.css";
 
@@ -12,7 +13,12 @@ export const metadata: Metadata = {
 	robots: { index: false, follow: false },
 };
 
-const URL_ERRORS: readonly UrlError[] = ["link_invalid", "cancelled", "failed"];
+const URL_ERRORS: readonly UrlError[] = [
+	"link_invalid",
+	"cancelled",
+	"failed",
+	"busy",
+];
 
 type Props = {
 	searchParams: Promise<{
@@ -45,7 +51,11 @@ export default async function SignInPage({ searchParams }: Props) {
 					</div>
 
 					<div className={styles.formInner}>
-						<SignInForm next={next} urlError={urlError} />
+						<SignInForm
+							next={next}
+							urlError={urlError}
+							siteKey={turnstileSiteKey()}
+						/>
 					</div>
 				</main>
 

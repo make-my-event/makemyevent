@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { limited } from "@/lib/rate-limit";
 import { NEXT_COOKIE, safeRedirectPath } from "@/lib/safe-redirect";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,6 +37,13 @@ export async function GET(request: NextRequest) {
 	}
 
 	if (!code) return finish(request, "/signin?error=failed");
+
+	const slow = await limited("signin.finish", {});
+	if (slow) {
+		const response = finish(request, "/signin?error=busy");
+		response.headers.set("Retry-After", String(slow.retryAfter));
+		return response;
+	}
 
 	const supabase = await createClient();
 	const { error } = await supabase.auth.exchangeCodeForSession(code);

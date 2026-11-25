@@ -21,7 +21,7 @@ import {
 	importGuests,
 	previewImport,
 } from "./import-actions";
-import { sendPasses } from "./passes";
+import { type SendResult, sendPasses } from "./passes";
 import styles from "./guests.module.css";
 
 type Ticket = { id: string; name: string };
@@ -170,10 +170,16 @@ export function ImportPanel({
 					setProgress(
 						`Emailing passes: ${Math.min(i + 10, result.ids.length)} of ${result.ids.length}`,
 					);
-					const batch = await sendPasses(
-						eventId,
-						result.ids.slice(i, i + 10),
-					).catch(() => FAILED);
+					const ids = result.ids.slice(i, i + 10);
+					let batch: SendResult = FAILED;
+					// A short pause is waited out, so it doesn't cost the rest
+					// of the list their passes.
+					for (let attempt = 0; attempt < 4; attempt++) {
+						batch = await sendPasses(eventId, ids).catch(() => FAILED);
+						const wait = batch.ok ? undefined : batch.retryAfter;
+						if (wait === undefined || wait > 30) break;
+						await new Promise((done) => setTimeout(done, wait * 1000));
+					}
 					if (!batch.ok) {
 						failed.push(batch.message);
 						break;

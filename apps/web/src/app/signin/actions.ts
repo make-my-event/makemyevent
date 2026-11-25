@@ -3,9 +3,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { env } from "@/lib/env";
+import { limited } from "@/lib/rate-limit";
 import { NEXT_COOKIE, safeRedirectPath } from "@/lib/safe-redirect";
 import { hardenCookie } from "@/lib/supabase/cookies";
 import { createClient } from "@/lib/supabase/server";
+import { TURNSTILE_TOKEN_MAX, turnstileSiteKey } from "@/lib/turnstile";
 
 export type SignInState = {
 	/** idle: show the form. sent: show "check your email". */
@@ -17,6 +19,9 @@ export type SignInState = {
 	/** Changes on every successful send, which restarts the resend countdown. */
 	sentAt?: number;
 };
+
+const NOT_CHECKED =
+	"We couldn't check that you're not a bot. Try again, or continue with Google.";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** RFC 5321 limit. Anything longer is not an address. */
@@ -39,6 +44,7 @@ function describe(error: unknown): string {
 	if (e.code === "over_request_rate_limit" || e.status === 429) {
 		return "Too many attempts. Wait a few minutes, then try again.";
 	}
+	if (e.code === "captcha_failed") return NOT_CHECKED;
 	if (e.code === "email_address_invalid" || e.code === "validation_failed") {
 		return "That doesn't look like an email address. Check it and try again.";
 	}
@@ -63,8 +69,8 @@ async function rememberDestination(raw: FormDataEntryValue | null) {
  * written as an httpOnly cookie that page scripts cannot read.
  *
  * Reachable by anyone, like any public endpoint: Next verifies the request
- * origin, the input is validated here, and Supabase rate-limits per address and
- * per IP. It deliberately grants no access on its own — success only means an
+ * origin, the input is validated here, and it is limited per address and per
+ * network, on top of Supabase's own limits and its bot check. It deliberately grants no access on its own — success only means an
  * email was sent.
  */
 export async function requestMagicLink(
@@ -85,6 +91,18 @@ export async function requestMagicLink(
 		};
 	}
 
+	// Supabase checks the token itself; this only saves asking it without one.
+	const token = formData.get("captcha");
+	const captchaToken =
+		typeof token === "string" && token.length <= TURNSTILE_TOKEN_MAX
+			? token
+			: "";
+	if (turnstileSiteKey() && !captchaToken)
+		return { status: "idle", email, error: NOT_CHECKED };
+
+	const slow = await limited("signin.email", { email });
+	if (slow) return { status: "idle", email, error: slow.message };
+
 	await rememberDestination(formData.get("next"));
 
 	const supabase = await createClient();
@@ -93,6 +111,7 @@ export async function requestMagicLink(
 		options: {
 			emailRedirectTo: `${env.appUrl}/auth/callback`,
 			shouldCreateUser: true,
+			...(captchaToken ? { captchaToken } : {}),
 		},
 	});
 
@@ -114,6 +133,9 @@ export async function startGoogleSignIn(
 	_previous: SignInState,
 	formData: FormData,
 ): Promise<SignInState> {
+	const slow = await limited("signin.google", {});
+	if (slow) return { status: "idle", error: slow.message };
+
 	await rememberDestination(formData.get("next"));
 
 	const supabase = await createClient();

@@ -10,6 +10,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
+import { limited } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 /**
@@ -63,6 +64,9 @@ export async function blockContacts(
 		values.push(normalized.value);
 	}
 	const unique = [...new Set(values)];
+
+	const slow = await limited("guest.block", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	try {
 		const result = await asUser(user.id, async (tx) => {
 			const held = await tx.blockedContact.count({ where: { eventId, kind } });
@@ -123,6 +127,9 @@ export async function unblockContact(
 	const user = await signedIn();
 	if (!recordId.safeParse(eventId).success || !/^\d{1,18}$/.test(id))
 		return { ok: false, message: NOT_ALLOWED };
+
+	const slow = await limited("guest.block", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	const { count } = await asUser(user.id, (tx) =>
 		tx.blockedContact.deleteMany({ where: { id: BigInt(id), eventId } }),
 	);
