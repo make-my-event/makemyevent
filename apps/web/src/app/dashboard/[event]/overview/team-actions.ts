@@ -10,6 +10,7 @@ import { Prisma } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
+import { limited } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 /**
@@ -85,6 +86,9 @@ export async function addMember(
 	}
 	const { name, email, role } = parsed.data;
 
+	const slow = await limited("team.add", { user: user.id });
+	if (slow) return { field: null, message: slow.message };
+
 	try {
 		const outcome = await asUser(user.id, async (tx) => {
 			const event = await tx.event.findUnique({
@@ -152,6 +156,9 @@ export async function editMember(
 		};
 	}
 
+	const slow = await limited("event.write", { user: user.id });
+	if (slow) return { field: null, message: slow.message };
+
 	// A row the policies hide or refuse is simply not updated.
 	const { count } = await asUser(user.id, (tx) =>
 		tx.eventMember.updateMany({
@@ -178,6 +185,9 @@ export async function setMemberRole(
 	if (!id.safeParse(memberId).success || !parsedRole.success)
 		return { ok: false, message: "That change could not be made." };
 
+	const slow = await limited("event.write", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
+
 	const { count } = await asUser(user.id, (tx) =>
 		tx.eventMember.updateMany({
 			where: { id: memberId },
@@ -198,6 +208,9 @@ export async function removeMember(
 	const user = await signedIn(slug);
 	if (!id.safeParse(memberId).success)
 		return { ok: false, message: "That member was not found." };
+
+	const slow = await limited("event.write", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 
 	const { count } = await asUser(user.id, (tx) =>
 		tx.eventMember.deleteMany({ where: { id: memberId } }),

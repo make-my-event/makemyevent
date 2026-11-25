@@ -18,6 +18,7 @@ import { BULK_LIMITS, Prisma, type Tx } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
+import { limited } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 /**
@@ -326,6 +327,9 @@ export async function previewImport(
 		!recordId.safeParse(ticketTypeId).success
 	)
 		return { ok: false, message: "Choose the ticket these guests get." };
+
+	const slow = await limited("guest.import_preview", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	const text = await sourceText(source);
 	if (!text.ok) return text;
 	return asUser(user.id, async (tx) => {
@@ -363,6 +367,9 @@ export async function importGuests(
 		!recordId.safeParse(ticketTypeId).success
 	)
 		return { ok: false, message: "Choose the ticket these guests get." };
+
+	const slow = await limited("guest.import", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	const text = await sourceText(source);
 	if (!text.ok) return text;
 	try {

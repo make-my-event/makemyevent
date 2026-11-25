@@ -473,7 +473,12 @@ function AddressField({
 						}
 					: check === "checking"
 						? { tone: "muted", text: "Checking…" }
-						: null;
+						: check === "slow"
+							? {
+									tone: "muted",
+									text: "Checking too fast. Wait a moment; it is checked again when you save.",
+								}
+							: null;
 
 	return (
 		<div className={styles.address}>

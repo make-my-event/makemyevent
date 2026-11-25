@@ -11,13 +11,14 @@ import { Prisma } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
+import { limited } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 export type SaveFormResult =
 	| { ok: true; version: string }
 	| {
 			ok: false;
-			reason: "invalid" | "conflict" | "denied";
+			reason: "invalid" | "conflict" | "denied" | "slow";
 			message: string;
 			problem?: FormProblem;
 	  };
@@ -68,6 +69,9 @@ export async function saveForm(
 	if (!user) redirect("/signin?next=%2Fdashboard");
 	if (!recordId.safeParse(eventId).success || !/^\d{1,18}$/.test(version))
 		return DENIED;
+
+	const slow = await limited("event.write", { user: user.id });
+	if (slow) return { ok: false, reason: "slow", message: slow.message };
 	const from = BigInt(version);
 
 	try {

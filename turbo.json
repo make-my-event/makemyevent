@@ -23,7 +23,10 @@
 				"SUPABASE_SECRET_KEY",
 				"TICKET_SIGNING_KEY",
 				"RESEND_API_KEY",
-				"EMAIL_FROM"
+				"EMAIL_FROM",
+				"UPSTASH_REDIS_REST_URL",
+				"UPSTASH_REDIS_REST_TOKEN",
+				"TURNSTILE_SITE_KEY"
 			],
 			"outputs": ["dist/**", ".next/**", "!.next/cache/**"]
 		},

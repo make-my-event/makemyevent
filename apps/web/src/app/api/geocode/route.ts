@@ -1,3 +1,4 @@
+import { limited, tooMany } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 /**
@@ -15,27 +16,6 @@ import { getCurrentUser } from "@/lib/supabase/identity";
 const PHOTON = "https://photon.komoot.io/api/";
 const PHOTON_REVERSE = "https://photon.komoot.io/reverse";
 const QUERY_MAX = 200;
-
-/** Per person: 20 searches in any 10 seconds is fast typing, not a bot. */
-const WINDOW_MS = 10_000;
-const PER_WINDOW = 20;
-const recent = new Map<string, number[]>();
-
-function allowed(userId: string): boolean {
-	const now = Date.now();
-	const times = (recent.get(userId) ?? []).filter((at) => now - at < WINDOW_MS);
-	if (times.length >= PER_WINDOW) {
-		recent.set(userId, times);
-		return false;
-	}
-	times.push(now);
-	recent.set(userId, times);
-	if (recent.size > 5000) {
-		for (const [key, list] of recent)
-			if (!list.some((at) => now - at < WINDOW_MS)) recent.delete(key);
-	}
-	return true;
-}
 
 type PhotonFeature = {
 	geometry?: { coordinates?: [number, number] };
@@ -102,7 +82,8 @@ export async function GET(request: Request) {
 				{ error: "That spot is not on the map." },
 				{ status: 400 },
 			);
-		if (!allowed(user.id)) return tooFast();
+		const slow = await limited("geocode", { user: user.id });
+		if (slow) return tooMany(slow);
 		return reverse(lat, lng);
 	}
 
@@ -114,7 +95,8 @@ export async function GET(request: Request) {
 			{ status: 400 },
 		);
 
-	if (!allowed(user.id)) return tooFast();
+	const slow = await limited("geocode", { user: user.id });
+	if (slow) return tooMany(slow);
 
 	const url = new URL(PHOTON);
 	url.searchParams.set("q", q);
@@ -153,13 +135,6 @@ export async function GET(request: Request) {
 			{ status: 502 },
 		);
 	}
-}
-
-function tooFast() {
-	return Response.json(
-		{ error: "Searching too fast. Wait a moment." },
-		{ status: 429, headers: { "Retry-After": "10" } },
-	);
 }
 
 /** The nearest addressed place to a spot. The pin stays where it was put. */

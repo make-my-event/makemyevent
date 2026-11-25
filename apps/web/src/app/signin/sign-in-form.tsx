@@ -6,15 +6,18 @@ import {
 	type SignInState,
 	startGoogleSignIn,
 } from "./actions";
+import { CheckedForm } from "./checked-form";
+import { ErrorIcon } from "./error-icon";
 import styles from "./signin.module.css";
 
-export type UrlError = "link_invalid" | "cancelled" | "failed";
+export type UrlError = "link_invalid" | "cancelled" | "failed" | "busy";
 
 const URL_ERROR_TEXT: Record<UrlError, string> = {
 	link_invalid:
 		"That sign-in link has expired or was already used. Enter your email to get a new one.",
 	cancelled: "Google sign-in was cancelled. Try again, or use an email link.",
 	failed: "We couldn't sign you in. Try again.",
+	busy: "Too many sign-in attempts from this network. Wait a few minutes, then try again. An email link you already have still works.",
 };
 
 const RESEND_WAIT_SECONDS = 60;
@@ -23,9 +26,12 @@ const IDLE: SignInState = { status: "idle" };
 export function SignInForm({
 	next,
 	urlError,
+	siteKey,
 }: {
 	next: string;
 	urlError: UrlError | null;
+	/** Turnstile's, when bot protection is set up. */
+	siteKey: string | null;
 }) {
 	const [state, sendLink, sending] = useActionState(requestMagicLink, IDLE);
 	const [googleState, signInWithGoogle, openingGoogle] = useActionState(
@@ -94,17 +100,7 @@ export function SignInForm({
 
 	const errorBox = error ? (
 		<p className={styles.error} role="alert" data-shown="true">
-			<svg
-				viewBox="0 0 16 16"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				aria-hidden="true"
-			>
-				<circle cx="8" cy="8" r="6.5" />
-				<path d="M8 4.75v3.75M8 11.1h.01" />
-			</svg>
+			<ErrorIcon />
 			<span>{error}</span>
 		</p>
 	) : null;
@@ -123,21 +119,42 @@ export function SignInForm({
 
 				<div className={styles.actions}>
 					{errorBox}
-					<form action={sendLink}>
-						<input type="hidden" name="email" value={state.email ?? ""} />
-						<input type="hidden" name="next" value={next} />
+					{wait > 0 ? (
 						<button
-							type="submit"
+							type="button"
 							className={`${styles.btn} ${styles.btnSecondary}`}
-							disabled={wait > 0 || sending}
+							disabled
 						>
-							{sending
-								? "Sending link…"
-								: wait > 0
-									? `Send again in ${wait}s`
-									: "Send the link again"}
+							Send again in {wait}s
 						</button>
-					</form>
+					) : (
+						<CheckedForm
+							className={styles.form}
+							siteKey={siteKey}
+							action={sendLink}
+							spent={state}
+							before={
+								<>
+									<input type="hidden" name="email" value={state.email ?? ""} />
+									<input type="hidden" name="next" value={next} />
+								</>
+							}
+						>
+							{(waiting) => (
+								<button
+									type="submit"
+									className={`${styles.btn} ${styles.btnSecondary}`}
+									disabled={sending || waiting}
+								>
+									{sending
+										? "Sending link…"
+										: waiting
+											? "Checking your browser…"
+											: "Send the link again"}
+								</button>
+							)}
+						</CheckedForm>
+					)}
 					<button
 						type="button"
 						className={`${styles.btn} ${styles.btnQuiet}`}
@@ -161,42 +178,56 @@ export function SignInForm({
 			<h1 className={styles.title}>Sign in</h1>
 			<p className={styles.lede}>Manage your events, tickets and check-ins.</p>
 
-			<form className={styles.form} action={sendLink} noValidate>
-				{errorBox}
-				<input type="hidden" name="next" value={next} />
+			<CheckedForm
+				className={styles.form}
+				siteKey={siteKey}
+				action={sendLink}
+				spent={state}
+				before={
+					<>
+						{errorBox}
+						<input type="hidden" name="next" value={next} />
 
-				<div className={styles.field}>
-					<label className={styles.label} htmlFor="email">
-						Email
-					</label>
-					<input
-						ref={emailRef}
-						className={styles.input}
-						id="email"
-						name="email"
-						type="email"
-						inputMode="email"
-						autoComplete="email"
-						autoCapitalize="none"
-						autoCorrect="off"
-						spellCheck={false}
-						placeholder="you@example.com"
-						defaultValue={state.email ?? ""}
-						aria-invalid={Boolean(state.error)}
-						maxLength={254}
-						required
-						disabled={busy}
-					/>
-				</div>
-
-				<button
-					type="submit"
-					className={`${styles.btn} ${styles.btnPrimary}`}
-					disabled={busy}
-				>
-					{sending ? "Sending link…" : "Email me a sign-in link"}
-				</button>
-			</form>
+						<div className={styles.field}>
+							<label className={styles.label} htmlFor="email">
+								Email
+							</label>
+							<input
+								ref={emailRef}
+								className={styles.input}
+								id="email"
+								name="email"
+								type="email"
+								inputMode="email"
+								autoComplete="email"
+								autoCapitalize="none"
+								autoCorrect="off"
+								spellCheck={false}
+								placeholder="you@example.com"
+								defaultValue={state.email ?? ""}
+								aria-invalid={Boolean(state.error)}
+								maxLength={254}
+								required
+								disabled={busy}
+							/>
+						</div>
+					</>
+				}
+			>
+				{(waiting) => (
+					<button
+						type="submit"
+						className={`${styles.btn} ${styles.btnPrimary}`}
+						disabled={busy || waiting}
+					>
+						{sending
+							? "Sending link…"
+							: waiting
+								? "Checking your browser…"
+								: "Email me a sign-in link"}
+					</button>
+				)}
+			</CheckedForm>
 
 			<div className={styles.divider}>or</div>
 

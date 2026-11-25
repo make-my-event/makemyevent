@@ -31,8 +31,19 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # Rate limits are tested against a real Redis.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
 
     env:
+      TEST_REDIS_URL: redis://localhost:6379
       # As deployed: the app's own login, which the migrations make, and the
       # owner for migrations alone.
       DATABASE_URL: postgresql://app_login:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/makemyevent_ci

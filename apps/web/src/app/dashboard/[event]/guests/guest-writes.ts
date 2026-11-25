@@ -13,6 +13,7 @@ import { Prisma, type Tx } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
+import { limited } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 /**
@@ -257,6 +258,9 @@ export async function inviteGuest(
 	const user = await signedIn();
 	if (!recordId.safeParse(eventId).success)
 		return { ok: false, message: NOT_ALLOWED };
+
+	const slow = await limited("event.write", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	let emailFieldId: string | undefined;
 	try {
 		const id = await asUser(user.id, async (tx) => {
@@ -362,6 +366,9 @@ export async function editGuest(
 		!recordId.safeParse(registrationId).success
 	)
 		return { ok: false, message: NOT_ALLOWED };
+
+	const slow = await limited("event.write", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	let emailFieldId: string | undefined;
 	try {
 		await asUser(user.id, async (tx) => {
@@ -471,6 +478,9 @@ export async function setCancelled(
 		!recordId.safeParse(registrationId).success
 	)
 		return { ok: false, message: NOT_ALLOWED };
+
+	const slow = await limited("event.write", { user: user.id });
+	if (slow) return { ok: false, message: slow.message };
 	try {
 		await asUser(user.id, async (tx) => {
 			const guest = await tx.registration.findFirst({
