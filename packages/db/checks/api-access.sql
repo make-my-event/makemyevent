@@ -1,13 +1,15 @@
--- Fails when anything in public or app is open to Supabase's web API, or a
--- table has no row-level security. Run in CI and after every deploy of the
--- migrations. Reads the catalog only.
+-- Fails when anything in public or app is open to Supabase's web API, a table
+-- has no row-level security, or the app's login can do more than become
+-- app_user. Run in CI and after every deploy of the migrations. Reads the
+-- catalog only.
 DO $$
 DECLARE
   problems text;
 BEGIN
   WITH api AS (
+    -- app_login too: what it can do, it does as app_user.
     SELECT rolname FROM pg_roles
-    WHERE rolname IN ('anon', 'authenticated', 'service_role')
+    WHERE rolname IN ('anon', 'authenticated', 'service_role', 'app_login')
   ), ours AS (
     SELECT c.oid, c.relname, c.relkind, c.relrowsecurity, n.nspname
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -31,6 +33,12 @@ BEGIN
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, api
     WHERE n.nspname IN ('public', 'app') AND has_function_privilege(rolname, p.oid, 'EXECUTE')
     UNION ALL
+    SELECT format('%s can make things in %s', rolname, nspname)
+    FROM pg_namespace, pg_roles
+    WHERE nspname IN ('public', 'app')
+      AND rolname IN ('anon', 'authenticated', 'service_role', 'app_login', 'app_user')
+      AND has_schema_privilege(rolname, nspname, 'CREATE')
+    UNION ALL
     SELECT format('runs as its owner without a fixed search_path: %s.%s', n.nspname, p.proname)
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname IN ('public', 'app') AND p.prosecdef
@@ -52,6 +60,48 @@ BEGIN
     FROM pg_roles, unnest(ARRAY['log in', 'bypass row security', 'be superuser', 'create roles'],
       ARRAY[rolcanlogin, rolbypassrls, rolsuper, rolcreaterole]) AS t(what, yes)
     WHERE rolname = 'app_user' AND yes
+    UNION ALL
+    SELECT 'there is no app_login for the app to connect as'
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_login')
+    UNION ALL
+    SELECT format('app_login must not %s', what)
+    FROM pg_roles, unnest(
+      ARRAY['be without login', 'inherit', 'bypass row security', 'be superuser',
+        'create roles', 'create databases', 'replicate'],
+      ARRAY[NOT rolcanlogin, rolinherit, rolbypassrls, rolsuper,
+        rolcreaterole, rolcreatedb, rolreplication]) AS t(what, yes)
+    WHERE rolname = 'app_login' AND yes
+    UNION ALL
+    SELECT format('app_login must not be a member of %s', pg_get_userbyid(roleid))
+    FROM pg_auth_members
+    WHERE member = to_regrole('app_login') AND roleid IS DISTINCT FROM to_regrole('app_user')
+    UNION ALL
+    SELECT format('app_login must not %s app_user', what)
+    FROM pg_auth_members, unnest(ARRAY['inherit from', 'be unable to become', 'grant'],
+      ARRAY[inherit_option, NOT set_option, admin_option]) AS t(what, yes)
+    WHERE member = to_regrole('app_login') AND roleid = to_regrole('app_user') AND yes
+    UNION ALL
+    SELECT 'app_login is not a member of app_user'
+    WHERE to_regrole('app_login') IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE member = to_regrole('app_login') AND roleid = to_regrole('app_user'))
+    UNION ALL
+    SELECT format('app_user must not be a member of %s', pg_get_userbyid(roleid))
+    FROM pg_auth_members WHERE member = to_regrole('app_user')
+    UNION ALL
+    -- Every owner, grant and policy on the server is recorded here, whatever
+    -- the schema or kind of object.
+    SELECT format('%s must not %s', r.rolname, CASE d.deptype
+      WHEN 'o' THEN 'own anything' ELSE 'be granted anything itself' END)
+    FROM pg_shdepend d JOIN pg_roles r ON r.oid = d.refobjid
+    WHERE d.refclassid = 'pg_authid'::regclass
+      AND (r.rolname = 'app_login' OR r.rolname = 'app_user' AND d.deptype = 'o')
+    UNION ALL
+    SELECT format('app_login has no %s', setting)
+    FROM pg_roles, unnest(ARRAY['statement_timeout',
+      'idle_in_transaction_session_timeout']) AS setting
+    WHERE rolname = 'app_login' AND NOT EXISTS (
+      SELECT 1 FROM unnest(rolconfig) AS c WHERE c ~ ('^' || setting || '=[1-9]'))
   )
   SELECT string_agg(DISTINCT what, E'\n  ') INTO problems FROM found;
   IF problems IS NOT NULL THEN
