@@ -66,7 +66,7 @@ jobs:
       - name: Backup database before migrating
         run: |
           /usr/lib/postgresql/${PG_CLIENT_VERSION}/bin/pg_dump "$DIRECT_URL" \
-            --schema=public --format=custom --no-owner \
+            --schema=public --schema=app --format=custom --no-owner \
             --file=backup.dump
 
       # The repo is public, so artifacts are downloadable by anyone.
@@ -95,3 +95,6 @@ jobs:
 
       - name: Confirm everything is applied
         run: pnpm --filter db exec prisma migrate status
+
+      - name: Confirm app_user can insert every column Prisma sends
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/insert-grants.sql

@@ -33,7 +33,7 @@ export function emailConfigured(): boolean {
 }
 
 export const EMAIL_NOT_SET_UP =
-	"Email isn't set up yet: add RESEND_API_KEY and EMAIL_FROM to apps/web/.env.local.";
+	"Email isn't set up on this site yet. It needs RESEND_API_KEY and EMAIL_FROM.";
 
 export async function sendEmail(email: Email): Promise<SendResult> {
 	const key = process.env.RESEND_API_KEY;

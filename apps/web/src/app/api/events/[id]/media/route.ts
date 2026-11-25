@@ -96,7 +96,7 @@ export async function POST(request: Request, { params }: Params) {
 	// Refused before reading the body, when the size is stated.
 	const stated = Number(request.headers.get("content-length") ?? "0");
 	if (stated > UPLOAD_MAX_BYTES + 64 * 1024)
-		return answer(413, "Use an image under 10 MB.");
+		return answer(413, "Use an image under 4 MB.");
 
 	let form: FormData;
 	try {
@@ -109,7 +109,7 @@ export async function POST(request: Request, { params }: Params) {
 	if (!kind || !(file instanceof File))
 		return answer(400, "Choose an image to upload.");
 	if (file.size > UPLOAD_MAX_BYTES)
-		return answer(413, "Use an image under 10 MB.");
+		return answer(413, "Use an image under 4 MB.");
 
 	const input = Buffer.from(await file.arrayBuffer());
 

@@ -17,8 +17,12 @@ import {
 
 /** Rows in one import: enough for a big event, small enough to check at once. */
 export const IMPORT_ROW_LIMIT = 2000;
-/** Characters in one file, about 1 MB. */
-export const IMPORT_TEXT_LIMIT = 1_000_000;
+/**
+ * Characters in one file, about 500 KB: far more than the row limit needs.
+ * A server action takes 1 MB, and a file doubles at worst when it is sent
+ * (its quotes and line breaks are escaped).
+ */
+export const IMPORT_TEXT_LIMIT = 500_000;
 
 /**
  * CSV as RFC 4180 writes it: commas, quoted fields, doubled quotes inside

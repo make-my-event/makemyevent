@@ -14,7 +14,7 @@ import {
 	sheetCsvUrl,
 	utcToZoned,
 } from "@makemyevent/core";
-import { Prisma, type Tx } from "@makemyevent/db";
+import { BULK_LIMITS, Prisma, type Tx } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
@@ -131,7 +131,7 @@ async function fetchSheet(
 		if (text === null)
 			return {
 				ok: false,
-				message: "That sheet is too large: up to about 1 MB.",
+				message: "That sheet is too large: up to about 500 KB.",
 			};
 		return { ok: true, text };
 	} catch {
@@ -306,8 +306,11 @@ async function sourceText(
 	if (source?.kind === "sheet") return fetchSheet(String(source.url ?? ""));
 	if (source?.kind !== "csv" || typeof source.text !== "string")
 		return { ok: false, message: "Choose a CSV file or paste a sheet link." };
-	if (source.text.length > IMPORT_TEXT_LIMIT)
-		return { ok: false, message: "That file is too large: up to about 1 MB." };
+	if (Buffer.byteLength(source.text) > IMPORT_TEXT_LIMIT)
+		return {
+			ok: false,
+			message: "That file is too large: up to about 500 KB.",
+		};
 	return { ok: true, text: source.text };
 }
 
@@ -363,93 +366,98 @@ export async function importGuests(
 	const text = await sourceText(source);
 	if (!text.ok) return text;
 	try {
-		const result = await asUser(user.id, async (tx): Promise<ImportResult> => {
-			const checkedResult = await check(tx, eventId, text.text, ticketTypeId);
-			if (!checkedResult.ok) return checkedResult;
-			const good = checkedResult.checked.rows.filter((r) => r.stored);
-			if (good.length === 0)
-				return {
-					ok: false,
-					message: "No rows can be added. Fix the file and try again.",
-				};
+		const result = await asUser(
+			user.id,
+			async (tx): Promise<ImportResult> => {
+				const checkedResult = await check(tx, eventId, text.text, ticketTypeId);
+				if (!checkedResult.ok) return checkedResult;
+				const good = checkedResult.checked.rows.filter((r) => r.stored);
+				if (good.length === 0)
+					return {
+						ok: false,
+						message: "No rows can be added. Fix the file and try again.",
+					};
 
-			if (!force) {
-				const event = await tx.event.findUnique({
-					where: { id: eventId },
-					select: {
-						capacity: true,
-						ticketTypes: {
-							select: {
-								id: true,
-								name: true,
-								capacity: true,
-								registeredCount: true,
+				if (!force) {
+					const event = await tx.event.findUnique({
+						where: { id: eventId },
+						select: {
+							capacity: true,
+							ticketTypes: {
+								select: {
+									id: true,
+									name: true,
+									capacity: true,
+									registeredCount: true,
+								},
 							},
+						},
+					});
+					const ticket = event?.ticketTypes.find((t) => t.id === ticketTypeId);
+					const total =
+						event?.ticketTypes.reduce((s, t) => s + t.registeredCount, 0n) ??
+						0n;
+					const adding = BigInt(good.length);
+					if (
+						ticket?.capacity != null &&
+						ticket.registeredCount + adding > ticket.capacity
+					)
+						return {
+							ok: false,
+							confirm: true,
+							message: `${ticket.name} has room for ${ticket.capacity - ticket.registeredCount < 0n ? 0n : ticket.capacity - ticket.registeredCount} more; this adds ${good.length}. Import anyway?`,
+						};
+					if (event?.capacity != null && total + adding > event.capacity)
+						return {
+							ok: false,
+							confirm: true,
+							message: `The event has room for ${event.capacity - total < 0n ? 0n : event.capacity - total} more; this adds ${good.length}. Import anyway?`,
+						};
+				}
+
+				const ids = good.map(() => randomUUID());
+				await tx.registration.createMany({
+					data: good.map((row, i) => ({
+						id: ids[i] as string,
+						eventId,
+						ticketTypeId,
+						attendeeName: row.stored?.name ?? row.name,
+						attendeeEmail: row.stored?.email ?? row.email,
+						status: "confirmed",
+						source: "bulk",
+					})),
+				});
+				const answers = good.flatMap((row, i) =>
+					(row.stored?.rows ?? []).map((a) => ({
+						registrationId: ids[i] as string,
+						eventId,
+						fieldId: a.fieldId,
+						value: a.value as Prisma.InputJsonValue,
+						otherText: a.otherText,
+					})),
+				);
+				if (answers.length > 0)
+					await tx.registrationAnswer.createMany({ data: answers });
+				await tx.auditLog.create({
+					data: {
+						eventId,
+						action: "guests.import",
+						details: {
+							added: ids.length,
+							skipped: checkedResult.checked.rows.length - good.length,
+							from: source.kind,
+							ticket: ticketTypeId,
 						},
 					},
 				});
-				const ticket = event?.ticketTypes.find((t) => t.id === ticketTypeId);
-				const total =
-					event?.ticketTypes.reduce((s, t) => s + t.registeredCount, 0n) ?? 0n;
-				const adding = BigInt(good.length);
-				if (
-					ticket?.capacity != null &&
-					ticket.registeredCount + adding > ticket.capacity
-				)
-					return {
-						ok: false,
-						confirm: true,
-						message: `${ticket.name} has room for ${ticket.capacity - ticket.registeredCount < 0n ? 0n : ticket.capacity - ticket.registeredCount} more; this adds ${good.length}. Import anyway?`,
-					};
-				if (event?.capacity != null && total + adding > event.capacity)
-					return {
-						ok: false,
-						confirm: true,
-						message: `The event has room for ${event.capacity - total < 0n ? 0n : event.capacity - total} more; this adds ${good.length}. Import anyway?`,
-					};
-			}
-
-			const ids = good.map(() => randomUUID());
-			await tx.registration.createMany({
-				data: good.map((row, i) => ({
-					id: ids[i] as string,
-					eventId,
-					ticketTypeId,
-					attendeeName: row.stored?.name ?? row.name,
-					attendeeEmail: row.stored?.email ?? row.email,
-					status: "confirmed",
-					source: "bulk",
-				})),
-			});
-			const answers = good.flatMap((row, i) =>
-				(row.stored?.rows ?? []).map((a) => ({
-					registrationId: ids[i] as string,
-					eventId,
-					fieldId: a.fieldId,
-					value: a.value as Prisma.InputJsonValue,
-					otherText: a.otherText,
-				})),
-			);
-			if (answers.length > 0)
-				await tx.registrationAnswer.createMany({ data: answers });
-			await tx.auditLog.create({
-				data: {
-					eventId,
-					action: "guests.import",
-					details: {
-						added: ids.length,
-						skipped: checkedResult.checked.rows.length - good.length,
-						from: source.kind,
-						ticket: ticketTypeId,
-					},
-				},
-			});
-			return {
-				ok: true,
-				ids,
-				skipped: checkedResult.checked.rows.length - good.length,
-			};
-		});
+				return {
+					ok: true,
+					ids,
+					skipped: checkedResult.checked.rows.length - good.length,
+				};
+			},
+			BULK_LIMITS,
+		);
 		if (result.ok) revalidatePath("/dashboard/[event]/guests", "page");
 		return result;
 	} catch (error) {
