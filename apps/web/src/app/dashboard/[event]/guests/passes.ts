@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { EMAIL_NOT_SET_UP, emailConfigured, sendEmail } from "@/lib/email";
+import { whenText, whereText } from "@/lib/event-text";
 import { masterKey, signPass } from "@/lib/pass-token";
 import { qrPng, qrSvg } from "@/lib/qr";
 import { limited } from "@/lib/rate-limit";
@@ -27,31 +28,6 @@ async function signedIn() {
 	const user = await getCurrentUser();
 	if (!user) redirect("/signin?next=%2Fdashboard");
 	return user;
-}
-
-function whenText(start: Date | null, timeZone: string | null): string | null {
-	if (!start) return null;
-	return new Intl.DateTimeFormat("en-US", {
-		timeZone: timeZone ?? "UTC",
-		weekday: "short",
-		day: "numeric",
-		month: "short",
-		year: "numeric",
-		hour: "numeric",
-		minute: "2-digit",
-		timeZoneName: "short",
-	}).format(start);
-}
-
-function whereText(event: {
-	format: string;
-	venueName: string | null;
-	venueAddress: string | null;
-}): string | null {
-	if (event.format === "online") return "Online: the link comes from the host";
-	return (
-		[event.venueName, event.venueAddress].filter(Boolean).join(", ") || null
-	);
 }
 
 export type PassView =

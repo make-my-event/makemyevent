@@ -7,10 +7,6 @@
 	composes: input from "../../../../components/ui/ui.module.css";
 }
 
-.select {
-	composes: select from "../../../../components/ui/ui.module.css";
-}
-
 .pairRow {
 	display: grid;
 	grid-column: 1 / -1;
@@ -366,7 +362,8 @@
 	cursor: pointer;
 }
 
-.option[aria-selected="true"] {
+.option[aria-selected="true"],
+.option[data-active] {
 	background: var(--stamp-tint);
 }
 
@@ -382,6 +379,60 @@
 	font-size: var(--text-caption);
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* ---- Time zone ---------------------------------------------------------- */
+
+.input.zoneInput {
+	padding-inline-end: calc(var(--space-s) * 2 + var(--space-xs));
+	text-overflow: ellipsis;
+}
+
+.zoneChevron {
+	position: absolute;
+	top: 50%;
+	right: var(--space-s);
+	width: var(--space-s);
+	height: var(--space-s);
+	color: var(--muted);
+	translate: 0 -50%;
+	pointer-events: none;
+}
+
+/* The offset first, all in one column, so the list scans like a ruler. */
+.option.zoneOption {
+	flex-direction: row;
+	align-items: baseline;
+	gap: var(--space-s);
+}
+
+/* The list is of things to pick; the one that is picked is marked, and the
+   one the arrows are on is filled. */
+.option.zoneOption[aria-selected="true"]:not([data-active]) {
+	background: none;
+}
+
+.option.zoneOption[aria-selected="true"] .optionName {
+	font-weight: 700;
+}
+
+.zoneOffset {
+	flex: none;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	font-variant-numeric: tabular-nums;
+}
+
+.zoneText {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.zoneOwn {
+	color: var(--muted);
+	font-weight: 400;
 }
 
 /* Clear location: full width under the fields, quiet until pointed at. */

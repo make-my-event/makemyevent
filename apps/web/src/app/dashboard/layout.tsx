@@ -6,7 +6,7 @@ import { EventHeaderSkeleton } from "./[event]/event-header";
 import SectionLoading from "./[event]/[section]/loading";
 import OverviewLoading from "./[event]/overview/loading";
 import OrganizedLoading from "./(lists)/(organized)/loading";
-import AttendingLoading from "./(lists)/attending/loading";
+import AttendingLoading from "./(lists)/attending/(list)/loading";
 import { PendingNavProvider, PendingSlot } from "./pending-nav";
 import { ToolbarSkeleton } from "./toolbar-skeleton";
 

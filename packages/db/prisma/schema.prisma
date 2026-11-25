@@ -286,9 +286,10 @@ model TicketInvite {
 // the attendee's, as entered at registration; they need not have an account
 // (guest checkout), and user_id is set when they have one or claim it later.
 //
-// Nothing here is written by app_user yet: registering arrives with the
-// public event page and checkout, through its own narrow path. The host reads
-// their event's registrations; an attendee reads their own.
+// The team adds and corrects guests; registering on the event page arrives
+// through its own narrow path. user_id is set only by app.claim_tickets(),
+// when the attendee signs in with that email, and cleared when the email
+// changes. The team reads its event's registrations; an attendee their own.
 model Registration {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId       String    @map("event_id") @db.Uuid
@@ -321,6 +322,8 @@ model Registration {
   // The newest-first lists: Overview and Guests, keyset-paged.
   @@index([eventId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([ticketTypeId, eventId])
+  // Claiming tickets on sign-in looks them up by email.
+  @@index([attendeeEmail])
   @@index([userId])
   @@index([invitedById])
   @@index([eventId, source])

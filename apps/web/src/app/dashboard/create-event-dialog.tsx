@@ -5,6 +5,7 @@ import Link from "next/link";
 import { EVENT_TITLE_MAX } from "@makemyevent/core";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { ownClose, useModalDialog } from "@/components/ui/use-modal-dialog";
+import { browserZone } from "@/lib/browser-zone";
 import { createEvent } from "./create-event-action";
 import styles from "./create-event.module.css";
 import { HostPicker } from "./host-picker";
@@ -151,6 +152,11 @@ export function CreateEventForm({
 	const [error, setError] = useState<string | null>(null);
 	const [state, formAction, pending] = useActionState(createEvent, null);
 
+	// Where the host is, so the event starts in a time zone that is likely
+	// right; only the browser knows it. Changed on the Event Page.
+	const [timeZone, setTimeZone] = useState("");
+	useEffect(() => setTimeZone(browserZone()), []);
+
 	// A name the server turned down is shown like one the browser did.
 	useEffect(() => {
 		if (state?.field !== "title") return;
@@ -181,6 +187,7 @@ export function CreateEventForm({
 			noValidate
 			onSubmit={onSubmit}
 		>
+			<input type="hidden" name="timeZone" value={timeZone} />
 			<div className={styles.head}>
 				<h2 className={styles.title} id="create-event-title">
 					Create an event

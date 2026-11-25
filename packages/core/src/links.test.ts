@@ -106,7 +106,9 @@ test("email, phone and WhatsApp numbers", () => {
 	assert.match(url("email", "hello@"), /email address/);
 	assert.match(url("email", "a@b.com?subject=x"), /email address/);
 	assert.equal(url("phone", "+91 98765-43210"), "tel:+919876543210");
-	assert.match(url("phone", "98765 43210"), /country code/);
+	assert.equal(url("phone", "98765 43210"), "tel:+919876543210");
+	assert.match(url("phone", "98765 4321"), /whole phone/);
+	assert.equal(url("whatsapp", "98765 43210"), "https://wa.me/919876543210");
 	assert.equal(
 		url("whatsapp", "+91 98765 43210"),
 		"https://wa.me/919876543210",

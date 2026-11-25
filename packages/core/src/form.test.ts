@@ -441,7 +441,8 @@ test("answers are checked by kind, hidden ones ignored", () => {
 		),
 		null,
 	);
-	assert.match(check(newField("phone"), "98765 43210") ?? "", /country code/);
+	assert.equal(check(newField("phone"), "98765 43210"), null);
+	assert.match(check(newField("phone"), "98765 4321") ?? "", /whole phone/);
 	assert.match(
 		check({ ...newField("number"), settings: { integer: true } }, "2.5") ?? "",
 		/whole/,

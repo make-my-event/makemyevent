@@ -128,6 +128,9 @@ jobs:
       - name: Row-level security on guests
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/guest-access.sql
 
+      - name: A guest's tickets are theirs alone
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/guest-tickets.sql
+
       - name: Type check
         run: pnpm typecheck
 
