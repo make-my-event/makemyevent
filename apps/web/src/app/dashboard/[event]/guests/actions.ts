@@ -10,10 +10,9 @@ import {
 } from "@makemyevent/core";
 import { Prisma, type Tx } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { actingUser } from "@/lib/require-user";
 
 /**
  * The Guests tab's reads and writes beyond the list, each as the person
@@ -39,24 +38,18 @@ export type GuestDetail = {
 
 const MAX_BATCH = 200;
 
-async function signedIn() {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
-	return user;
-}
-
 /** One guest, for the panel: their ticket, check-ins and every answer. */
 export async function getGuest(
 	eventId: string,
 	registrationId: string,
 ): Promise<GuestDetail | null> {
-	const user = await signedIn();
+	const user = await actingUser();
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(registrationId).success
 	)
 		return null;
-	return asUser(user.id, async (tx) => {
+	return asUser(user, async (tx) => {
 		const guest = await tx.registration.findFirst({
 			where: { id: registrationId, eventId },
 			select: {
@@ -197,7 +190,7 @@ export async function checkInMany(
 	eventId: string,
 	registrationIds: string[],
 ): Promise<CheckInResult> {
-	const user = await signedIn();
+	const user = await actingUser();
 	const ids = [...new Set(registrationIds)];
 	if (
 		!recordId.safeParse(eventId).success ||
@@ -210,7 +203,7 @@ export async function checkInMany(
 	const slow = await limited("guest.check_in", { user: user.id });
 	if (slow) return { ok: false, message: slow.message };
 	try {
-		const result = await asUser(user.id, async (tx) => {
+		const result = await asUser(user, async (tx) => {
 			const day = await today(tx, eventId);
 			if (!day.ok) return day;
 			await tx.checkIn.createMany({
@@ -245,7 +238,7 @@ export async function undoCheckIn(
 	eventId: string,
 	registrationId: string,
 ): Promise<CheckInResult> {
-	const user = await signedIn();
+	const user = await actingUser();
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(registrationId).success
@@ -254,7 +247,7 @@ export async function undoCheckIn(
 
 	const slow = await limited("guest.check_in", { user: user.id });
 	if (slow) return { ok: false, message: slow.message };
-	const result = await asUser(user.id, async (tx) => {
+	const result = await asUser(user, async (tx) => {
 		const day = await today(tx, eventId);
 		const dayId = day.ok ? day.dayId : null;
 		const { count } = await tx.checkIn.deleteMany({

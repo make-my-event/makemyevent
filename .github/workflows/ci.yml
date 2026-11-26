@@ -131,6 +131,12 @@ jobs:
       - name: A guest's tickets are theirs alone
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/guest-tickets.sql
 
+      - name: Two-step sign-in, at each level
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/two-step.sql
+
+      - name: A team member's name is their own
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/team-names.sql
+
       - name: Type check
         run: pnpm typecheck
 

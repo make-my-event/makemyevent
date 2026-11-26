@@ -11,10 +11,9 @@ import {
 } from "@makemyevent/core";
 import { Prisma, type Tx } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { actingUser, bringingPeopleIn } from "@/lib/require-user";
 
 /**
  * The team's changes to guests: adding one (Invite guest), correcting their
@@ -48,12 +47,6 @@ export type GuestWriteResult =
 
 const NOT_ALLOWED =
 	"You can't change guests on this event. Ask its owner or an admin for the Organizer role.";
-
-async function signedIn() {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
-	return user;
-}
 
 /** Thrown inside a transaction to end it, writing nothing, with a result. */
 class Refused extends Error {
@@ -255,7 +248,9 @@ export async function inviteGuest(
 	eventId: string,
 	input: GuestFormValues & { code: string | null; force: boolean },
 ): Promise<GuestWriteResult> {
-	const user = await signedIn();
+	// A guest is someone else: the button sent them to set up two-step
+	// sign-in first; this is for an action reached some other way.
+	const user = await bringingPeopleIn("/dashboard");
 	if (!recordId.safeParse(eventId).success)
 		return { ok: false, message: NOT_ALLOWED };
 
@@ -263,7 +258,7 @@ export async function inviteGuest(
 	if (slow) return { ok: false, message: slow.message };
 	let emailFieldId: string | undefined;
 	try {
-		const id = await asUser(user.id, async (tx) => {
+		const id = await asUser(user, async (tx) => {
 			emailFieldId = (await formOf(tx, eventId)).find(
 				(f) => f.core === "email",
 			)?.id;
@@ -317,13 +312,13 @@ export async function guestFormValues(
 	eventId: string,
 	registrationId: string,
 ): Promise<(GuestFormValues & { name: string }) | null> {
-	const user = await signedIn();
+	const user = await actingUser();
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(registrationId).success
 	)
 		return null;
-	return asUser(user.id, async (tx) => {
+	return asUser(user, async (tx) => {
 		const guest = await tx.registration.findFirst({
 			where: { id: registrationId, eventId },
 			select: {
@@ -360,7 +355,7 @@ export async function editGuest(
 	registrationId: string,
 	input: GuestFormValues & { force: boolean },
 ): Promise<GuestWriteResult> {
-	const user = await signedIn();
+	const user = await actingUser();
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(registrationId).success
@@ -371,7 +366,7 @@ export async function editGuest(
 	if (slow) return { ok: false, message: slow.message };
 	let emailFieldId: string | undefined;
 	try {
-		await asUser(user.id, async (tx) => {
+		await asUser(user, async (tx) => {
 			emailFieldId = (await formOf(tx, eventId)).find(
 				(f) => f.core === "email",
 			)?.id;
@@ -472,7 +467,7 @@ export async function setCancelled(
 	cancelled: boolean,
 	force = false,
 ): Promise<GuestWriteResult> {
-	const user = await signedIn();
+	const user = await actingUser();
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(registrationId).success
@@ -482,7 +477,7 @@ export async function setCancelled(
 	const slow = await limited("event.write", { user: user.id });
 	if (slow) return { ok: false, message: slow.message };
 	try {
-		await asUser(user.id, async (tx) => {
+		await asUser(user, async (tx) => {
 			const guest = await tx.registration.findFirst({
 				where: { id: registrationId, eventId },
 				select: { status: true, ticketTypeId: true },

@@ -26,9 +26,8 @@ export function safeRedirectPath(value: string | null | undefined): string {
 		const base = "https://makemyevent.invalid";
 		const url = new URL(value, base);
 		if (url.origin !== base) return DEFAULT_REDIRECT;
-		// Never loop back into the sign-in flow itself.
-		if (url.pathname === "/signin" || url.pathname.startsWith("/auth/"))
-			return DEFAULT_REDIRECT;
+		// Never loop back into the sign-in flow itself, its second step included.
+		if (/^\/(signin|auth)(\/|$)/.test(url.pathname)) return DEFAULT_REDIRECT;
 		return `${url.pathname}${url.search}${url.hash}`;
 	} catch {
 		return DEFAULT_REDIRECT;

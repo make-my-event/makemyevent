@@ -54,6 +54,8 @@ model User {
   checkIns      CheckIn[]        @relation("checkIns")
   blocked       BlockedContact[] @relation("blockedContacts")
   auditActions  AuditLog[]       @relation("auditActions")
+  recoveryCodes RecoveryCode[]
+  twoStepTries  TwoStepTries?
 
   @@map("users")
 }
@@ -421,9 +423,10 @@ model AuditLog {
 //   organizer  the event page, tickets and guests; not the team
 //   volunteer  the guest list and check-in only
 //
-// Added by email, with a name the host chooses. Until that person signs in
-// with that email the row is an invitation (user_id empty); signing in claims
-// it, through app.claim_invites(), the only way user_id is ever set.
+// Added by email alone. Until that person signs in with that email the row
+// is an invitation (user_id empty, display_name their email); signing in
+// claims it, through app.claim_invites(), the only way user_id is ever set,
+// and display_name becomes the name on their account, following it after.
 model EventMember {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId     String    @map("event_id") @db.Uuid
@@ -467,4 +470,33 @@ model EventAddress {
 
   @@index([eventId])
   @@map("event_addresses")
+}
+
+// A way back in for someone without their authenticator: ten at a time, each
+// used once. Only the functions in the two_step_sign_in migration read or
+// write it. The hash is salted and the code itself is never stored.
+model RecoveryCode {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  salt      String    @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hash      Bytes
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("recovery_codes")
+}
+
+// Tries at a sign-in code, per person: five in fifteen minutes. Only the
+// functions in the two_step_sign_in migration read or write it.
+model TwoStepTries {
+  userId       String   @id @map("user_id") @db.Uuid
+  tries        Int      @default(0)
+  windowEndsAt DateTime @map("window_ends_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("two_step_tries")
 }

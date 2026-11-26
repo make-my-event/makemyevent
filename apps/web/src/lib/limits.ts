@@ -105,6 +105,20 @@ export const LIMITS = {
 		withoutRedis: "local",
 		says: "You've added a lot of people just now.",
 	},
+	/**
+	 * The email telling someone they were added to a team. It goes to an
+	 * address the adder typed, so it is counted per inbox, and nothing is
+	 * sent while the counts can't be reached.
+	 */
+	"team.invite_email": {
+		rules: [
+			{ by: "email", count: 5, per: DAY },
+			{ by: "user", count: 60, per: HOUR },
+			{ by: "site", count: 1000, per: HOUR },
+		],
+		withoutRedis: "refuse",
+		says: "Too many invitation emails just now.",
+	},
 	/** A call may carry up to 200 guests, and a whole door team shares one Wi-Fi. */
 	"guest.check_in": {
 		rules: [
@@ -162,6 +176,28 @@ export const LIMITS = {
 		rules: [{ by: "email", count: 10, per: DAY }],
 		withoutRedis: "refuse",
 		says: "This address has been emailed too often.",
+	},
+	/**
+	 * A code from the authenticator, or a recovery code. The database also
+	 * allows each person five tries in fifteen minutes (app.count_two_step_try);
+	 * this keeps one network from trying many people's.
+	 */
+	"two_step.code": {
+		rules: [
+			{ by: "user", count: 10, per: 15 * MINUTE },
+			{ by: "ip", count: 60, per: 15 * MINUTE },
+		],
+		withoutRedis: "local",
+		says: "Too many codes tried.",
+	},
+	/** Starting an authenticator, new recovery codes, turning off, signing out elsewhere. */
+	"two_step.change": {
+		rules: [
+			{ by: "user", count: 20, per: HOUR },
+			{ by: "ip", count: 100, per: HOUR },
+		],
+		withoutRedis: "local",
+		says: "Too many changes to sign-in.",
 	},
 	/** Photon is a free, shared service, and sees only our servers. */
 	geocode: {

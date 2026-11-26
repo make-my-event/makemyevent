@@ -13,8 +13,10 @@ INSERT INTO registrations (id, event_id, ticket_type_id, attendee_name, attendee
   ('dddddddd-0000-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000001', 'cccccccc-0000-4000-8000-000000000001', 'G', 'guest@test.local', 'invite', 'confirmed'),
   ('dddddddd-0000-4000-8000-000000000002', 'bbbbbbbb-0000-4000-8000-000000000001', 'cccccccc-0000-4000-8000-000000000001', 'O', 'other@test.local', 'invite', 'waitlisted');
 
+-- Everyone at aal2, as the host must be to change a guest; what differs
+-- without it is in two-step.sql.
 CREATE FUNCTION pg_temp.be(person text) RETURNS void LANGUAGE sql AS
-  $$ SELECT set_config('app.user_id', person, true) $$;
+  $$ SELECT set_config('app.user_id', person, true), set_config('app.aal', 'aal2', true) $$;
 
 CREATE FUNCTION pg_temp.expect(what text, got text, wanted text) RETURNS void
   LANGUAGE plpgsql AS $$
