@@ -105,6 +105,20 @@ export const LIMITS = {
 		withoutRedis: "local",
 		says: "You've added a lot of people just now.",
 	},
+	/**
+	 * The email telling someone they were added to a team. It goes to an
+	 * address the adder typed, so it is counted per inbox, and nothing is
+	 * sent while the counts can't be reached.
+	 */
+	"team.invite_email": {
+		rules: [
+			{ by: "email", count: 5, per: DAY },
+			{ by: "user", count: 60, per: HOUR },
+			{ by: "site", count: 1000, per: HOUR },
+		],
+		withoutRedis: "refuse",
+		says: "Too many invitation emails just now.",
+	},
 	/** A call may carry up to 200 guests, and a whole door team shares one Wi-Fi. */
 	"guest.check_in": {
 		rules: [

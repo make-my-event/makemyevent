@@ -4,7 +4,12 @@ import { recordId } from "@makemyevent/core";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
-import { EMAIL_NOT_SET_UP, emailConfigured, sendEmail } from "@/lib/email";
+import {
+	EMAIL_NOT_SET_UP,
+	emailConfigured,
+	SENDER_INVALID,
+	sendEmail,
+} from "@/lib/email";
 import { whenText, whereText } from "@/lib/event-text";
 import { masterKey, signPass } from "@/lib/pass-token";
 import { qrPng, qrSvg } from "@/lib/qr";
@@ -242,7 +247,12 @@ export async function sendPasses(
 		if (!result.ok) {
 			failed.push({ name: guest.attendeeName, reason: result.message });
 			// The service itself is unset or refusing: no point trying the rest.
-			if (!result.retry && result.message === EMAIL_NOT_SET_UP) break;
+			if (
+				!result.retry &&
+				(result.message === EMAIL_NOT_SET_UP ||
+					result.message === SENDER_INVALID)
+			)
+				break;
 			continue;
 		}
 		sent++;

@@ -1,4 +1,5 @@
 import "server-only";
+import { senderOf } from "./sender";
 
 /**
  * Sending email through Resend's HTTP API: one request per message, no
@@ -35,11 +36,18 @@ export function emailConfigured(): boolean {
 export const EMAIL_NOT_SET_UP =
 	"Email isn't set up on this site yet. It needs RESEND_API_KEY and EMAIL_FROM.";
 
+export const SENDER_INVALID =
+	"Email can't be sent: the site's sender address (EMAIL_FROM) isn't written as name@domain or Name <name@domain>.";
+
 export async function sendEmail(email: Email): Promise<SendResult> {
 	const key = process.env.RESEND_API_KEY;
-	const from = process.env.EMAIL_FROM;
-	if (!key || !from)
+	if (!key || !process.env.EMAIL_FROM)
 		return { ok: false, message: EMAIL_NOT_SET_UP, retry: false };
+	const from = senderOf(process.env.EMAIL_FROM);
+	if (!from) {
+		console.error("email: EMAIL_FROM is not a sender the service accepts");
+		return { ok: false, message: SENDER_INVALID, retry: false };
+	}
 	let response: Response;
 	try {
 		response = await fetch("https://api.resend.com/emails", {
