@@ -41,6 +41,17 @@ type Listed = {
 };
 
 /**
+ * The tickets someone still holds. One the host cancelled leaves their list;
+ * its own address still opens, and says it was cancelled, for a guest who
+ * follows an old link. A cancelled event stays: its guests need to know.
+ */
+export function heldTickets<T extends { status: string }>(
+	tickets: readonly T[],
+): T[] {
+	return tickets.filter((ticket) => ticket.status !== "cancelled");
+}
+
+/**
  * In the order they matter: what is ahead, soonest first, then what has no
  * date yet, then the rest, latest first. Search reads the event's name, its
  * venue and the ticket's code, with or without its dashes.
