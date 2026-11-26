@@ -42,7 +42,7 @@ export default async function GuestsPage({ params, searchParams }: Props) {
 	const event = await loadManagedEvent(slug, "guests");
 	const query = readGuestQuery(raw);
 
-	const data = await asUser(event.viewerId, async (tx) => {
+	const data = await asUser(event.viewer, async (tx) => {
 		const fields = await tx.formField.findMany({
 			where: { eventId: event.id, archivedAt: null },
 			orderBy: { position: "asc" },
@@ -123,6 +123,7 @@ export default async function GuestsPage({ params, searchParams }: Props) {
 				invited={data.invited}
 				blocked={data.blocked}
 				canManage={canManage}
+				twoStepHref={event.twoStepHref}
 				emailReady={emailConfigured() && masterKey() !== null}
 				blocklistHref={`/dashboard/${encodeURIComponent(event.slug)}/guests/blocklist`}
 				rows={data.page.rows}

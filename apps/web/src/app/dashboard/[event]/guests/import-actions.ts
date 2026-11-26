@@ -16,10 +16,9 @@ import {
 } from "@makemyevent/core";
 import { BULK_LIMITS, Prisma, type Tx } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { bringingPeopleIn } from "@/lib/require-user";
 
 /**
  * Bulk upload: a CSV file's text, or a Google Sheet's link, read into the
@@ -58,12 +57,6 @@ export type ImportResult =
 
 const NOT_ALLOWED =
 	"You can't add guests to this event. Ask its owner or an admin for the Organizer role.";
-
-async function signedIn() {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
-	return user;
-}
 
 /** A body read no further than the limit, however long it claims to be. */
 async function capped(
@@ -321,7 +314,7 @@ export async function previewImport(
 	source: ImportSource,
 	ticketTypeId: string,
 ): Promise<ImportPreview> {
-	const user = await signedIn();
+	const user = await bringingPeopleIn("/dashboard");
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(ticketTypeId).success
@@ -332,7 +325,7 @@ export async function previewImport(
 	if (slow) return { ok: false, message: slow.message };
 	const text = await sourceText(source);
 	if (!text.ok) return text;
-	return asUser(user.id, async (tx) => {
+	return asUser(user, async (tx) => {
 		const result = await check(tx, eventId, text.text, ticketTypeId);
 		if (!result.ok) return result;
 		const { columns, missing, rows } = result.checked;
@@ -361,7 +354,7 @@ export async function importGuests(
 	ticketTypeId: string,
 	force: boolean,
 ): Promise<ImportResult> {
-	const user = await signedIn();
+	const user = await bringingPeopleIn("/dashboard");
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(ticketTypeId).success
@@ -374,7 +367,7 @@ export async function importGuests(
 	if (!text.ok) return text;
 	try {
 		const result = await asUser(
-			user.id,
+			user,
 			async (tx): Promise<ImportResult> => {
 				const checkedResult = await check(tx, eventId, text.text, ticketTypeId);
 				if (!checkedResult.ok) return checkedResult;

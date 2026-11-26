@@ -2,7 +2,6 @@
 
 import { recordId } from "@makemyevent/core";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import {
 	EMAIL_NOT_SET_UP,
@@ -14,7 +13,7 @@ import { whenText, whereText } from "@/lib/event-text";
 import { masterKey, signPass } from "@/lib/pass-token";
 import { qrPng, qrSvg } from "@/lib/qr";
 import { limited } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { actingUser } from "@/lib/require-user";
 import { passHtml, passSubject, passText } from "./pass-email";
 
 /**
@@ -28,12 +27,6 @@ const NO_KEY =
 const RESEND_GAP_MS = 60_000;
 /** Guests per call, so a big send is many short calls the page can follow. */
 const BATCH = 10;
-
-async function signedIn() {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
-	return user;
-}
 
 export type PassView =
 	| {
@@ -52,7 +45,7 @@ export async function getPass(
 	eventId: string,
 	registrationId: string,
 ): Promise<PassView> {
-	const user = await signedIn();
+	const user = await actingUser();
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(registrationId).success
@@ -60,7 +53,7 @@ export async function getPass(
 		return { ok: false, message: "That guest was not found." };
 	const master = masterKey();
 	if (!master) return { ok: false, message: NO_KEY };
-	const guest = await asUser(user.id, (tx) =>
+	const guest = await asUser(user, (tx) =>
 		tx.registration.findFirst({
 			where: { id: registrationId, eventId },
 			select: {
@@ -123,7 +116,7 @@ export async function sendPasses(
 	eventId: string,
 	registrationIds: string[],
 ): Promise<SendResult> {
-	const user = await signedIn();
+	const user = await actingUser();
 	const ids = [...new Set(registrationIds)];
 	if (
 		!recordId.safeParse(eventId).success ||
@@ -139,7 +132,7 @@ export async function sendPasses(
 	if (!master) return { ok: false, message: NO_KEY };
 	if (!emailConfigured()) return { ok: false, message: EMAIL_NOT_SET_UP };
 
-	const data = await asUser(user.id, async (tx) => {
+	const data = await asUser(user, async (tx) => {
 		const event = await tx.event.findUnique({
 			where: { id: eventId },
 			select: {
@@ -256,7 +249,7 @@ export async function sendPasses(
 			continue;
 		}
 		sent++;
-		await asUser(user.id, (tx) =>
+		await asUser(user, (tx) =>
 			tx.registration.updateMany({
 				where: { id: guest.id, eventId },
 				data: { ticketSentAt: new Date() },

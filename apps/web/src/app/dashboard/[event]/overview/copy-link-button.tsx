@@ -2,7 +2,7 @@
 
 import { CopyIcon, TickIcon } from "@/components/icons";
 import styles from "./share-card.module.css";
-import { useCopy } from "./use-copy";
+import { useCopy } from "@/components/ui/use-copy";
 
 /**
  * The Share card's Copy. Its word turns to "Copied" for two seconds, and a

@@ -17,6 +17,9 @@ const NO_LIMIT: Record<string, string> = {
 	"app/dashboard/[event]/guests/actions.ts checkIn": "calls checkInMany",
 	"app/api/events/[id]/media/route.ts POST": "asks in authorise()",
 	"app/api/events/[id]/media/route.ts DELETE": "asks in authorise()",
+	"app/account/(page)/security/actions.ts makeNewCodes": "asks in tooMany()",
+	"app/account/(page)/security/actions.ts turnOff": "asks in tooMany()",
+	"app/account/(page)/security/actions.ts signOutOthers": "asks in tooMany()",
 };
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -53,4 +56,10 @@ test("every server action and route asks a limit", () => {
 	);
 	assert.match(media, /async function authorise[\s\S]*?limited\(limit/);
 	assert.equal(media.match(/await authorise\(/g)?.length, 2);
+	const security = readFileSync(
+		`${root}/app/account/(page)/security/actions.ts`,
+		"utf8",
+	);
+	assert.match(security, /async function tooMany[\s\S]*?limited\(/);
+	assert.equal(security.match(/await tooMany\(/g)?.length, 3);
 });

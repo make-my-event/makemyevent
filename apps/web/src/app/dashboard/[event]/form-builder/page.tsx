@@ -20,7 +20,7 @@ export default async function FormBuilderPage({ params }: Props) {
 	const { event: slug } = await params;
 	const event = await loadManagedEvent(slug, "form-builder");
 	// The form in order, on the (event_id, position) key; at most 60 rows.
-	const { formVersion, formFields } = await asUser(event.viewerId, (tx) =>
+	const { formVersion, formFields } = await asUser(event.viewer, (tx) =>
 		tx.event.findUniqueOrThrow({
 			where: { id: event.id },
 			select: {
@@ -45,7 +45,7 @@ export default async function FormBuilderPage({ params }: Props) {
 	);
 	// Which questions guests have answered: those change only to a similar
 	// type. One row per field, on the field_id index.
-	const answered = await asUser(event.viewerId, (tx) =>
+	const answered = await asUser(event.viewer, (tx) =>
 		tx.registrationAnswer.findMany({
 			where: { fieldId: { in: formFields.map((field) => field.id) } },
 			distinct: ["fieldId"],

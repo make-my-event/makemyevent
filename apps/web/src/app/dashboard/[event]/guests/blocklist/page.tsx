@@ -21,7 +21,7 @@ export default async function BlocklistPage({ params }: Props) {
 	const event = await loadManagedEvent(slug, "guests");
 	if (event.role === "volunteer") notFound();
 
-	const rows = await asUser(event.viewerId, (tx) =>
+	const rows = await asUser(event.viewer, (tx) =>
 		tx.blockedContact.findMany({
 			where: { eventId: event.id },
 			orderBy: [{ createdAt: "desc" }, { id: "desc" }],

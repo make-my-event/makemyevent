@@ -8,10 +8,9 @@ import {
 	splitContacts,
 } from "@makemyevent/core";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { actingUser } from "@/lib/require-user";
 
 /**
  * The blocklist's writes, as the person signed in: those who manage the
@@ -32,19 +31,13 @@ export type BlockResult =
 const NOT_ALLOWED =
 	"You can't change this event's blocklist. Ask its owner or an admin for the Organizer role.";
 
-async function signedIn() {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
-	return user;
-}
-
 /** Blocks one or many, as pasted. All or none: one bad entry stops the rest. */
 export async function blockContacts(
 	eventId: string,
 	kind: ContactKind,
 	text: string,
 ): Promise<BlockResult> {
-	const user = await signedIn();
+	const user = await actingUser();
 	if (
 		!recordId.safeParse(eventId).success ||
 		(kind !== "email" && kind !== "phone")
@@ -68,7 +61,7 @@ export async function blockContacts(
 	const slow = await limited("guest.block", { user: user.id });
 	if (slow) return { ok: false, message: slow.message };
 	try {
-		const result = await asUser(user.id, async (tx) => {
+		const result = await asUser(user, async (tx) => {
 			const held = await tx.blockedContact.count({ where: { eventId, kind } });
 			if (held + unique.length > BLOCKLIST_LIMIT)
 				return {
@@ -124,13 +117,13 @@ export async function unblockContact(
 	eventId: string,
 	id: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-	const user = await signedIn();
+	const user = await actingUser();
 	if (!recordId.safeParse(eventId).success || !/^\d{1,18}$/.test(id))
 		return { ok: false, message: NOT_ALLOWED };
 
 	const slow = await limited("guest.block", { user: user.id });
 	if (slow) return { ok: false, message: slow.message };
-	const { count } = await asUser(user.id, (tx) =>
+	const { count } = await asUser(user, (tx) =>
 		tx.blockedContact.deleteMany({ where: { id: BigInt(id), eventId } }),
 	);
 	revalidatePath("/dashboard/[event]/guests", "layout");

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { limited } from "@/lib/rate-limit";
+import { afterSignIn } from "@/lib/after-sign-in";
 import { NEXT_COOKIE, safeRedirectPath } from "@/lib/safe-redirect";
 import { createClient } from "@/lib/supabase/server";
 
@@ -46,8 +47,8 @@ export async function GET(request: NextRequest) {
 	}
 
 	const supabase = await createClient();
-	const { error } = await supabase.auth.exchangeCodeForSession(code);
+	const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 	if (error) return finish(request, "/signin?error=link_invalid");
 
-	return finish(request, readNext(request));
+	return finish(request, afterSignIn(readNext(request), data.user));
 }

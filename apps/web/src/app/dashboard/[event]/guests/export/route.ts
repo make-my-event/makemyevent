@@ -64,7 +64,7 @@ export async function GET(
 		return new Response("Only those who manage the event can export guests.", {
 			status: 403,
 		});
-	const slow = await limited("guest.export", { user: event.viewerId });
+	const slow = await limited("guest.export", { user: event.viewer.id });
 	if (slow)
 		return new Response(slow.message, {
 			status: 429,
@@ -79,7 +79,7 @@ export async function GET(
 	const filter = guestWhere(event.id, { ...query, after: null });
 
 	const body = await asUser(
-		event.viewerId,
+		event.viewer,
 		async (tx) => {
 			const fields = (
 				await tx.formField.findMany({

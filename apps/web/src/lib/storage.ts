@@ -7,8 +7,9 @@ import { env } from "./env";
  *
  * One public-read bucket. Only this server writes to it, and only images it
  * has decoded and re-encoded itself (lib/images.ts), after the database has
- * said the person may change the event. The secret key is used for nothing
- * else: no database access goes through it, and it never reaches a browser.
+ * said the person may change the event. Besides this, the secret key
+ * only removes a lost authenticator (lib/supabase/admin.ts): no database
+ * access goes through it, and it never reaches a browser.
  *
  * Files are named by a fresh random id per upload, so a replaced poster is a
  * new address (no stale caches) and no address can be guessed.

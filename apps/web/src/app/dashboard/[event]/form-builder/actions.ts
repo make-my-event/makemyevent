@@ -9,10 +9,9 @@ import {
 } from "@makemyevent/core";
 import { Prisma } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { actingUser } from "@/lib/require-user";
 
 export type SaveFormResult =
 	| { ok: true; version: string }
@@ -65,8 +64,7 @@ export async function saveForm(
 	version: string,
 	input: unknown,
 ): Promise<SaveFormResult> {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
+	const user = await actingUser();
 	if (!recordId.safeParse(eventId).success || !/^\d{1,18}$/.test(version))
 		return DENIED;
 
@@ -75,7 +73,7 @@ export async function saveForm(
 	const from = BigInt(version);
 
 	try {
-		const next = await asUser(user.id, async (tx) => {
+		const next = await asUser(user, async (tx) => {
 			const { count } = await tx.event.updateMany({
 				where: { id: eventId, formVersion: from },
 				data: { formVersion: { increment: 1 } },
