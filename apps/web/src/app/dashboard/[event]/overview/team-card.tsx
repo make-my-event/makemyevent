@@ -61,11 +61,14 @@ export function TeamCard({
 	slug,
 	members,
 	canManage,
+	twoStepHref,
 }: {
 	eventId: string;
 	slug: string;
 	members: TeamMember[];
 	canManage: boolean;
+	/** Set while the owner of a private draft has no second step: adding goes there first. */
+	twoStepHref: string | null;
 }) {
 	const [query, setQuery] = useState("");
 	// Said after adding someone, when their invitation email didn't go.
@@ -107,11 +110,18 @@ export function TeamCard({
 						<SearchIcon className={styles.searchIcon} />
 					</label>
 					{canManage ? (
-						<AddMemberButton
-							eventId={eventId}
-							slug={slug}
-							onAdded={setNotice}
-						/>
+						twoStepHref ? (
+							<a className={styles.add} href={twoStepHref}>
+								Add member
+								<PlusIcon />
+							</a>
+						) : (
+							<AddMemberButton
+								eventId={eventId}
+								slug={slug}
+								onAdded={setNotice}
+							/>
+						)
 					) : null}
 				</div>
 			</header>

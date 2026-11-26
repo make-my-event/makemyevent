@@ -3,6 +3,7 @@ import {
 	asUser as runAsUser,
 	createClient,
 	type Limits,
+	type Person,
 	type PrismaClient,
 	SCHEMA_KEY,
 	type Tx,
@@ -41,13 +42,14 @@ function database(): PrismaClient {
 }
 
 /**
- * Runs `work` as this user, under row-level security. The caller passes an
- * id it has already verified (getCurrentUser), never one the browser sent.
+ * Runs `work` as this person, under row-level security. The caller passes who
+ * getCurrentUser answered with, whose level has been verified too, never
+ * anything the browser sent.
  */
 export function asUser<T>(
-	userId: string,
+	person: Person,
 	work: (tx: Tx) => Promise<T>,
 	limits?: Limits,
 ): Promise<T> {
-	return runAsUser(database(), userId, work, limits);
+	return runAsUser(database(), person, work, limits);
 }

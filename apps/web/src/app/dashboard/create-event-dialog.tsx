@@ -136,11 +136,13 @@ export function CreateEventForm({
 	activeWorkspaceId,
 	onCancel,
 	cancelHref,
+	defaultTitle = "",
 }: {
 	workspaces: readonly Workspace[];
 	activeWorkspaceId: string;
 	onCancel?: () => void;
 	cancelHref?: string;
+	defaultTitle?: string;
 }) {
 	const titleId = useId();
 	const errorId = useId();
@@ -148,7 +150,7 @@ export function CreateEventForm({
 	const [host, setHost] = useState(activeWorkspaceId);
 	// Held here rather than left to the input: React clears a form's fields
 	// after an action, and a name the server sent back must stay to be fixed.
-	const [title, setTitle] = useState("");
+	const [title, setTitle] = useState(defaultTitle);
 	const [error, setError] = useState<string | null>(null);
 	const [state, formAction, pending] = useActionState(createEvent, null);
 

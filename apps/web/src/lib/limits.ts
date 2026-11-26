@@ -177,6 +177,28 @@ export const LIMITS = {
 		withoutRedis: "refuse",
 		says: "This address has been emailed too often.",
 	},
+	/**
+	 * A code from the authenticator, or a recovery code. The database also
+	 * allows each person five tries in fifteen minutes (app.count_two_step_try);
+	 * this keeps one network from trying many people's.
+	 */
+	"two_step.code": {
+		rules: [
+			{ by: "user", count: 10, per: 15 * MINUTE },
+			{ by: "ip", count: 60, per: 15 * MINUTE },
+		],
+		withoutRedis: "local",
+		says: "Too many codes tried.",
+	},
+	/** Starting an authenticator, new recovery codes, turning off, signing out elsewhere. */
+	"two_step.change": {
+		rules: [
+			{ by: "user", count: 20, per: HOUR },
+			{ by: "ip", count: 100, per: HOUR },
+		],
+		withoutRedis: "local",
+		says: "Too many changes to sign-in.",
+	},
 	/** Photon is a free, shared service, and sees only our servers. */
 	geocode: {
 		rules: [

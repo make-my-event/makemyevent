@@ -50,27 +50,38 @@ export const USUAL_LIMITS: Limits = { maxWait: 10_000, timeout: 10_000 };
 export const BULK_LIMITS: Limits = { maxWait: 10_000, timeout: 50_000 };
 
 /**
+ * Who a transaction runs as. `aal` is "aal2" only for a session that has just
+ * been confirmed to have passed a second step; the policies give an owner,
+ * admin or organizer their role only then.
+ */
+export type Person = { id: string; aal: "aal1" | "aal2" };
+
+/**
  * Runs `work` in one transaction as the signed-in person, under row-level
  * security.
  *
  * The connection's own login (`app_login`) holds no rights but to become
  * `app_user`, so a query outside this function is refused. Each transaction
- * takes that role and names the person, both for that transaction only, so a
- * pooled connection carries nothing to the next request. `userId` null is a
- * visitor: the policies show them only what is public.
+ * takes that role and names the person and their level, for that
+ * transaction only, so a pooled connection carries nothing to the next
+ * request. `person` null is a visitor: the policies show them only what is
+ * public.
  *
- * `userId` must come from a session the server has verified, never from the
+ * `person` must come from a session the server has verified, never from the
  * request.
  */
 export function asUser<T>(
 	db: PrismaClient,
-	userId: string | null,
+	person: Person | null,
 	work: (tx: Tx) => Promise<T>,
 	limits: Limits = USUAL_LIMITS,
 ): Promise<T> {
 	return db.$transaction(async (tx) => {
 		await tx.$executeRawUnsafe("SET LOCAL ROLE app_user");
-		await tx.$queryRaw`SELECT set_config('app.user_id', ${userId ?? ""}, true)`;
+		await tx.$queryRaw`
+			SELECT set_config('app.user_id', ${person?.id ?? ""}, true),
+			       set_config('app.aal', ${person?.aal ?? ""}, true)
+		`;
 		return work(tx);
 	}, limits);
 }

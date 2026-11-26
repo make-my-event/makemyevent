@@ -1,9 +1,7 @@
 import "server-only";
 import type { Tx } from "@makemyevent/db";
-import type { getCurrentUser } from "@/lib/supabase/identity";
+import type { CurrentUser } from "@/lib/supabase/identity";
 import { displayNameOf } from "./workspaces";
-
-type SignedInUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
 /**
  * Turns this person's team invitations into memberships, inside the caller's
@@ -14,10 +12,7 @@ type SignedInUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
  * has verified, never from anything the browser sent. app.claim_invites()
  * does the rest; it is the only way a membership gets a user.
  */
-export async function claimInvites(
-	tx: Tx,
-	user: SignedInUser,
-): Promise<number> {
+export async function claimInvites(tx: Tx, user: CurrentUser): Promise<number> {
 	if (!(await ensureUser(tx, user))) return 0;
 	const [row] = await tx.$queryRaw<{ claimed: number }[]>`
 		SELECT app.claim_invites() AS claimed
@@ -30,13 +25,13 @@ export async function claimInvites(
  * app.claim_tickets() is the only way a ticket gets a user. Asked each time
  * they open their tickets, so one sent to them since is there too.
  */
-export async function claimTickets(tx: Tx, user: SignedInUser): Promise<void> {
+export async function claimTickets(tx: Tx, user: CurrentUser): Promise<void> {
 	if (await ensureUser(tx, user))
 		await tx.$queryRaw`SELECT app.claim_tickets()`;
 }
 
 /** Their own row, written on their first visit; false without an email. */
-async function ensureUser(tx: Tx, user: SignedInUser): Promise<boolean> {
+async function ensureUser(tx: Tx, user: CurrentUser): Promise<boolean> {
 	const email = (user.email ?? "").toLowerCase();
 	if (!email) return false;
 	await tx.user.createMany({

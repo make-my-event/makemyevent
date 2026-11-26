@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { requireUser } from "@/lib/require-user";
 import { claimTickets } from "../../../claim-invites";
 import styles from "../../../dashboard.module.css";
 import { EmptyState } from "../../../empty-state";
@@ -26,12 +25,10 @@ type Props = { searchParams: Promise<{ q?: string | string[] }> };
 export default async function AttendingPage({ searchParams }: Props) {
 	// Gated here, not only in the layout: a layout is not rendered again when
 	// someone moves between its pages, so it cannot be what keeps them out.
-	const user = await getCurrentUser();
-	if (!user)
-		redirect(`/signin?next=${encodeURIComponent("/dashboard/attending")}`);
+	const user = await requireUser("/dashboard/attending", "self");
 
 	const query = parseQuery((await searchParams).q);
-	const tickets = await asUser(user.id, async (tx) => {
+	const tickets = await asUser(user, async (tx) => {
 		await claimTickets(tx, user);
 		return heldTickets(await myTickets(tx));
 	});

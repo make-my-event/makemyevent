@@ -6,7 +6,7 @@ import dialog from "../../create-event.module.css";
 import { CopyIcon, QrIcon, TickIcon } from "@/components/icons";
 import { Popup } from "../../popup";
 import styles from "./share-card.module.css";
-import { useCopy } from "./use-copy";
+import { useCopy } from "@/components/ui/use-copy";
 
 /** A file name from the event's title: "Unwind Circle!" → "unwind-circle". */
 function fileNameOf(title: string): string {

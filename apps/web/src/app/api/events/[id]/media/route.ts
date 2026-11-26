@@ -11,7 +11,7 @@ import {
 } from "@/lib/images";
 import { imageUrl, putImage, removeImages } from "@/lib/storage";
 import { limited, tooMany } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { type CurrentUser, getCurrentUser } from "@/lib/supabase/identity";
 
 /**
  * An event's poster and logo: POST to set one (multipart, `kind` and
@@ -67,7 +67,7 @@ async function authorise(
 	const slow = await limited(limit, { user: user.id });
 	if (slow) return { error: tooMany(slow) };
 	const [row] = await asUser(
-		user.id,
+		user,
 		(tx) =>
 			tx.$queryRaw<{ allowed: boolean }[]>`
 			SELECT app.manages_event(${id}::uuid) AS allowed
@@ -86,8 +86,8 @@ function filesOf(kind: Kind, base: string | null): string[] {
 		: [`${base}-256.webp`];
 }
 
-async function revalidate(eventId: string, userId: string) {
-	const event = await asUser(userId, (tx) =>
+async function revalidate(eventId: string, user: CurrentUser) {
+	const event = await asUser(user, (tx) =>
 		tx.event.findUnique({ where: { id: eventId }, select: { slug: true } }),
 	);
 	if (event)
@@ -154,7 +154,7 @@ export async function POST(request: Request, { params }: Params) {
 
 	// Recorded under row-level security; refused means nothing changes, and
 	// the files just stored are taken back.
-	const previous = await asUser(user.id, async (tx) => {
+	const previous = await asUser(user, async (tx) => {
 		const before = await tx.event.findUnique({
 			where: { id: eventId },
 			select: { posterPath: true, logoPath: true },
@@ -175,7 +175,7 @@ export async function POST(request: Request, { params }: Params) {
 
 	// The old files last: a failure here leaves only unused files behind.
 	await removeImages(filesOf(kind, previous)).catch(() => {});
-	await revalidate(eventId, user.id);
+	await revalidate(eventId, user);
 
 	return Response.json({ path: base, url: imageUrl(stored[0] as string) });
 }
@@ -187,7 +187,7 @@ export async function DELETE(request: Request, { params }: Params) {
 	const kind = kindOf(new URL(request.url).searchParams.get("kind"));
 	if (!kind) return answer(400, "Say which image to remove.");
 
-	const previous = await asUser(user.id, async (tx) => {
+	const previous = await asUser(user, async (tx) => {
 		const before = await tx.event.findUnique({
 			where: { id: eventId },
 			select: { posterPath: true, logoPath: true },
@@ -205,6 +205,6 @@ export async function DELETE(request: Request, { params }: Params) {
 		return answer(403, "You can't change this event's images.");
 
 	await removeImages(filesOf(kind, previous)).catch(() => {});
-	await revalidate(eventId, user.id);
+	await revalidate(eventId, user);
 	return new Response(null, { status: 204 });
 }

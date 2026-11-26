@@ -35,7 +35,7 @@ export default async function EventOverviewPage({ params }: Props) {
 	//
 	// The team in the same transaction: the owner (the host's own row, which
 	// row-level security lets a teammate read) and every member, oldest first.
-	const { recent, team, split } = await asUser(event.viewerId, async (tx) => {
+	const { recent, team, split } = await asUser(event.viewer, async (tx) => {
 		const recent = await tx.registration.findMany({
 			where: { eventId: event.id, status: "confirmed" },
 			orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -87,7 +87,7 @@ export default async function EventOverviewPage({ params }: Props) {
 			email: member.email,
 			role: member.role as MemberRole,
 			joined: member.userId !== null,
-			you: member.userId === event.viewerId,
+			you: member.userId === event.viewer.id,
 		})),
 	];
 
@@ -137,6 +137,7 @@ export default async function EventOverviewPage({ params }: Props) {
 				slug={event.slug}
 				members={members}
 				canManage={managesTeam(event.role)}
+				twoStepHref={event.twoStepHref}
 			/>
 		</main>
 	);

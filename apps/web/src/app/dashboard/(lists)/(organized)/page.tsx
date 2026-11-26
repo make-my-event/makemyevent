@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import type { MemberRole } from "@makemyevent/core";
 import { asUser } from "@/lib/db";
 import { env } from "@/lib/env";
 import { imageUrl } from "@/lib/storage";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { requireUser } from "@/lib/require-user";
+import type { CurrentUser } from "@/lib/supabase/identity";
 import styles from "../../dashboard.module.css";
 import { claimInvites } from "../../claim-invites";
 import { CreateEventButton } from "../../create-event-dialog";
@@ -34,9 +34,7 @@ type Props = {
 export default async function OrganizedPage({ searchParams }: Props) {
 	// Gated here, not only in the layout: a layout is not rendered again when
 	// someone moves between its pages, so it cannot be what keeps them out.
-	const user = await getCurrentUser();
-	if (!user)
-		redirect(`/signin?next=${encodeURIComponent(organizedHref("", null))}`);
+	const user = await requireUser(organizedHref("", null), "team");
 
 	const params = await searchParams;
 	const query = parseQuery(params.q);
@@ -73,10 +71,10 @@ export default async function OrganizedPage({ searchParams }: Props) {
  * Registrations are the counts each ticket keeps, summed; never a COUNT(*).
  */
 async function workspaceEvents(
-	user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
+	user: CurrentUser,
 ): Promise<readonly OrganizedEvent[]> {
 	const userId = user.id;
-	const events = await asUser(userId, async (tx) => {
+	const events = await asUser(user, async (tx) => {
 		// Invitations sent to their email become memberships here, so an event
 		// they were added to is in their list on their next visit.
 		await claimInvites(tx, user);

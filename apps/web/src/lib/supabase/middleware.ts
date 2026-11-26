@@ -17,14 +17,13 @@ function hasAuthCookie(request: NextRequest): boolean {
  * the page. Only reads (GET, HEAD): a form post goes on to its own handler,
  * which answers for itself.
  *
- * This is a courtesy, not the gate. Every dashboard page still checks the
- * session live (getCurrentUser) and runs its queries under row-level security.
+ * This is a courtesy, not the gate. Every one of those pages still checks the
+ * session live (requireUser) and runs its queries under row-level security.
  */
 function signInFirst(request: NextRequest): NextResponse | null {
 	const { pathname, search } = request.nextUrl;
 	if (request.method !== "GET" && request.method !== "HEAD") return null;
-	if (pathname !== "/dashboard" && !pathname.startsWith("/dashboard/"))
-		return null;
+	if (!/^\/(dashboard|account)(\/|$)/.test(pathname)) return null;
 	const url = request.nextUrl.clone();
 	url.pathname = "/signin";
 	url.search = `?${new URLSearchParams({ next: `${pathname}${search}` })}`;

@@ -9,12 +9,12 @@ import {
 } from "@makemyevent/core";
 import { Prisma } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { emailConfigured, sendEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { limited } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { actingUser, bringingPeopleIn } from "@/lib/require-user";
+import type { CurrentUser } from "@/lib/supabase/identity";
 import { displayNameOf } from "../../workspaces";
 import {
 	teamInviteHtml,
@@ -45,13 +45,8 @@ export type TeamResult = { ok: true } | { ok: false; message: string };
 const id = recordId;
 const NOT_ALLOWED = "Only the owner and admins can change the team.";
 
-async function signedIn(slug: string) {
-	const user = await getCurrentUser();
-	if (!user)
-		redirect(
-			`/signin?next=${encodeURIComponent(`/dashboard/${encodeURIComponent(slug)}/overview`)}`,
-		);
-	return user;
+function signedIn(slug: string) {
+	return actingUser(`/dashboard/${encodeURIComponent(slug)}/overview`);
 }
 
 function refresh(slug: string) {
@@ -92,7 +87,9 @@ export async function addMember(
 	_previous: TeamFormState,
 	form: FormData,
 ): Promise<TeamFormState> {
-	const user = await signedIn(slug);
+	const user = await bringingPeopleIn(
+		`/dashboard/${encodeURIComponent(slug)}/overview`,
+	);
 	if (!id.safeParse(eventId).success)
 		return { field: null, message: "That event was not found." };
 
@@ -114,7 +111,7 @@ export async function addMember(
 
 	let eventTitle: string;
 	try {
-		const outcome = await asUser(user.id, async (tx) => {
+		const outcome = await asUser(user, async (tx) => {
 			const event = await tx.event.findUnique({
 				where: { id: eventId },
 				select: { title: true, host: { select: { email: true } } },
@@ -168,7 +165,7 @@ export async function addMember(
 
 /** The invitation email; why it wasn't sent, or null once it was. */
 async function sendInvite(
-	user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
+	user: CurrentUser,
 	email: string,
 	role: MemberRole,
 	eventTitle: string,
@@ -212,7 +209,7 @@ export async function setMemberRole(
 	const slow = await limited("event.write", { user: user.id });
 	if (slow) return { ok: false, message: slow.message };
 
-	const { count } = await asUser(user.id, (tx) =>
+	const { count } = await asUser(user, (tx) =>
 		tx.eventMember.updateMany({
 			where: { id: memberId },
 			data: { role: parsedRole.data },
@@ -236,7 +233,7 @@ export async function removeMember(
 	const slow = await limited("event.write", { user: user.id });
 	if (slow) return { ok: false, message: slow.message };
 
-	const { count } = await asUser(user.id, (tx) =>
+	const { count } = await asUser(user, (tx) =>
 		tx.eventMember.deleteMany({ where: { id: memberId } }),
 	);
 	if (count === 0) return { ok: false, message: NOT_ALLOWED };
