@@ -82,7 +82,8 @@ export default async function EventOverviewPage({ params }: Props) {
 		},
 		...team.members.map((member) => ({
 			id: member.id,
-			name: member.displayName,
+			// Their own name once they join; their email until then.
+			name: member.userId !== null ? member.displayName : member.email,
 			email: member.email,
 			role: member.role as MemberRole,
 			joined: member.userId !== null,

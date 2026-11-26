@@ -32,33 +32,22 @@ export function managesEvent(role: EventRole): boolean {
 	return role !== "volunteer";
 }
 
-/** Matching the event_members table's checks. */
-export const MEMBER_NAME_MAX = 100;
+/** Matching the event_members table's check. */
 const EMAIL_MAX = 320;
-
-const memberName = z
-	.string()
-	.trim()
-	.min(1, "Enter their name.")
-	.max(MEMBER_NAME_MAX, `Keep the name under ${MEMBER_NAME_MAX} characters.`);
 
 const memberRole = z.enum(MEMBER_ROLES, { error: "Choose a role." });
 
-/** Add member: who, how to reach them, and what they may do. */
+/**
+ * Add member: their email and what they may do. Their name is their own,
+ * from their account when they join.
+ */
 export const addMemberInput = z.object({
-	name: memberName,
 	email: z
 		.string()
 		.trim()
 		.toLowerCase()
 		.max(EMAIL_MAX, "That email is too long.")
 		.pipe(z.email({ error: "Enter a valid email address." })),
-	role: memberRole,
-});
-
-/** Edit member (the pencil): their name and role. The email stays. */
-export const editMemberInput = z.object({
-	name: memberName,
 	role: memberRole,
 });
 

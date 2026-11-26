@@ -338,16 +338,16 @@
 	line-height: 1.4;
 }
 
-.fixedEmail {
+/* After adding someone, when their invitation didn't go: said once, under
+   the header, and empty (taking no room) otherwise. */
+.notice {
 	margin: 0;
-	font-family: var(--font-mono);
-	font-size: var(--text-caption);
+	font-size: var(--text-small);
+	line-height: 1.4;
 }
 
-.fieldHintLabel {
-	margin-inline-end: var(--space-2xs);
-	color: var(--muted);
-	font-family: var(--font-body);
+.notice:empty {
+	display: none;
 }
 
 .formError {

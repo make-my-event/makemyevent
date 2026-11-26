@@ -421,9 +421,10 @@ model AuditLog {
 //   organizer  the event page, tickets and guests; not the team
 //   volunteer  the guest list and check-in only
 //
-// Added by email, with a name the host chooses. Until that person signs in
-// with that email the row is an invitation (user_id empty); signing in claims
-// it, through app.claim_invites(), the only way user_id is ever set.
+// Added by email alone. Until that person signs in with that email the row
+// is an invitation (user_id empty, display_name their email); signing in
+// claims it, through app.claim_invites(), the only way user_id is ever set,
+// and display_name becomes the name on their account, following it after.
 model EventMember {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId     String    @map("event_id") @db.Uuid

@@ -2,7 +2,6 @@
 
 import {
 	type EventRole,
-	MEMBER_NAME_MAX,
 	MEMBER_ROLES,
 	type MemberRole,
 	ROLE_LABELS,
@@ -15,12 +14,11 @@ import {
 	useState,
 	useTransition,
 } from "react";
-import { EditIcon, PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
+import { PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
 import dialog from "../../create-event.module.css";
 import { Popup } from "../../popup";
 import {
 	addMember,
-	editMember,
 	removeMember,
 	setMemberRole,
 	type TeamFormState,
@@ -30,6 +28,7 @@ import styles from "./team-card.module.css";
 export type TeamMember = {
 	/** Null for the owner, who is the event's host rather than a team row. */
 	id: string | null;
+	/** The name on their account; their email while they haven't joined. */
 	name: string;
 	email: string;
 	role: EventRole;
@@ -52,7 +51,10 @@ const ROLE_HINTS: Record<MemberRole, string> = {
  *   Team [3]                           [Search team…] [Add member +]
  *   (N) Namo      namo@gmail.com          Owner
  *   (A) Aishwarya aishwarya@gmail.com     [Organizer ⌄] [✎] [🗑]
- *   (A) Amal Dev  amal.dev@gmail.com  Invited [Volunteer ⌄] [✎] [🗑]
+ *   (A) amal.dev@gmail.com            Invited [Volunteer ⌄] [🗑]
+ *
+ * Added by email alone: the name is the one on their account, shown once
+ * they join, so no one is known by two names.
  */
 export function TeamCard({
 	eventId,
@@ -66,6 +68,8 @@ export function TeamCard({
 	canManage: boolean;
 }) {
 	const [query, setQuery] = useState("");
+	// Said after adding someone, when their invitation email didn't go.
+	const [notice, setNotice] = useState<string | null>(null);
 	const deferred = useDeferredValue(query.trim().toLowerCase());
 	const shown = deferred
 		? members.filter(
@@ -102,9 +106,19 @@ export function TeamCard({
 						/>
 						<SearchIcon className={styles.searchIcon} />
 					</label>
-					{canManage ? <AddMemberButton eventId={eventId} slug={slug} /> : null}
+					{canManage ? (
+						<AddMemberButton
+							eventId={eventId}
+							slug={slug}
+							onAdded={setNotice}
+						/>
+					) : null}
 				</div>
 			</header>
+
+			<p className={styles.notice} role="status">
+				{notice}
+			</p>
 
 			{shown.length === 0 ? (
 				<p className={styles.none}>
@@ -150,9 +164,11 @@ function MemberRow({
 					{/* Kept whole however long the name: it says which row is yours. */}
 					{member.you ? <span className={styles.you}>&nbsp;(you)</span> : null}
 				</span>
-				<span className={styles.email} title={member.email}>
-					{member.email}
-				</span>
+				{member.joined ? (
+					<span className={styles.email} title={member.email}>
+						{member.email}
+					</span>
+				) : null}
 				{member.joined ? null : (
 					<span
 						className={styles.invited}
@@ -170,11 +186,6 @@ function MemberRow({
 							slug={slug}
 							name={member.name}
 							role={member.role as MemberRole}
-						/>
-						<EditMemberButton
-							member={member}
-							memberId={member.id}
-							slug={slug}
 						/>
 						<RemoveMemberButton
 							memberId={member.id}
@@ -246,7 +257,15 @@ function RoleMenu({
 	);
 }
 
-function AddMemberButton({ eventId, slug }: { eventId: string; slug: string }) {
+function AddMemberButton({
+	eventId,
+	slug,
+	onAdded,
+}: {
+	eventId: string;
+	slug: string;
+	onAdded: (notice: string | null) => void;
+}) {
 	const [open, setOpen] = useState(false);
 
 	return (
@@ -269,50 +288,10 @@ function AddMemberButton({ eventId, slug }: { eventId: string; slug: string }) {
 					action={addMember.bind(null, eventId, slug)}
 					submitLabel="Add member"
 					pendingLabel="Adding…"
-					askEmail
-					onDone={() => setOpen(false)}
-					onCancel={() => setOpen(false)}
-				/>
-			</Popup>
-		</>
-	);
-}
-
-function EditMemberButton({
-	member,
-	memberId,
-	slug,
-}: {
-	member: TeamMember;
-	memberId: string;
-	slug: string;
-}) {
-	const [open, setOpen] = useState(false);
-
-	return (
-		<>
-			<button
-				type="button"
-				className={styles.iconButton}
-				aria-haspopup="dialog"
-				title="Edit"
-				onClick={() => setOpen(true)}
-			>
-				<span className={styles.srOnly}>Edit {member.name}</span>
-				<EditIcon />
-			</button>
-			<Popup
-				open={open}
-				onClose={() => setOpen(false)}
-				title="Edit team member"
-			>
-				<MemberForm
-					action={editMember.bind(null, memberId, slug)}
-					submitLabel="Save changes"
-					pendingLabel="Saving…"
-					initial={{ name: member.name, role: member.role as MemberRole }}
-					email={member.email}
-					onDone={() => setOpen(false)}
+					onDone={(notice) => {
+						setOpen(false);
+						onAdded(notice);
+					}}
 					onCancel={() => setOpen(false)}
 				/>
 			</Popup>
@@ -321,45 +300,40 @@ function EditMemberButton({
 }
 
 /**
- * Name, email (when adding) and role. Used by Add member and by the pencil;
- * both post to a server action, which validates again and runs under the
- * database's rules.
+ * Email and role, for Add member. Posts to a server action, which validates
+ * again and runs under the database's rules.
  */
 function MemberForm({
 	action,
 	submitLabel,
 	pendingLabel,
-	askEmail = false,
-	email,
-	initial,
 	onDone,
 	onCancel,
 }: {
 	action: (state: TeamFormState, form: FormData) => Promise<TeamFormState>;
 	submitLabel: string;
 	pendingLabel: string;
-	askEmail?: boolean;
-	email?: string;
-	initial?: { name: string; role: MemberRole };
-	onDone: () => void;
+	onDone: (notice: string | null) => void;
 	onCancel: () => void;
 }) {
 	const [submitted, setSubmitted] = useState(false);
 	const [state, formAction, pending] = useActionState(
 		async (previous: TeamFormState, form: FormData) => {
 			const result = await action(previous, form);
-			if (result === null) onDone();
+			if (result === null || result.added) {
+				onDone(result?.message ?? null);
+				return null;
+			}
 			return result;
 		},
 		null,
 	);
-	const [role, setRole] = useState<MemberRole>(initial?.role ?? "volunteer");
-	const nameId = useId();
+	const [role, setRole] = useState<MemberRole>("volunteer");
 	const emailId = useId();
 	const roleId = useId();
 	const errorId = useId();
 	const hintId = useId();
-	const invalid = (field: "name" | "email" | "role") =>
+	const invalid = (field: "email" | "role") =>
 		state?.field === field || undefined;
 
 	return (
@@ -370,49 +344,26 @@ function MemberForm({
 			onSubmit={() => setSubmitted(true)}
 		>
 			<div className={dialog.field}>
-				<label className={dialog.label} htmlFor={nameId}>
-					Name
+				<label className={dialog.label} htmlFor={emailId}>
+					Email
 				</label>
 				<input
-					id={nameId}
-					name="name"
+					id={emailId}
+					name="email"
+					type="email"
+					inputMode="email"
 					className={dialog.input}
-					defaultValue={initial?.name ?? ""}
-					maxLength={MEMBER_NAME_MAX}
 					autoComplete="off"
+					spellCheck={false}
 					required
-					aria-invalid={invalid("name")}
-					aria-describedby={invalid("name") ? errorId : undefined}
+					aria-invalid={invalid("email")}
+					aria-describedby={invalid("email") ? errorId : undefined}
 				/>
-			</div>
-
-			{askEmail ? (
-				<div className={dialog.field}>
-					<label className={dialog.label} htmlFor={emailId}>
-						Email
-					</label>
-					<input
-						id={emailId}
-						name="email"
-						type="email"
-						inputMode="email"
-						className={dialog.input}
-						autoComplete="off"
-						spellCheck={false}
-						required
-						aria-invalid={invalid("email")}
-						aria-describedby={invalid("email") ? errorId : undefined}
-					/>
-					<p className={styles.fieldHint}>
-						They join when they sign in with this email. No email is sent yet:
-						share the dashboard link with them yourself.
-					</p>
-				</div>
-			) : email ? (
-				<p className={styles.fixedEmail}>
-					<span className={styles.fieldHintLabel}>Email</span> {email}
+				<p className={styles.fieldHint}>
+					We email them an invitation. They join when they sign in with this
+					address, and their name comes from their account.
 				</p>
-			) : null}
+			</div>
 
 			<div className={dialog.field}>
 				<label className={dialog.label} htmlFor={roleId}>
