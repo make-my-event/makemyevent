@@ -8,7 +8,7 @@ import { EmptyState } from "../../../empty-state";
 import events from "../../../events.module.css";
 import { myTickets } from "../../../my-tickets";
 import { TicketCard } from "../../../ticket-card";
-import { listTickets } from "../../../ticket-state";
+import { heldTickets, listTickets } from "../../../ticket-state";
 import { parseQuery, viewHref } from "../../../types";
 
 export const metadata: Metadata = {
@@ -33,7 +33,7 @@ export default async function AttendingPage({ searchParams }: Props) {
 	const query = parseQuery((await searchParams).q);
 	const tickets = await asUser(user.id, async (tx) => {
 		await claimTickets(tx, user);
-		return myTickets(tx);
+		return heldTickets(await myTickets(tx));
 	});
 	const now = new Date();
 	const shown = listTickets(tickets, query, now);

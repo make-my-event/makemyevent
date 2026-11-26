@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { listTickets, ticketState } from "./ticket-state.ts";
+import { heldTickets, listTickets, ticketState } from "./ticket-state.ts";
 
 const now = new Date("2026-11-26T12:00:00Z");
 const ticket = (over: Record<string, unknown> = {}) => ({
@@ -44,6 +44,19 @@ test("who has a pass", () => {
 	);
 	assert.deepEqual(ended, { label: "Ended", hasPass: true, past: true });
 	assert.equal(ticketState(ticket({ endsAt: null }), now).past, false);
+});
+
+test("a ticket the host cancelled is no longer held; a cancelled event's is", () => {
+	const held = heldTickets([
+		ticket({ ticketCode: "A" }),
+		ticket({ ticketCode: "B", status: "cancelled" }),
+		ticket({ ticketCode: "C", status: "waitlisted" }),
+		ticket({ ticketCode: "D", eventStatus: "cancelled" }),
+	]);
+	assert.deepEqual(
+		held.map((t) => t.ticketCode),
+		["A", "C", "D"],
+	);
 });
 
 test("the order they are listed in", () => {
