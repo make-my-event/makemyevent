@@ -1,5 +1,6 @@
 export * from "./events";
 export * from "./team";
+export * from "./tickets";
 export * from "./about";
 export * from "./schedule";
 export * from "./zones";
