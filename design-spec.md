@@ -46,7 +46,8 @@ The guest's ticket pass, and its preview on the Tickets page. Used only on the p
 The designs an organizer picks for a ticket's pass: Classic (the pass colours above, light values) and 20 drawn designs, all in `packages/core/src/pass-designs.ts`. Each design's ground, shapes and text colours are artwork, like the logo files. They stay inside the pass, and nothing in the interface samples them.
 
 - **A pass is the same in both themes.** It is printed, emailed and scanned, so it never follows the viewer's light or dark mode.
-- **Accent:** a design's own, or one of the data colours above (light values): `series-1` to `series-5`.
+- **Accent:** a design's own, or one of the data colours above, `series-1` to `series-5`: their light values on a light design, their dark values on a dark one.
+- **Default:** a ticket with no design chosen gets Midnight Orbital with the `series-1` accent (the brand green; `#2D9B5E` on this dark design).
 - **Text on a pass** is one of three colours its design names: ink, soft (secondary) or the accent. The editor warns below 4.5:1 against the design's ground, or 3:1 for large text (26 px and up).
 - **The entry code** is always dark modules on a light tile, as everywhere else: `ink` on `surface`.
 
