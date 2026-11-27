@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
-import { readPass, signPass } from "./pass-token.ts";
+import { readPass, readView, signPass, signView } from "./pass-token.ts";
 
 const master = randomBytes(32);
 const claims = {
@@ -39,4 +39,22 @@ test("a new key version retires the old passes, for that event only", () => {
 	assert.equal(readPass(master, v1)?.version, 1);
 	assert.throws(() => signPass(master, { ...claims, version: 0 }));
 	assert.throws(() => signPass(master, { ...claims, eventId: "nope" }));
+});
+
+test("a view link and a pass are never each other", () => {
+	const view = signView(master, claims);
+	const pass = signPass(master, claims);
+	assert.match(view, /^V1\.[A-Za-z0-9_-]{66}$/);
+	assert.deepEqual(readView(master, view), claims);
+	assert.equal(readPass(master, view), null);
+	assert.equal(readView(master, pass), null);
+	// The same body under the other prefix: the key differs, so the MAC fails.
+	assert.equal(readPass(master, `M1.${view.slice(3)}`), null);
+	assert.equal(readView(master, `V1.${pass.slice(3)}`), null);
+	// A new version retires view links too.
+	assert.equal(readView(master, view)?.version, 1);
+	assert.notDeepEqual(
+		readView(master, signView(master, { ...claims, version: 2 })),
+		claims,
+	);
 });

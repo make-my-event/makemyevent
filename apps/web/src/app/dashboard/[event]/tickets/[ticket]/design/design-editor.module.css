@@ -1,0 +1,545 @@
+/* The pass design editor: the pass on a cutting mat, the designs under it,
+   layers and settings beside it. Tokens from globals.css, colours from
+   design-spec.md; the pass's own colours are artwork, drawn by
+   packages/core, never sampled here. */
+
+.srOnly {
+	composes: srOnly from "../../../../../../components/ui/ui.module.css";
+}
+
+.input {
+	composes: input from "../../../../../../components/ui/ui.module.css";
+}
+
+.select {
+	composes: select from "../../../../../../components/ui/ui.module.css";
+}
+
+.secondary {
+	composes: secondary from "../../../../../../components/ui/ui.module.css";
+}
+
+.page {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-m);
+	/* Room under the editor for the save bar held at the foot. */
+	padding-bottom: calc(var(--control) + 2 * var(--space-s));
+}
+
+.head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: var(--space-s);
+}
+
+.titleBlock {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	min-width: 0;
+}
+
+.back {
+	align-self: flex-start;
+	color: var(--muted);
+	font-size: var(--text-small);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.back:hover {
+	color: var(--ink);
+}
+
+.title {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+
+.columns {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-m);
+	align-items: start;
+}
+
+@media (min-width: 1024px) {
+	.columns {
+		grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+	}
+
+	.side {
+		position: sticky;
+		top: calc(var(--header-height) + var(--space-s));
+	}
+}
+
+.stage,
+.card {
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+.stage {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	min-width: 0;
+	padding: var(--space-s);
+}
+
+.note {
+	grid-column: 1 / -1;
+}
+
+.hint,
+.note {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.4;
+}
+
+/* The cutting mat: a grid in the perforation colour, so the pass reads as
+   a thing on a desk, being laid out. */
+.mat {
+	padding: var(--space-l) var(--space-m);
+	border-radius: var(--radius-m);
+	background-color: var(--tint);
+	background-image:
+		linear-gradient(var(--perforation) 1px, transparent 1px),
+		linear-gradient(90deg, var(--perforation) 1px, transparent 1px);
+	background-size: var(--space-m) var(--space-m);
+	background-position: -1px -1px;
+}
+
+.pass {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-overlay);
+	touch-action: none;
+	user-select: none;
+}
+
+/* Where text and the code may go: a dashed line, in the stamp. */
+.safe {
+	fill: none;
+	stroke: var(--stamp);
+	stroke-width: 1.5;
+	stroke-dasharray: 6 6;
+	opacity: 0.8;
+	pointer-events: none;
+}
+
+/* Each layer's hit area: clear until hovered, focused or chosen. */
+.handle {
+	fill: transparent;
+	stroke: transparent;
+	stroke-width: 2;
+	cursor: grab;
+}
+
+.handle:hover {
+	stroke: var(--border-strong);
+	stroke-dasharray: 4 3;
+}
+
+.handle[data-selected] {
+	stroke: var(--stamp);
+	stroke-dasharray: none;
+}
+
+.handle:active {
+	cursor: grabbing;
+}
+
+.handle:focus {
+	outline: none;
+}
+
+.handle:focus-visible {
+	stroke: var(--stamp);
+	stroke-width: 3;
+}
+
+.pickers {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+}
+
+.designs,
+.accents,
+.segmentSet {
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.label {
+	display: block;
+	margin-bottom: var(--space-2xs);
+	padding: 0;
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+/* The twenty-one designs, a row that scrolls sideways on a narrow screen. */
+.strip {
+	display: grid;
+	grid-auto-columns: 7.5rem;
+	grid-auto-flow: column;
+	gap: var(--space-xs);
+	overflow-x: auto;
+	padding: var(--space-2xs) var(--space-2xs) var(--space-xs);
+	scroll-snap-type: x proximity;
+}
+
+/* Positioned, so each hidden radio stays inside its own choice: one
+   escaping the scrolling strip would widen the whole page. */
+.thumb,
+.swatch,
+.segmentOption {
+	position: relative;
+}
+
+.thumb {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	cursor: pointer;
+	scroll-snap-align: start;
+}
+
+.thumb svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-s);
+}
+
+.thumb:hover svg {
+	border-color: var(--border-strong);
+}
+
+.thumb:has(:checked) svg {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.thumb:has(:focus-visible) svg {
+	outline: 2px solid var(--stamp);
+	outline-offset: 4px;
+}
+
+.thumbName {
+	overflow: hidden;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.thumb:has(:checked) .thumbName {
+	color: var(--ink);
+	font-weight: 500;
+}
+
+.swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-xs);
+}
+
+.swatch {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control-compact);
+	padding-inline: var(--space-xs) var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-full);
+	font-size: var(--text-small);
+	cursor: pointer;
+}
+
+.swatch:hover {
+	border-color: var(--border-strong);
+}
+
+.swatch:has(:checked) {
+	border-color: var(--stamp);
+	background: var(--stamp-tint);
+}
+
+.swatch:has(:focus-visible),
+.segmentOption:has(:focus-visible) {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.dot,
+.dotSmall {
+	flex: none;
+	border-radius: var(--radius-full);
+	box-shadow: inset 0 0 0 1px var(--perforation);
+}
+
+.dot {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.dotSmall {
+	width: 10px;
+	height: 10px;
+}
+
+/* ---- Beside the pass ---------------------------------------------------- */
+
+.side {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	min-width: 0;
+}
+
+.card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	padding: var(--space-s);
+}
+
+.cardHead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+}
+
+.cardTitle {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-card-title);
+	font-weight: 700;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+
+.add {
+	composes: select from "../../../../../../components/ui/ui.module.css";
+	width: auto;
+	min-height: var(--control-compact);
+	font-size: var(--text-small);
+}
+
+.layers {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.layerRow {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	border-top: 1px solid var(--perforation);
+}
+
+.layerButton {
+	flex: 1;
+	min-width: 0;
+	min-height: var(--control-compact);
+	padding: var(--space-xs);
+	overflow: hidden;
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	text-align: start;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.layerButton:hover {
+	background: var(--tint);
+}
+
+.layerButton[aria-current="true"] {
+	background: var(--stamp-tint);
+	font-weight: 500;
+}
+
+.locked {
+	padding-inline: var(--space-xs);
+	color: var(--muted);
+	font-size: var(--text-caption);
+	white-space: nowrap;
+}
+
+.remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--control-compact);
+	height: var(--control-compact);
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--muted);
+	cursor: pointer;
+}
+
+.remove:hover {
+	background: color-mix(in srgb, var(--alert) 10%, var(--surface));
+	color: var(--alert);
+}
+
+.remove svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.layerButton:focus-visible,
+.remove:focus-visible,
+.back:focus-visible,
+.linkButton:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--space-s) var(--space-xs);
+}
+
+.wide {
+	grid-column: 1 / -1;
+}
+
+.input.number {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+}
+
+/* A row of choices on a tint track, the chosen one raised. */
+.segment {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	padding: 2px;
+	border-radius: var(--radius-segment);
+	background: var(--tint);
+}
+
+.segmentOption {
+	display: inline-flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2xs);
+	min-height: var(--control-compact);
+	padding-inline: var(--space-xs);
+	border-radius: var(--radius-compact);
+	color: var(--muted);
+	font-size: var(--text-small);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.segmentOption:has(:checked) {
+	background: var(--surface);
+	color: var(--ink);
+	font-weight: 500;
+	box-shadow: 0 0 0 1px var(--perforation);
+}
+
+.warn,
+.error {
+	grid-column: 1 / -1;
+	margin: 0;
+	color: var(--alert);
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-s);
+}
+
+.linkButton {
+	min-height: var(--control-compact);
+	padding: 0 var(--space-xs);
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--muted);
+	font: inherit;
+	font-size: var(--text-small);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+}
+
+.linkButton:hover {
+	color: var(--ink);
+}
+
+.saveBar {
+	margin: 0;
+}
+
+/* ---- Loading ------------------------------------------------------------ */
+
+.bone {
+	composes: bone from "../../../../../../components/ui/ui.module.css";
+}
+
+.boneStage {
+	aspect-ratio: 720 / 380;
+	border-radius: var(--radius-l);
+}
+
+.boneSide {
+	height: calc(var(--control) * 9);
+	border-radius: var(--radius-l);
+}
+
+@media (max-width: 639px) {
+	.stage {
+		padding: var(--space-xs);
+	}
+
+	.mat {
+		padding: var(--space-s) var(--space-xs);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.strip {
+		scroll-behavior: auto;
+	}
+}

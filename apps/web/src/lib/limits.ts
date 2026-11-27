@@ -171,6 +171,16 @@ export const LIMITS = {
 		withoutRedis: "refuse",
 		says: "Too many passes are being emailed right now.",
 	},
+	/**
+	 * Opening a ticket from its emailed link. A venue's Wi-Fi is one network
+	 * for everyone at the door, so the allowance is wide; it stops one network
+	 * trying link after link.
+	 */
+	"ticket.view": {
+		rules: [{ by: "ip", count: 300, per: 10 * MINUTE }],
+		withoutRedis: "local",
+		says: "Too many tickets opened from this network.",
+	},
 	/** However many events, hosts or resends: what one inbox can be sent. */
 	"passes.recipient": {
 		rules: [{ by: "email", count: 10, per: DAY }],

@@ -20,6 +20,10 @@ const NO_LIMIT: Record<string, string> = {
 	"app/account/(page)/security/actions.ts makeNewCodes": "asks in tooMany()",
 	"app/account/(page)/security/actions.ts turnOff": "asks in tooMany()",
 	"app/account/(page)/security/actions.ts signOutOthers": "asks in tooMany()",
+	"app/dashboard/[event]/tickets/[ticket]/design/actions.ts saveDesign":
+		"asks in prepare()",
+	"app/dashboard/[event]/tickets/[ticket]/design/actions.ts applyDesignToAll":
+		"asks in prepare()",
 };
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -50,6 +54,15 @@ test("every server action and route asks a limit", () => {
 	assert.ok(found.size > 20, "the search found the endpoints");
 	// An exception outlived its endpoint.
 	for (const id of Object.keys(NO_LIMIT)) assert.ok(found.has(id), id);
+	const designs = readFileSync(
+		`${root}/app/dashboard/[event]/tickets/[ticket]/design/actions.ts`,
+		"utf8",
+	);
+	assert.match(
+		designs,
+		/async function prepare[\s\S]*?limited\("event\.write"/,
+	);
+	assert.equal(designs.match(/await prepare\(/g)?.length, 2);
 	const media = readFileSync(
 		`${root}/app/api/events/[id]/media/route.ts`,
 		"utf8",
