@@ -68,6 +68,18 @@ const nextConfig = {
 		return [
 			{ source: "/:path*", headers: security },
 			{ source: "/t/:token", headers: ticketPage },
+			// The door scanner reads passes with the camera: allowed on this
+			// page only, for this site only; blocked everywhere else.
+			{
+				source: "/dashboard/:event/scan-qr",
+				headers: [
+					{
+						key: "Permissions-Policy",
+						value:
+							"camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
+					},
+				],
+			},
 			{
 				source: "/:file(icon\\.svg|favicon\\.ico|manifest\\.json)",
 				headers: publicAssets,

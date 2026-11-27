@@ -14,6 +14,9 @@ const NO_LIMIT: Record<string, string> = {
 	"app/dashboard/[event]/guests/actions.ts getGuest": "a read",
 	"app/dashboard/[event]/guests/guest-writes.ts guestFormValues": "a read",
 	"app/dashboard/[event]/guests/passes.ts getPass": "a read",
+	"app/dashboard/[event]/scan-qr/actions.ts doorCount": "a read",
+	"app/dashboard/[event]/scan-qr/actions.ts scanPass": "asks in ready()",
+	"app/dashboard/[event]/scan-qr/actions.ts scanCode": "asks in ready()",
 	"app/dashboard/[event]/guests/actions.ts checkIn": "calls checkInMany",
 	"app/api/events/[id]/media/route.ts POST": "asks in authorise()",
 	"app/api/events/[id]/media/route.ts DELETE": "asks in authorise()",
@@ -54,6 +57,12 @@ test("every server action and route asks a limit", () => {
 	assert.ok(found.size > 20, "the search found the endpoints");
 	// An exception outlived its endpoint.
 	for (const id of Object.keys(NO_LIMIT)) assert.ok(found.has(id), id);
+	const scans = readFileSync(
+		`${root}/app/dashboard/[event]/scan-qr/actions.ts`,
+		"utf8",
+	);
+	assert.match(scans, /async function ready[\s\S]*?limited\("guest\.check_in"/);
+	assert.equal(scans.match(/await ready\(/g)?.length, 2);
 	const designs = readFileSync(
 		`${root}/app/dashboard/[event]/tickets/[ticket]/design/actions.ts`,
 		"utf8",
