@@ -26,6 +26,13 @@
 	--series-5: #0b7285;
 	--series-rest: var(--muted);
 
+	/* Pass colours (design-spec.md): Open Color indigo, the guest's pass
+	   only, never the interface around it. */
+	--pass: #364fc7;
+	--on-pass: #ffffff;
+	--on-pass-muted: #dbe4ff;
+	--pass-line: #748ffc;
+
 	/* States. ink fills move toward paper, 15% at most.
      stamp and alert fills move toward ink, never lighter. */
 	--ink-hover: color-mix(in srgb, var(--paper) 8%, var(--ink));
@@ -116,6 +123,8 @@
 	--series-3: #f783ac;
 	--series-4: #b197fc;
 	--series-5: #3bc9db;
+	--pass: #3b5bdb;
+	--on-pass-muted: #edf2ff;
 	--shadow-overlay: none;
 	/* Dark paper sits further from anything that can pass behind it, so the
 	   band can give up a little more and still hold its text. */

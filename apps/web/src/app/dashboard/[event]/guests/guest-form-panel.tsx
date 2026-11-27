@@ -142,7 +142,7 @@ export function GuestFormPanel({
 
 	const shown = visibleFields(fields, answers, ticketId || null);
 
-	function submit(force: boolean) {
+	function submit(force: boolean, waitlist = false) {
 		startTransition(async () => {
 			const values = { ticketTypeId: ticketId, answers, other, force };
 			const saved = editing
@@ -150,10 +150,12 @@ export function GuestFormPanel({
 				: await inviteGuest(eventId, {
 						...values,
 						code: useCode ? code : null,
+						waitlist,
 					});
 			if (saved.ok) {
 				ref.current?.close();
-				onSaved(saved.id, !editing && emailReady && emailPass);
+				// No pass for the waiting list: they have no place yet.
+				onSaved(saved.id, !editing && !waitlist && emailReady && emailPass);
 				return;
 			}
 			setResult(saved);
@@ -353,10 +355,24 @@ export function GuestFormPanel({
 					{result ? (
 						<div className={styles.formResult} role="alert">
 							<p>{result.message}</p>
-							{result.confirm ? (
+							{result.waitlist && !editing ? (
 								<button
 									type="button"
 									className={styles.primary}
+									disabled={pending}
+									onClick={() => submit(false, true)}
+								>
+									Add to waiting list
+								</button>
+							) : null}
+							{result.confirm ? (
+								<button
+									type="button"
+									className={
+										result.waitlist && !editing
+											? styles.secondary
+											: styles.primary
+									}
 									disabled={pending}
 									onClick={() => submit(true)}
 								>

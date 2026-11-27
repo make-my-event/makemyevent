@@ -19,6 +19,12 @@ import { revalidatePath } from "next/cache";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
 import { bringingPeopleIn } from "@/lib/require-user";
+import {
+	allowPastLimits,
+	fullNow,
+	notAllowedPastLimits,
+	pastLimit,
+} from "./place-limits";
 
 /**
  * Bulk upload: a CSV file's text, or a Google Sheet's link, read into the
@@ -346,7 +352,8 @@ export async function previewImport(
 
 /**
  * Adds every good row as an imported guest, with answers, on the ticket,
- * all or none. Going past the ticket's or event's capacity asks first.
+ * all or none. Going past the ticket's or event's capacity asks first; the
+ * check here only decides when to ask, and the database holds the limits.
  */
 export async function importGuests(
 	eventId: string,
@@ -415,6 +422,9 @@ export async function importGuests(
 						};
 				}
 
+				// They said import anyway: the database lets these past, and
+				// records each one that goes past a limit.
+				if (force) await allowPastLimits(tx, eventId);
 				const ids = good.map(() => randomUUID());
 				await tx.registration.createMany({
 					data: good.map((row, i) => ({
@@ -461,6 +471,15 @@ export async function importGuests(
 		if (result.ok) revalidatePath("/dashboard/[event]/guests", "page");
 		return result;
 	} catch (error) {
+		// Filled between the check and the write.
+		const full = pastLimit(error);
+		if (full)
+			return {
+				ok: false,
+				confirm: true,
+				message: `${fullNow(full)} Import anyway?`,
+			};
+		if (notAllowedPastLimits(error)) return { ok: false, message: NOT_ALLOWED };
 		const text = error instanceof Error ? error.message : "";
 		if (/blocked contact/.test(text))
 			return {

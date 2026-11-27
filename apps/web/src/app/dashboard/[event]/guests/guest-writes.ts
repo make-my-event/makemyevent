@@ -14,6 +14,12 @@ import { revalidatePath } from "next/cache";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
 import { actingUser, bringingPeopleIn } from "@/lib/require-user";
+import {
+	allowPastLimits,
+	fullNow,
+	notAllowedPastLimits,
+	pastLimit,
+} from "./place-limits";
 
 /**
  * The team's changes to guests: adding one (Invite guest), correcting their
@@ -41,6 +47,8 @@ export type GuestWriteResult =
 			problems?: Record<string, string>;
 			/** Over capacity: the same call with force true goes ahead. */
 			confirm?: boolean;
+			/** And the ticket keeps a waiting list: they can join it instead. */
+			waitlist?: boolean;
 			/** The guest who already has this email. */
 			existingId?: string;
 	  };
@@ -78,6 +86,10 @@ async function formOf(tx: Tx, eventId: string): Promise<FormField[]> {
 /**
  * Places left on the ticket and at the event, if adding one guest would
  * pass either: the words to ask "add anyway?" with. Null when there's room.
+ *
+ * Read without a lock, so only for asking first. The database refuses a
+ * place past either limit, under a lock on the event, unless the organizer
+ * answered yes (allowPastLimits).
  */
 async function overCapacity(
 	tx: Tx,
@@ -186,11 +198,22 @@ async function checked(
 	return submission;
 }
 
+/**
+ * `anyway` asks to go past a limit that filled between the check and the
+ * write, e.g. "Invite anyway?"; yes sends the same call with force.
+ */
 function failure(
 	error: unknown,
 	emailFieldId?: string,
+	anyway?: string,
 ): GuestWriteResult | null {
 	if (error instanceof Refused) return error.result;
+	const full = pastLimit(error);
+	if (full)
+		return anyway
+			? { ok: false, confirm: true, message: `${fullNow(full)} ${anyway}` }
+			: { ok: false, message: fullNow(full) };
+	if (notAllowedPastLimits(error)) return { ok: false, message: NOT_ALLOWED };
 	const text = error instanceof Error ? error.message : "";
 	if (/blocked contact/.test(text))
 		return {
@@ -246,7 +269,12 @@ async function storeAnswers(
  */
 export async function inviteGuest(
 	eventId: string,
-	input: GuestFormValues & { code: string | null; force: boolean },
+	input: GuestFormValues & {
+		code: string | null;
+		force: boolean;
+		/** Onto the ticket's waiting list, with no place yet. */
+		waitlist?: boolean;
+	},
 ): Promise<GuestWriteResult> {
 	// A guest is someone else: the button sent them to set up two-step
 	// sign-in first; this is for an action reached some other way.
@@ -274,22 +302,35 @@ export async function inviteGuest(
 					});
 				code = normalized.code;
 			}
-			if (!input.force) {
+			const waitlisted = input.waitlist === true;
+			if (!input.force && !waitlisted) {
 				const full = await overCapacity(tx, eventId, input.ticketTypeId);
-				if (full)
+				if (full) {
+					const ticket = await tx.ticketType.findFirst({
+						where: { id: input.ticketTypeId, eventId },
+						select: { waitlistEnabled: true },
+					});
+					const waitlist = ticket?.waitlistEnabled === true;
 					throw new Refused({
 						ok: false,
 						confirm: true,
-						message: `${full} Invite anyway?`,
+						...(waitlist ? { waitlist } : {}),
+						message: waitlist
+							? `${full} Add them to the waiting list, or invite them anyway?`
+							: `${full} Invite anyway?`,
 					});
+				}
 			}
+			// They said invite anyway: the database lets this one past, and
+			// records it.
+			if (input.force && !waitlisted) await allowPastLimits(tx, eventId);
 			const created = await tx.registration.create({
 				data: {
 					eventId,
 					ticketTypeId: input.ticketTypeId,
 					attendeeName: submission.name,
 					attendeeEmail: submission.email,
-					status: "confirmed",
+					status: waitlisted ? "waitlisted" : "confirmed",
 					source: "invite",
 					...(code ? { ticketCode: code } : {}),
 				},
@@ -301,7 +342,7 @@ export async function inviteGuest(
 		revalidatePath("/dashboard/[event]/guests", "page");
 		return { ok: true, id };
 	} catch (error) {
-		const result = failure(error, emailFieldId);
+		const result = failure(error, emailFieldId, "Invite anyway?");
 		if (result) return result;
 		throw error;
 	}
@@ -394,6 +435,7 @@ export async function editGuest(
 						message: `${full} Move them anyway?`,
 					});
 			}
+			if (moving && input.force) await allowPastLimits(tx, eventId);
 			const { count } = await tx.registration.updateMany({
 				where: { id: registrationId, eventId },
 				data: {
@@ -450,16 +492,17 @@ export async function editGuest(
 		revalidatePath("/dashboard/[event]/guests", "page");
 		return { ok: true, id: registrationId };
 	} catch (error) {
-		const result = failure(error, emailFieldId);
+		const result = failure(error, emailFieldId, "Move them anyway?");
 		if (result) return result;
 		throw error;
 	}
 }
 
 /**
- * Cancels a guest's place, or gives it back. Cancelled guests leave the
- * list and the counts, keep their answers, and can be restored; restoring
- * to a full ticket asks first.
+ * Cancels a guest's place, or gives one: back to someone cancelled, or to
+ * someone on the waiting list. Cancelled guests leave the list and the
+ * counts, keep their answers, and can be restored; giving a place on a full
+ * ticket asks first.
  */
 export async function setCancelled(
 	eventId: string,
@@ -484,16 +527,18 @@ export async function setCancelled(
 			});
 			if (!guest)
 				throw new Refused({ ok: false, message: "That guest was not found." });
-			if ((guest.status === "cancelled") === cancelled) return;
+			const want = cancelled ? "cancelled" : "confirmed";
+			if (guest.status === want) return;
 			if (!cancelled && !force) {
 				const full = await overCapacity(tx, eventId, guest.ticketTypeId);
 				if (full)
 					throw new Refused({
 						ok: false,
 						confirm: true,
-						message: `${full} Restore anyway?`,
+						message: `${full} Give them a place anyway?`,
 					});
 			}
+			if (!cancelled && force) await allowPastLimits(tx, eventId);
 			const { count } = await tx.registration.updateMany({
 				where: { id: registrationId, eventId },
 				data: { status: cancelled ? "cancelled" : "confirmed" },
@@ -502,7 +547,11 @@ export async function setCancelled(
 			await tx.auditLog.create({
 				data: {
 					eventId,
-					action: cancelled ? "guest.cancel" : "guest.restore",
+					action: cancelled
+						? "guest.cancel"
+						: guest.status === "waitlisted"
+							? "guest.admit"
+							: "guest.restore",
 					targetId: registrationId,
 				},
 			});
@@ -510,7 +559,7 @@ export async function setCancelled(
 		revalidatePath("/dashboard/[event]/guests", "page");
 		return { ok: true, id: registrationId };
 	} catch (error) {
-		const result = failure(error);
+		const result = failure(error, undefined, "Give them a place anyway?");
 		if (result) return result;
 		throw error;
 	}

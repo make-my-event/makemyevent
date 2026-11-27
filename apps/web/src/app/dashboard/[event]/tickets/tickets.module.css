@@ -1,0 +1,779 @@
+/* Tickets: a short strip of counts, then the list beside the ticket being
+   edited. Tokens from globals.css, colours from design-spec.md. */
+
+.srOnly {
+	composes: srOnly from "../../../../components/ui/ui.module.css";
+}
+
+.input {
+	composes: input from "../../../../components/ui/ui.module.css";
+}
+
+.secondary {
+	composes: secondary from "../../../../components/ui/ui.module.css";
+}
+
+.switch {
+	composes: switch from "../../../../components/ui/ui.module.css";
+}
+
+.switchThumb {
+	composes: switchThumb from "../../../../components/ui/ui.module.css";
+}
+
+.bone {
+	composes: bone from "../../../../components/ui/ui.module.css";
+}
+
+.page {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-m);
+	/* Room under the editor for the save bar held at the foot. */
+	padding-bottom: calc(var(--control) + 2 * var(--space-s));
+}
+
+/* ---- The strip of counts ---------------------------------------------- */
+
+/* One card, three cells, divided like a ticket's stubs: compact, a glance. */
+.summary {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+.stat {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	min-width: 0;
+	padding: var(--space-s);
+}
+
+.stat + .stat {
+	border-inline-start: 1px dashed var(--perforation);
+}
+
+.statTop {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-xs);
+}
+
+.statLabel {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.3;
+}
+
+.statValue {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0 var(--space-xs);
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-large);
+	font-weight: 700;
+	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+}
+
+.statOf {
+	min-width: 0;
+	color: var(--muted);
+	font-family: var(--font-body);
+	font-size: var(--text-small);
+	font-weight: 400;
+}
+
+.statLink {
+	flex: none;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.statLink:hover {
+	color: var(--ink);
+}
+
+.statLink:focus-visible,
+.item:focus-visible,
+.newButton:focus-visible,
+.deleteButton:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.meter,
+.itemBar {
+	display: block;
+	height: 4px;
+	overflow: hidden;
+	border-radius: var(--radius-full);
+	background: var(--tint);
+}
+
+/* A ticket's sales: its data colour on the perforation track (3:1, spec). */
+.itemBar {
+	height: 6px;
+	background: var(--perforation);
+}
+
+.meter span,
+.itemBar span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--stamp);
+}
+
+/* Phones: the strip stays one row, its cells narrower. */
+@media (max-width: 639px) {
+	.stat {
+		padding: var(--space-xs);
+	}
+
+	.statLink {
+		display: none;
+	}
+}
+
+/* ---- List and editor --------------------------------------------------- */
+
+.columns {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-m);
+	align-items: start;
+}
+
+@media (min-width: 1024px) {
+	.columns {
+		grid-template-columns: minmax(16rem, 1fr) minmax(0, 2fr);
+	}
+
+	/* The list stays in reach while a long ticket is edited. */
+	.list {
+		position: sticky;
+		top: calc(var(--header-height) + var(--space-s));
+	}
+}
+
+.list,
+.editor {
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+.list {
+	display: flex;
+	flex-direction: column;
+	padding: var(--space-s);
+	gap: var(--space-xs);
+}
+
+.listHead,
+.editorHead {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+}
+
+.listTitle,
+.editorTitle {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-card-title);
+	font-weight: 700;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+
+.newButton {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	min-height: var(--control-compact);
+	padding-inline: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+	background: var(--tint);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 500;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.newButton:hover {
+	border-color: var(--border-strong);
+}
+
+.newButton svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.listHint {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.4;
+}
+
+.notice {
+	margin: 0;
+	color: var(--alert);
+	font-size: var(--text-small);
+}
+
+.notice:empty {
+	display: none;
+}
+
+.items {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.item {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	width: 100%;
+	padding: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+	touch-action: manipulation;
+	transition: border-color var(--motion);
+}
+
+.item:hover {
+	border-color: var(--border-strong);
+}
+
+/* The one open: an ink edge, two pixels without moving anything. */
+.item[aria-current="true"] {
+	border-color: var(--ink);
+	box-shadow: inset 0 0 0 1px var(--ink);
+	background: var(--paper);
+}
+
+.itemTop {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+}
+
+.itemName {
+	min-width: 0;
+	overflow: hidden;
+	font-weight: 700;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.itemSales {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-xs);
+}
+
+.itemMeta {
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	font-variant-numeric: tabular-nums;
+}
+
+.chip,
+.tag {
+	flex: none;
+	padding: 2px var(--space-xs);
+	border-radius: var(--radius-badge);
+	font-size: var(--text-caption);
+	line-height: 1.4;
+	white-space: nowrap;
+}
+
+/* The word says the state; colour only adds to it. */
+.chip {
+	border: 1px solid var(--perforation);
+	background: var(--tint);
+	font-weight: 500;
+}
+
+.chip[data-status="on_sale"] {
+	border-color: var(--stamp);
+	background: var(--stamp-tint);
+	color: var(--ink);
+}
+
+.chip[data-status="closed"] {
+	color: var(--muted);
+}
+
+.tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2xs);
+}
+
+.tag {
+	background: var(--tint);
+	color: var(--muted);
+}
+
+/* ---- The editor --------------------------------------------------------- */
+
+.editorColumn {
+	min-width: 0;
+	scroll-margin-top: calc(var(--header-height) + var(--space-s));
+}
+
+.editor {
+	display: flex;
+	flex-direction: column;
+}
+
+.editorHead {
+	padding: var(--space-m) var(--space-m) var(--space-s);
+}
+
+.editorTitleRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-xs);
+	min-width: 0;
+}
+
+.group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	padding: var(--space-s) var(--space-m);
+	border-top: 1px solid var(--perforation);
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+}
+
+.label {
+	padding: 0;
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+.optional {
+	color: var(--muted);
+	font-weight: 400;
+}
+
+.textarea {
+	min-height: calc(var(--control) * 2);
+	padding-block: var(--space-xs);
+	resize: vertical;
+	line-height: 1.5;
+}
+
+.hint {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.4;
+}
+
+.fieldError {
+	margin: 0;
+	color: var(--alert);
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+/* The rules: one inset card, a switch a row, divided by thin lines. */
+.rules {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	margin: 0;
+	padding: 0 var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	background: var(--paper);
+}
+
+.row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	padding-block: var(--space-xs);
+}
+
+.row + .row {
+	border-top: 1px solid var(--perforation);
+}
+
+/* What a switch opens sits under it, and the row ends below that. */
+.row:has(> :nth-child(2)) {
+	padding-block-end: var(--space-s);
+}
+
+.rowHead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+	min-height: var(--control-compact);
+}
+
+.rowLabel {
+	min-width: 0;
+	margin: 0;
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+.rowHint {
+	color: var(--muted);
+	font-size: var(--text-small);
+	font-weight: 400;
+}
+
+/* A number under its switch, indented, so it reads as the switch's. */
+.numberRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs) var(--space-s);
+	margin-inline-start: var(--space-s);
+	padding-inline-start: var(--space-s);
+	border-inline-start: 2px solid var(--perforation);
+}
+
+.numberLabel {
+	font-size: var(--text-small);
+}
+
+.input.number {
+	width: calc(var(--control) * 2.5);
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+}
+
+.days {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	margin: 0 0 0 var(--space-s);
+	padding: 0 0 0 var(--space-s);
+	border: 0;
+	border-inline-start: 2px solid var(--perforation);
+}
+
+.dayChips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-xs);
+}
+
+/* A day: a pressable chip, the checkbox kept for keyboards and readers. */
+.dayChip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control-compact);
+	padding-inline: var(--space-xs) var(--space-s);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-full);
+	font-size: var(--text-small);
+	cursor: pointer;
+}
+
+.dayChip:has(:checked) {
+	border-color: var(--stamp);
+	background: var(--stamp-tint);
+}
+
+.dayChip:has(:focus-visible) {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.dayChip input {
+	accent-color: var(--stamp);
+}
+
+.editorFoot {
+	display: flex;
+	padding: var(--space-s) var(--space-m) var(--space-m);
+	border-top: 1px solid var(--perforation);
+}
+
+.deleteButton {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control-compact);
+	padding: 0 var(--space-xs);
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--alert);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.deleteButton:hover {
+	background: color-mix(in srgb, var(--alert) 10%, var(--surface));
+}
+
+.deleteButton svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.saveBar {
+	margin: 0 var(--space-s) var(--space-s);
+}
+
+/* ---- The pass preview -------------------------------------------------- */
+
+.passBlock {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	padding: var(--space-s) var(--space-m);
+	border-top: 1px solid var(--perforation);
+}
+
+.passHead {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+}
+
+.passTitle {
+	margin: 0;
+	font-size: var(--text-small);
+	font-weight: 700;
+}
+
+.passEdit {
+	composes: secondary from "../../../../components/ui/ui.module.css";
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+}
+
+.passEdit svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.soon {
+	padding: 0 var(--space-2xs);
+	border-radius: var(--radius-badge);
+	background: var(--tint);
+	color: var(--muted);
+	font-size: var(--text-micro);
+	font-weight: 500;
+	line-height: 1.6;
+}
+
+/* The pass: its own colours (design-spec.md), a stub torn off at the right
+   along a dashed line, with a notch above and below it. */
+.pass {
+	--stub: calc(var(--control) * 2.5);
+	--notch: var(--space-s);
+	position: relative;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) var(--stub);
+	margin: 0;
+	border-radius: var(--radius-m);
+	background: var(--pass);
+	color: var(--on-pass);
+}
+
+.pass::before,
+.pass::after {
+	content: "";
+	position: absolute;
+	inset-inline-end: calc(var(--stub) - var(--notch) / 2);
+	width: var(--notch);
+	height: var(--notch);
+	border-radius: var(--radius-full);
+	background: var(--surface);
+}
+
+.pass::before {
+	top: calc(var(--notch) / -2);
+}
+
+.pass::after {
+	bottom: calc(var(--notch) / -2);
+}
+
+.passBody {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	padding: var(--space-s) var(--space-m);
+}
+
+.passEvent {
+	margin: 0;
+	overflow: hidden;
+	color: var(--on-pass-muted);
+	font-size: var(--text-caption);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.passName {
+	margin: var(--space-2xs) 0 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+
+.passFoot {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: var(--space-s);
+	margin-top: var(--space-m);
+	padding-top: var(--space-xs);
+	border-top: 1px solid var(--pass-line);
+}
+
+.passWhen {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	color: var(--on-pass-muted);
+	font-size: var(--text-caption);
+	line-height: 1.3;
+}
+
+.passTime {
+	color: var(--on-pass);
+	font-family: var(--font-mono);
+}
+
+.passPrice {
+	margin: 0;
+	font-size: var(--text-body);
+	font-weight: 700;
+}
+
+.passStub {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	padding: var(--space-s) var(--space-xs);
+	border-inline-start: 2px dashed var(--pass-line);
+}
+
+/* The code dark on white, as a scanner reads it: the pass colour, 6.8:1. */
+.passCode {
+	display: block;
+	width: calc(var(--control) * 1.5);
+	padding: var(--space-2xs);
+	border-radius: var(--radius-s);
+	background: var(--on-pass);
+	color: var(--pass);
+	line-height: 0;
+}
+
+.passCode svg {
+	width: 100%;
+	height: auto;
+}
+
+.passSample {
+	color: var(--on-pass-muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-micro);
+	text-align: center;
+}
+
+/* ---- Loading ------------------------------------------------------------ */
+
+.boneStrip {
+	/* A stat cell: label row, value row, the meter, its padding and border. */
+	height: calc(
+		var(--text-caption) *
+		1.3 +
+		var(--text-large) *
+		1.2 +
+		4px +
+		var(--space-2xs) *
+		2 +
+		var(--space-s) *
+		2 +
+		2px
+	);
+	border-radius: var(--radius-l);
+}
+
+.boneList {
+	height: calc(var(--control) * 5);
+	border-radius: var(--radius-l);
+}
+
+.boneEditor {
+	/* Head, pass preview, name and description, the rules. */
+	height: calc(var(--control) * 17);
+	border-radius: var(--radius-l);
+}
+
+@media (max-width: 767px) {
+	.editorHead,
+	.group,
+	.passBlock,
+	.editorFoot {
+		padding-inline: var(--space-s);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.item {
+		transition: none;
+	}
+}

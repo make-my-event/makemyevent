@@ -207,6 +207,7 @@ function sectionSkeleton(section: string, skeletons: DashboardSkeletons) {
 	if (section === "edit") return skeletons.edit;
 	if (section === "form-builder") return skeletons.formBuilder;
 	if (section === "guests") return skeletons.guests;
+	if (section === "tickets") return skeletons.tickets;
 	return skeletons.section;
 }
 

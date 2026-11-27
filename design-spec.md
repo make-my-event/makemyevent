@@ -30,6 +30,17 @@ For telling things of the same kind apart, such as ticket types in a count. Neve
 
 Series are given biggest first, and every chart lists each item by name and number in text, so colour is never the only way to tell them apart.
 
+### Pass colours
+
+The guest's ticket pass, and its preview on the Tickets page. Used only on the pass, never for the interface around it. Taken from [Open Color](https://yeun.github.io/open-color/) 1.9.1 (MIT), indigo.
+
+| Token | Light | Dark | Open Color | Used for |
+|---|---|---|---|---|
+| `pass` | `#364FC7` | `#3B5BDB` | indigo 9 / indigo 8 | The pass background |
+| `on-pass` | `#FFFFFF` | `#FFFFFF` | white | Text on the pass: 6.8:1 light, 5.7:1 dark |
+| `on-pass-muted` | `#DBE4FF` | `#EDF2FF` | indigo 1 / indigo 0 | Secondary text on the pass: 5.3:1 light, 5.1:1 dark |
+| `pass-line` | `#748FFC` | `#748FFC` | indigo 4 | The tear line and dividers on the pass; decorative, never text |
+
 ## Typography
 
 | Role | Font | Used for |

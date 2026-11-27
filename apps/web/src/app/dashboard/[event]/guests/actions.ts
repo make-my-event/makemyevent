@@ -221,6 +221,16 @@ export async function checkInMany(
 		return result;
 	} catch (error) {
 		if (isDuplicate(error)) return { ok: true };
+		// Their ticket's own days (the tickets migration).
+		const said = error instanceof Error ? error.message : "";
+		if (/one entry used/.test(said))
+			return {
+				ok: false,
+				message:
+					"Their ticket lets them in once, and they were checked in on another day.",
+			};
+		if (/not this day/.test(said))
+			return { ok: false, message: "Their ticket doesn't admit them today." };
 		// A row-level security refusal: a cancelled guest, or not this event.
 		// Anything else is a fault, and surfaces as one.
 		if (error instanceof Error && /row-level security/.test(error.message))

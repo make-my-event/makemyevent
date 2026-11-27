@@ -215,6 +215,22 @@ export async function saveEventPage(
 				field: "address",
 				message: "That address is taken. Try another.",
 			};
+		// The tickets migration's rules, said where they can be fixed.
+		const text = error instanceof Error ? error.message : "";
+		if (/event under ticket capacity/.test(text))
+			return {
+				ok: false,
+				field: "capacity",
+				message:
+					"A ticket has more places than this. Lower that ticket's limit on Tickets first.",
+			};
+		if (/checked in on a dropped day/.test(text))
+			return {
+				ok: false,
+				field: "start",
+				message:
+					"Guests have checked in on a day these dates leave out. Keep that day in the dates.",
+			};
 		throw error;
 	}
 
