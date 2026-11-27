@@ -14,6 +14,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * enough for a QR code a phone camera reads from across a desk.
  *
  * Pure: the master key is passed in, so it can be tested without one.
+ *
+ * A view link (signView) has the same body under its own key, "view:" in
+ * place of "pass:", and its own prefix, V1. It opens the guest's ticket
+ * page; it never gets anyone in. A pass can't be read as a view link, nor
+ * a view link as a pass, and raising the event's version retires both.
  */
 
 export type PassClaims = {
@@ -22,7 +27,8 @@ export type PassClaims = {
 	version: number;
 };
 
-const PREFIX = "M1.";
+type Purpose = "pass" | "view";
+const PREFIXES: Record<Purpose, string> = { pass: "M1.", view: "V1." };
 const MAC_BYTES = 16;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -36,25 +42,31 @@ function uuidText(bytes: Buffer): string {
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function eventKey(master: Buffer, eventId: string, version: number): Buffer {
+function eventKey(
+	purpose: Purpose,
+	master: Buffer,
+	eventId: string,
+	version: number,
+): Buffer {
 	return createHmac("sha256", master)
-		.update(`pass:${eventId.toLowerCase()}:${version}`)
+		.update(`${purpose}:${eventId.toLowerCase()}:${version}`)
 		.digest();
 }
 
 function mac(
+	purpose: Purpose,
 	master: Buffer,
 	eventId: string,
 	version: number,
 	body: Buffer,
 ): Buffer {
-	return createHmac("sha256", eventKey(master, eventId, version))
+	return createHmac("sha256", eventKey(purpose, master, eventId, version))
 		.update(body)
 		.digest()
 		.subarray(0, MAC_BYTES);
 }
 
-export function signPass(master: Buffer, claims: PassClaims): string {
+function sign(purpose: Purpose, master: Buffer, claims: PassClaims): string {
 	if (
 		!Number.isInteger(claims.version) ||
 		claims.version < 1 ||
@@ -66,28 +78,52 @@ export function signPass(master: Buffer, claims: PassClaims): string {
 		uuidBytes(claims.eventId),
 		uuidBytes(claims.registrationId),
 	]);
-	const tag = mac(master, claims.eventId, claims.version, body);
-	return PREFIX + Buffer.concat([body, tag]).toString("base64url");
+	const tag = mac(purpose, master, claims.eventId, claims.version, body);
+	return PREFIXES[purpose] + Buffer.concat([body, tag]).toString("base64url");
 }
 
-/** The claims, if the server issued this token; null for anything else. */
-export function readPass(master: Buffer, token: string): PassClaims | null {
+function read(
+	purpose: Purpose,
+	master: Buffer,
+	token: string,
+): PassClaims | null {
+	const prefix = PREFIXES[purpose];
 	if (
 		typeof token !== "string" ||
-		!token.startsWith(PREFIX) ||
+		!token.startsWith(prefix) ||
 		token.length > 100
 	)
 		return null;
-	const raw = Buffer.from(token.slice(PREFIX.length), "base64url");
+	const raw = Buffer.from(token.slice(prefix.length), "base64url");
 	if (raw.length !== 1 + 16 + 16 + MAC_BYTES) return null;
 	const body = raw.subarray(0, 33);
 	const tag = raw.subarray(33);
 	const version = body[0] ?? 0;
 	if (version < 1) return null;
 	const eventId = uuidText(body.subarray(1, 17));
-	const expected = mac(master, eventId, version, body);
+	const expected = mac(purpose, master, eventId, version, body);
 	if (!timingSafeEqual(tag, expected)) return null;
 	return { eventId, registrationId: uuidText(body.subarray(17, 33)), version };
+}
+
+/** The QR's token: what gets someone in. */
+export function signPass(master: Buffer, claims: PassClaims): string {
+	return sign("pass", master, claims);
+}
+
+/** The claims, if the server issued this pass; null for anything else. */
+export function readPass(master: Buffer, token: string): PassClaims | null {
+	return read("pass", master, token);
+}
+
+/** The ticket page's link: shows the ticket, never gets anyone in. */
+export function signView(master: Buffer, claims: PassClaims): string {
+	return sign("view", master, claims);
+}
+
+/** The claims, if the server issued this view link; null otherwise. */
+export function readView(master: Buffer, token: string): PassClaims | null {
+	return read("view", master, token);
 }
 
 /**

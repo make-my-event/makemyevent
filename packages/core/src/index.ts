@@ -10,3 +10,5 @@ export * from "./phone";
 export * from "./form";
 export * from "./guests";
 export * from "./imports";
+export * from "./pass-designs";
+export * from "./pass-design";

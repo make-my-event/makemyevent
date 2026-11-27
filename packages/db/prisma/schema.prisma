@@ -56,6 +56,7 @@ model User {
   auditActions  AuditLog[]       @relation("auditActions")
   recoveryCodes RecoveryCode[]
   twoStepTries  TwoStepTries?
+  ticketDesigns TicketDesign[]   @relation("ticketDesigns")
 
   @@map("users")
 }
@@ -246,10 +247,37 @@ model TicketType {
   days          TicketTypeDay[]
   invites       TicketInvite[]
   registrations Registration[]
+  // At most one: the design's key is the ticket's.
+  designs       TicketDesign[]
 
   @@unique([id, eventId])
   @@index([eventId, position])
   @@map("ticket_types")
+}
+
+// How a ticket's pass looks: one of the designs in packages/core, its
+// accent, and the layers on it (the entry code and the text), as the
+// editor saves them, whole. No row is the default design. Read by the team,
+// changed by those who manage the event (ticket_designs migration).
+model TicketDesign {
+  ticketTypeId String   @id @map("ticket_type_id") @db.Uuid
+  eventId      String   @map("event_id") @db.Uuid
+  // A design id from packages/core's PASS_ARTWORK.
+  base         String
+  // One of PASS_ACCENTS' keys; empty keeps the design's own.
+  accent       String?
+  // PassDesign["layers"]: checked by passDesign before every write.
+  layers       Json
+  // Set by the database on every write, never sent.
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  updatedById  String?  @map("updated_by_id") @db.Uuid
+
+  ticketType TicketType @relation(fields: [ticketTypeId, eventId], references: [id, eventId], onDelete: Cascade)
+  updatedBy  User?      @relation("ticketDesigns", fields: [updatedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([eventId])
+  @@index([updatedById])
+  @@map("ticket_designs")
 }
 
 // Which days a ticket admits: a 1-day carnival pass has one row, the 2-day

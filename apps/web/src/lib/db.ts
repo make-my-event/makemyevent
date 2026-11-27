@@ -53,3 +53,15 @@ export function asUser<T>(
 ): Promise<T> {
 	return runAsUser(database(), person, work, limits);
 }
+
+/**
+ * Runs `work` as a visitor: no one signed in, so the policies show only what
+ * is public. For pages anyone may open, such as a guest's ticket from its
+ * signed link, which reads through its own narrow function.
+ */
+export function asVisitor<T>(
+	work: (tx: Tx) => Promise<T>,
+	limits?: Limits,
+): Promise<T> {
+	return runAsUser(database(), null, work, limits);
+}

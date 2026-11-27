@@ -597,140 +597,30 @@
 	gap: var(--space-xs);
 }
 
+.passEdit:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
 .passEdit svg {
 	width: var(--space-s);
 	height: var(--space-s);
 }
 
-.soon {
-	padding: 0 var(--space-2xs);
-	border-radius: var(--radius-badge);
-	background: var(--tint);
-	color: var(--muted);
-	font-size: var(--text-micro);
-	font-weight: 500;
-	line-height: 1.6;
-}
-
-/* The pass: its own colours (design-spec.md), a stub torn off at the right
-   along a dashed line, with a notch above and below it. */
+/* The pass, drawn by packages/core in its saved design: artwork, never
+   themed (design-spec.md, "Pass designs"). */
 .pass {
-	--stub: calc(var(--control) * 2.5);
-	--notch: var(--space-s);
-	position: relative;
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) var(--stub);
-	margin: 0;
-	border-radius: var(--radius-m);
-	background: var(--pass);
-	color: var(--on-pass);
-}
-
-.pass::before,
-.pass::after {
-	content: "";
-	position: absolute;
-	inset-inline-end: calc(var(--stub) - var(--notch) / 2);
-	width: var(--notch);
-	height: var(--notch);
-	border-radius: var(--radius-full);
-	background: var(--surface);
-}
-
-.pass::before {
-	top: calc(var(--notch) / -2);
-}
-
-.pass::after {
-	bottom: calc(var(--notch) / -2);
-}
-
-.passBody {
-	display: flex;
-	flex-direction: column;
-	min-width: 0;
-	padding: var(--space-s) var(--space-m);
-}
-
-.passEvent {
-	margin: 0;
-	overflow: hidden;
-	color: var(--on-pass-muted);
-	font-size: var(--text-caption);
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.passName {
-	margin: var(--space-2xs) 0 0;
-	font-family: var(--font-display);
-	font-size: var(--text-h3);
-	font-weight: 700;
-	line-height: 1.25;
-	overflow-wrap: anywhere;
-}
-
-.passFoot {
-	display: flex;
-	align-items: flex-end;
-	justify-content: space-between;
-	gap: var(--space-s);
-	margin-top: var(--space-m);
-	padding-top: var(--space-xs);
-	border-top: 1px solid var(--pass-line);
-}
-
-.passWhen {
-	display: flex;
-	flex-direction: column;
-	margin: 0;
-	color: var(--on-pass-muted);
-	font-size: var(--text-caption);
-	line-height: 1.3;
-}
-
-.passTime {
-	color: var(--on-pass);
-	font-family: var(--font-mono);
-}
-
-.passPrice {
-	margin: 0;
-	font-size: var(--text-body);
-	font-weight: 700;
-}
-
-.passStub {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: var(--space-xs);
-	padding: var(--space-s) var(--space-xs);
-	border-inline-start: 2px dashed var(--pass-line);
-}
-
-/* The code dark on white, as a scanner reads it: the pass colour, 6.8:1. */
-.passCode {
-	display: block;
-	width: calc(var(--control) * 1.5);
-	padding: var(--space-2xs);
-	border-radius: var(--radius-s);
-	background: var(--on-pass);
-	color: var(--pass);
+	/* A preview, not the pass itself: small enough to glance at beside the
+	   ticket's settings. */
+	max-width: 26rem;
 	line-height: 0;
 }
 
-.passCode svg {
+.pass svg {
+	display: block;
 	width: 100%;
 	height: auto;
-}
-
-.passSample {
-	color: var(--on-pass-muted);
-	font-family: var(--font-mono);
-	font-size: var(--text-micro);
-	text-align: center;
+	border-radius: var(--radius-m);
 }
 
 /* ---- Loading ------------------------------------------------------------ */
