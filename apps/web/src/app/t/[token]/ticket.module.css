@@ -1,0 +1,203 @@
+/* A guest's ticket page: the pass large, its code and details beside it.
+   Tokens from globals.css, colours from design-spec.md; the pass is
+   artwork, drawn by packages/core, the same in both themes. */
+
+.srOnly {
+	composes: srOnly from "../../../components/ui/ui.module.css";
+}
+
+.page {
+	width: 100%;
+	max-width: var(--dashboard-width);
+	margin: 0 auto;
+	padding: var(--space-l) var(--space-s) var(--space-2xl);
+}
+
+.layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-m);
+	align-items: start;
+}
+
+@media (min-width: 1024px) {
+	.page {
+		padding-inline: var(--space-l);
+	}
+
+	.layout {
+		grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+		gap: var(--space-l);
+	}
+}
+
+/* The pass on a tint, like a ticket laid on a counter. */
+.stage {
+	padding: var(--space-l) var(--space-m);
+	border-radius: var(--radius-l);
+	background: var(--tint);
+}
+
+.pass {
+	line-height: 0;
+}
+
+.pass svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-overlay);
+}
+
+/* No longer valid: the pass stays for the record, quieter. */
+.pass[data-retired] svg {
+	opacity: 0.72;
+	filter: grayscale(0.6);
+}
+
+.side {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	min-width: 0;
+	padding: var(--space-m);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+.notice {
+	margin: 0;
+	padding: var(--space-s);
+	border-radius: var(--radius-m);
+	background: var(--tint);
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+/* The big code for a phone: dark on light whatever the theme (lib/qr.ts). */
+.scan {
+	display: flex;
+	justify-content: center;
+}
+
+.qr {
+	width: min(100%, 260px);
+	aspect-ratio: 1;
+	overflow: hidden;
+	border-radius: var(--radius-m);
+}
+
+.qr svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.block {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+}
+
+.label {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.codeRow {
+	display: flex;
+	gap: var(--space-xs);
+}
+
+.code {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	min-width: 0;
+	min-height: var(--control);
+	padding-inline: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+	background: var(--paper);
+	font-family: var(--font-mono);
+	font-size: var(--text-body);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.02em;
+	overflow-wrap: anywhere;
+}
+
+.copy {
+	composes: secondary from "../../../components/ui/ui.module.css";
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+}
+
+.copy svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.copy:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.hint {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-caption);
+	line-height: 1.4;
+}
+
+.facts {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	margin: 0;
+	padding-top: var(--space-s);
+	border-top: 1px dashed var(--perforation);
+}
+
+.facts div {
+	display: grid;
+	grid-template-columns: 4.5rem minmax(0, 1fr);
+	gap: var(--space-xs);
+}
+
+.facts dt {
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.facts dd {
+	margin: 0;
+	font-size: var(--text-small);
+	overflow-wrap: anywhere;
+}
+
+/* Wide screens: the pass's own code is big enough to scan off the screen.
+   After .scan above, so it wins. */
+@media (min-width: 1024px) {
+	.scan {
+		display: none;
+	}
+}
+
+@media (max-width: 639px) {
+	.page {
+		padding-top: var(--space-s);
+	}
+
+	.stage {
+		padding: var(--space-s) var(--space-xs);
+	}
+
+	.side {
+		padding: var(--space-s);
+	}
+}

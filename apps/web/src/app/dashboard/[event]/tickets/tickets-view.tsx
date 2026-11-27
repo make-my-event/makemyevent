@@ -1,6 +1,10 @@
 "use client";
 
 import {
+	type PassDesign,
+	type PassValues,
+	renderPass,
+	SAMPLE_CODE,
 	TICKET_DESCRIPTION_MAX,
 	TICKET_NAME_MAX,
 	type TicketField,
@@ -20,6 +24,7 @@ import {
 import { EditIcon, PlusIcon, TrashIcon } from "@/components/icons";
 import { SaveBar, type SaveMessage } from "@/components/ui/save-bar";
 import { useDraft } from "@/components/ui/use-draft";
+import { PAGE_PASS_FONTS } from "@/lib/pass-fonts";
 import dialog from "../../create-event.module.css";
 import { Popup } from "../../popup";
 import { useUnsavedChanges } from "../unsaved-changes";
@@ -46,13 +51,15 @@ export type TicketRow = {
 	waiting: number;
 	/** The days it admits; empty for every day. */
 	days: string[];
+	/** Its pass design, or the default. */
+	design: PassDesign;
 };
 
-/** What the pass preview prints besides the ticket's name. */
+/** What every pass preview shares: the event's words, a sample guest, and where each ticket's design editor is. */
 export type PassDetails = {
-	eventTitle: string;
-	/** When the event starts, in its own zone; null until a date is set. */
-	start: { iso: string; date: string; time: string } | null;
+	values: Omit<PassValues, "ticket_name" | "answers">;
+	/** The Tickets section's address; a ticket's editor is under it. */
+	designHref: string;
 };
 
 const count = new Intl.NumberFormat("en-IN");
@@ -539,7 +546,12 @@ function TicketEditor({
 				</button>
 			</header>
 
-			<TicketPass name={draft.name.trim() || "Untitled"} pass={pass} />
+			<TicketPass
+				name={draft.name.trim() || "Untitled"}
+				design={ticket.design}
+				pass={pass}
+				href={`${pass.designHref}/${ticket.id}/design`}
+			/>
 
 			<div className={styles.group}>
 				<div className={styles.field}>
@@ -847,11 +859,30 @@ function SwitchRow({
 }
 
 /**
- * The pass as a guest will see it, its name following the draft. The code
- * is a fixed sample: a real pass carries a signed token, never shown here.
+ * The pass as a guest will see it, in its saved design, its name following
+ * the draft. The code is a fixed sample: a real pass carries a signed
+ * token, never shown here.
  */
-function TicketPass({ name, pass }: { name: string; pass: PassDetails }) {
-	const soonId = useId();
+function TicketPass({
+	name,
+	design,
+	pass,
+	href,
+}: {
+	name: string;
+	design: PassDesign;
+	pass: PassDetails;
+	href: string;
+}) {
+	const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+	const svg = renderPass({
+		design,
+		values: { ...pass.values, ticket_name: name, answers: {} },
+		code: SAMPLE_CODE,
+		fonts: PAGE_PASS_FONTS,
+		uid,
+		title: `The ${name} pass, with a sample guest and code`,
+	});
 	return (
 		<section className={styles.passBlock} aria-label="Ticket design">
 			<div className={styles.passHead}>
@@ -859,56 +890,18 @@ function TicketPass({ name, pass }: { name: string; pass: PassDetails }) {
 					<p className={styles.passTitle}>Ticket design</p>
 					<p className={styles.hint}>Preview of the guest's pass</p>
 				</div>
-				<button
-					type="button"
-					className={styles.passEdit}
-					disabled
-					aria-describedby={soonId}
-				>
+				<Link className={styles.passEdit} href={href}>
 					<EditIcon />
 					Edit design
-					<span className={styles.soon} id={soonId}>
-						Soon
-					</span>
-				</button>
+				</Link>
 			</div>
-			<figure className={styles.pass}>
-				<div className={styles.passBody}>
-					<p className={styles.passEvent}>{pass.eventTitle}</p>
-					<p className={styles.passName}>{name}</p>
-					<div className={styles.passFoot}>
-						{pass.start ? (
-							<time className={styles.passWhen} dateTime={pass.start.iso}>
-								<span>{pass.start.date}</span>
-								<span className={styles.passTime}>{pass.start.time}</span>
-							</time>
-						) : (
-							<p className={styles.passWhen}>Date not set</p>
-						)}
-						<p className={styles.passPrice}>Free</p>
-					</div>
-				</div>
-				<div className={styles.passStub}>
-					<span className={styles.passCode}>
-						<SampleCode />
-					</span>
-					<span className={styles.passSample}>Sample code</span>
-				</div>
-			</figure>
-		</section>
-	);
-}
-
-/** A drawn stand-in for a QR code: three finder squares and a few cells. */
-function SampleCode() {
-	return (
-		<svg viewBox="0 0 21 21" aria-hidden="true" focusable="false">
-			<path
-				fill="currentColor"
-				fillRule="evenodd"
-				d="M0 0h7v7H0zM1 1v5h5V1zM2 2h3v3H2zM14 0h7v7h-7zM15 1v5h5V1zM16 2h3v3h-3zM0 14h7v7H0zM1 15v5h5v-5zM2 16h3v3H2zM9 0h2v2H9zM9 3h1v3H9zM11 4h2v2h-2zM8 8h3v1H8zM12 8h2v3h-2zM15 9h3v2h-3zM19 8h2v2h-2zM0 9h2v2H0zM3 8h3v2H3zM4 11h3v1H4zM9 10h2v3H9zM8 14h2v2H8zM11 15h3v1h-3zM9 17h1v4H9zM11 18h2v3h-2zM14 13h2v2h-2zM17 13h4v1h-4zM16 16h2v2h-2zM19 15h2v3h-2zM14 18h1v3h-1zM17 19h2v2h-2z"
+			<div
+				className={styles.pass}
+				// Drawn by renderPass: every word escaped, the artwork ours.
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: see above
+				dangerouslySetInnerHTML={{ __html: svg }}
 			/>
-		</svg>
+		</section>
 	);
 }
 

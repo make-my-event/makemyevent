@@ -1312,6 +1312,20 @@ a.cardItem:hover .cardGo {
 	text-align: center;
 }
 
+/* The pass in its ticket's design: artwork, the same in both themes. Its
+   code is too small to scan here, so the big one follows. */
+.passDesign {
+	width: 100%;
+	line-height: 0;
+}
+
+.passDesign svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: var(--radius-m);
+}
+
 /* The QR at a size a scanner reads from arm's length; light whatever the
    theme (lib/qr.ts). */
 .passQr {

@@ -1,6 +1,6 @@
 "use server";
 
-import { recordId } from "@makemyevent/core";
+import { recordId, renderPass } from "@makemyevent/core";
 import { revalidatePath } from "next/cache";
 import { asUser } from "@/lib/db";
 import {
@@ -10,8 +10,16 @@ import {
 	sendEmail,
 } from "@/lib/email";
 import { whenText, whereText } from "@/lib/event-text";
-import { masterKey, signPass } from "@/lib/pass-token";
-import { qrPng, qrSvg } from "@/lib/qr";
+import { env } from "@/lib/env";
+import { masterKey, signPass, signView } from "@/lib/pass-token";
+import {
+	designOf,
+	eventPassValues,
+	passAnswers,
+	passQuestions,
+} from "@/lib/pass";
+import { PAGE_PASS_FONTS } from "@/lib/pass-fonts";
+import { qrModules, qrPng, qrSvg } from "@/lib/qr";
 import { limited } from "@/lib/rate-limit";
 import { actingUser } from "@/lib/require-user";
 import { passHtml, passSubject, passText } from "./pass-email";
@@ -32,6 +40,8 @@ export type PassView =
 	| {
 			ok: true;
 			svg: string;
+			/** The whole pass in its ticket's design, the real code on it. */
+			pass: string;
 			name: string;
 			ticketName: string;
 			ticketCode: string;
@@ -53,26 +63,49 @@ export async function getPass(
 		return { ok: false, message: "That guest was not found." };
 	const master = masterKey();
 	if (!master) return { ok: false, message: NO_KEY };
-	const guest = await asUser(user, (tx) =>
-		tx.registration.findFirst({
+	const found = await asUser(user, async (tx) => {
+		const guest = await tx.registration.findFirst({
 			where: { id: registrationId, eventId },
 			select: {
 				attendeeName: true,
 				status: true,
 				ticketCode: true,
-				ticketType: { select: { name: true } },
+				ticketType: {
+					select: {
+						name: true,
+						designs: { select: { base: true, accent: true, layers: true } },
+					},
+				},
 				event: {
 					select: {
 						title: true,
 						startsAt: true,
 						timeZone: true,
+						format: true,
+						venueName: true,
+						venueAddress: true,
 						ticketKeyVersion: true,
 					},
 				},
 			},
-		}),
-	);
-	if (!guest) return { ok: false, message: "That guest was not found." };
+		});
+		if (!guest) return null;
+		const design = designOf(guest.ticketType.designs[0]);
+		const asks = design.layers.some(
+			(l) => l.kind === "text" && l.source.type === "question",
+		);
+		const answers = asks
+			? await passAnswers(
+					tx,
+					registrationId,
+					design,
+					await passQuestions(tx, eventId),
+				)
+			: {};
+		return { guest, design, answers };
+	});
+	if (!found) return { ok: false, message: "That guest was not found." };
+	const { guest, design, answers } = found;
 	if (guest.status !== "confirmed")
 		return { ok: false, message: "Only a guest with a place has a pass." };
 	const token = signPass(master, {
@@ -83,6 +116,20 @@ export async function getPass(
 	return {
 		ok: true,
 		svg: await qrSvg(token),
+		pass: renderPass({
+			design,
+			values: {
+				...eventPassValues(guest.event),
+				ticket_name: guest.ticketType.name,
+				guest_name: guest.attendeeName,
+				ticket_code: guest.ticketCode,
+				answers,
+			},
+			code: qrModules(token),
+			fonts: PAGE_PASS_FONTS,
+			uid: `pass${registrationId.slice(0, 8)}`,
+			title: `${guest.attendeeName}'s pass for ${guest.event.title}`,
+		}),
 		name: guest.attendeeName,
 		ticketName: guest.ticketType.name,
 		ticketCode: guest.ticketCode,
@@ -212,7 +259,12 @@ export async function sendPasses(
 			registrationId: guest.id,
 			version: event.ticketKeyVersion,
 		});
-		const png = await qrPng(token);
+		const png = await qrPng(token, 320);
+		const view = signView(master, {
+			eventId,
+			registrationId: guest.id,
+			version: event.ticketKeyVersion,
+		});
 		const details = {
 			guestName: guest.attendeeName,
 			eventTitle: event.title,
@@ -221,6 +273,7 @@ export async function sendPasses(
 			ticketName: guest.ticketType.name,
 			ticketCode: guest.ticketCode,
 			qrCid: "pass-qr",
+			ticketUrl: `${env.appUrl}/t/${view}`,
 		};
 		const result = await sendEmail({
 			to: guest.attendeeEmail,

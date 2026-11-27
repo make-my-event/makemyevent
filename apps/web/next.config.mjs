@@ -53,8 +53,16 @@ const nextConfig = {
 				value: "public, max-age=86400, stale-while-revalidate=604800",
 			},
 		];
+		// A guest's ticket page: its address is the ticket. Never passed on to
+		// another site, never kept by a cache, never in a search index.
+		const ticketPage = [
+			{ key: "Referrer-Policy", value: "no-referrer" },
+			{ key: "Cache-Control", value: "private, no-store" },
+			{ key: "X-Robots-Tag", value: "noindex, nofollow" },
+		];
 		return [
 			{ source: "/:path*", headers: security },
+			{ source: "/t/:token", headers: ticketPage },
 			{
 				source: "/:file(icon\\.svg|favicon\\.ico|manifest\\.json)",
 				headers: publicAssets,

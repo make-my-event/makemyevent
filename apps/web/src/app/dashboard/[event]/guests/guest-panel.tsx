@@ -541,6 +541,11 @@ export function GuestPanel({
 				) : pass.ok ? (
 					<div className={styles.pass}>
 						<div
+							className={styles.passDesign}
+							// biome-ignore lint/security/noDangerouslySetInnerHtml: drawn by renderPass on the server, every word escaped
+							dangerouslySetInnerHTML={{ __html: pass.pass }}
+						/>
+						<div
 							className={styles.passQr}
 							role="img"
 							aria-label={`QR code for ${pass.name}'s pass`}

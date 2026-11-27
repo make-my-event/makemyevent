@@ -1,9 +1,10 @@
-import { utcToZoned } from "@makemyevent/core";
+import { SAMPLE_GUEST, utcToZoned } from "@makemyevent/core";
 import type { Metadata } from "next";
 import { asUser } from "@/lib/db";
+import { designOf, eventPassValues } from "@/lib/pass";
 import styles from "../event-shell.module.css";
 import { loadManagedEvent } from "../load-event";
-import { type PassDetails, type TicketRow, TicketsView } from "./tickets-view";
+import { type TicketRow, TicketsView } from "./tickets-view";
 
 export const metadata: Metadata = {
 	title: "Tickets",
@@ -28,6 +29,9 @@ export default async function TicketsPage({ params }: Props) {
 			where: { id: event.id },
 			select: {
 				capacity: true,
+				format: true,
+				venueName: true,
+				venueAddress: true,
 				days: { select: { id: true, day: true }, orderBy: { day: "asc" } },
 				ticketTypes: {
 					orderBy: [{ position: "asc" }, { createdAt: "asc" }],
@@ -44,6 +48,7 @@ export default async function TicketsPage({ params }: Props) {
 						transferable: true,
 						registeredCount: true,
 						days: { select: { eventDay: { select: { day: true } } } },
+						designs: { select: { base: true, accent: true, layers: true } },
 					},
 				},
 			},
@@ -82,6 +87,7 @@ export default async function TicketsPage({ params }: Props) {
 		registered: Number(t.registeredCount),
 		waiting: waiting.get(t.id) ?? 0,
 		days: t.days.map((d) => ISO_DAY(d.eventDay.day)).sort(),
+		design: designOf(t.designs[0]),
 	}));
 
 	return (
@@ -96,37 +102,15 @@ export default async function TicketsPage({ params }: Props) {
 				checkedIn={data.checkedIn}
 				checkedInToday={data.today}
 				capacityHref={`/dashboard/${encodeURIComponent(event.slug)}/edit#capacity`}
-				pass={passDetails(event.title, event.startsAt, event.timeZone)}
+				pass={{
+					values: {
+						...eventPassValues({ ...event, ...data.full }),
+						...SAMPLE_GUEST,
+					},
+					designHref: `/dashboard/${encodeURIComponent(event.slug)}/tickets`,
+				}}
 				tickets={tickets}
 			/>
 		</main>
 	);
-}
-
-/** What the pass preview prints: the event, and when it starts, in its zone. */
-function passDetails(
-	title: string,
-	startsAt: Date | null,
-	timeZone: string | null,
-): PassDetails {
-	if (!startsAt) return { eventTitle: title, start: null };
-	const zone = timeZone ?? "UTC";
-	return {
-		eventTitle: title,
-		start: {
-			iso: startsAt.toISOString(),
-			date: new Intl.DateTimeFormat("en-US", {
-				timeZone: zone,
-				weekday: "short",
-				month: "short",
-				day: "numeric",
-				year: "numeric",
-			}).format(startsAt),
-			time: new Intl.DateTimeFormat("en-US", {
-				timeZone: zone,
-				hour: "numeric",
-				minute: "2-digit",
-			}).format(startsAt),
-		},
-	};
 }
