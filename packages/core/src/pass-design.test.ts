@@ -12,7 +12,7 @@ import {
 	renderPass,
 	SAMPLE_CODE,
 } from "./pass-design.ts";
-import { PASS_ARTWORK, PASS_DESIGN_IDS } from "./pass-designs.ts";
+import { accentColour, PASS_ARTWORK, PASS_DESIGN_IDS } from "./pass-designs.ts";
 
 const values: PassValues = {
 	event_title: "Summit",
@@ -118,4 +118,15 @@ test("a retired code leaves its tile and words, never the code", () => {
 	});
 	assert.equal(svg.includes(SAMPLE_CODE.path), false);
 	assert.match(svg, />Event<\/text>.*>ended<\/text>/);
+});
+
+test("a ticket starts on Midnight Orbital in the brand green, bright on dark", () => {
+	const design = defaultPassDesign();
+	assert.equal(design.base, "midnight-orbital");
+	assert.equal(design.accent, "green");
+	assert.equal(accentColour(design.base, design.accent), "#2d9b5e");
+	// The same choice on a light design keeps the light value.
+	assert.equal(accentColour("bauhaus-sun", "green"), "#1f7a4d");
+	// A design named keeps its own accent.
+	assert.equal(defaultPassDesign("swiss-grid").accent, null);
 });

@@ -11,7 +11,6 @@ import {
 	newLayerId,
 	PASS_ACCENT_KEYS,
 	PASS_ACCENT_NAMES,
-	PASS_ACCENTS,
 	PASS_ARTWORK,
 	PASS_COLOUR_KEYS,
 	PASS_COLOUR_NAMES,
@@ -449,7 +448,8 @@ export function DesignEditor({
 										/>
 										<span
 											className={styles.dot}
-											style={{ background: PASS_ACCENTS[key] }}
+											// The value this design uses: dark designs take the brighter one.
+											style={{ background: accentColour(draft.base, key) }}
 											aria-hidden="true"
 										/>
 										<span>{PASS_ACCENT_NAMES[key]}</span>

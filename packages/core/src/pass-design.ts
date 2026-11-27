@@ -177,13 +177,15 @@ export type PassDesign = z.infer<typeof passDesign>;
 
 // ---- Defaults ---------------------------------------------------------------
 
-/** The layout every ticket starts with, on any artwork. */
-export function defaultPassDesign(
-	base: PassDesign["base"] = "classic",
-): PassDesign {
+/**
+ * The layout every ticket starts with. With no design named, Midnight
+ * Orbital in the brand's green: the design a ticket has until someone picks
+ * another. With one named, that design in its own accent.
+ */
+export function defaultPassDesign(base?: PassDesign["base"]): PassDesign {
 	return {
-		base,
-		accent: null,
+		base: base ?? "midnight-orbital",
+		accent: base ? null : "green",
 		layers: [
 			{ id: "qr", kind: "qr", x: 584, y: 84, size: 112 },
 			{

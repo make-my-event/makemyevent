@@ -33,12 +33,15 @@
 
 /* The pass on a tint, like a ticket laid on a counter. */
 .stage {
-	padding: var(--space-l) var(--space-m);
+	padding: var(--space-m);
 	border-radius: var(--radius-l);
 	background: var(--tint);
 }
 
 .pass {
+	/* About the size of a printed ticket on screen, not the whole width. */
+	max-width: 36rem;
+	margin-inline: auto;
 	line-height: 0;
 }
 
@@ -76,14 +79,9 @@
 	line-height: 1.4;
 }
 
-/* The big code for a phone: dark on light whatever the theme (lib/qr.ts). */
-.scan {
-	display: flex;
-	justify-content: center;
-}
-
+/* The code shown large on request: dark on light whatever the theme (lib/qr.ts). */
 .qr {
-	width: min(100%, 260px);
+	width: min(100%, 300px);
 	aspect-ratio: 1;
 	overflow: hidden;
 	border-radius: var(--radius-m);
@@ -180,14 +178,6 @@
 	overflow-wrap: anywhere;
 }
 
-/* Wide screens: the pass's own code is big enough to scan off the screen.
-   After .scan above, so it wins. */
-@media (min-width: 1024px) {
-	.scan {
-		display: none;
-	}
-}
-
 @media (max-width: 639px) {
 	.page {
 		padding-top: var(--space-s);
@@ -200,4 +190,61 @@
 	.side {
 		padding: var(--space-s);
 	}
+}
+
+/* ---- Show code to scan --------------------------------------------------- */
+
+.show {
+	composes: primary from "../../../components/ui/ui.module.css";
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+}
+
+.show svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.show:focus-visible,
+.close:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+/* The code inside draws its own light tile (lib/qr.ts), whatever the theme. */
+.dialog {
+	width: min(calc(100vw - 2 * var(--space-s)), 24rem);
+	padding: var(--space-m);
+	border: 0;
+	border-radius: var(--radius-l);
+	background: var(--surface);
+	color: var(--ink);
+}
+
+.dialog::backdrop {
+	background: rgb(0 0 0 / 0.6);
+}
+
+.dialogBody {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-s);
+	text-align: center;
+}
+
+.dialogCode {
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-large);
+	letter-spacing: 0.04em;
+}
+
+.close {
+	composes: secondary from "../../../components/ui/ui.module.css";
+	min-height: var(--control);
+	align-self: stretch;
 }

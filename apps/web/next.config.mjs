@@ -6,6 +6,11 @@ const nextConfig = {
 	poweredByHeader: false,
 	// Workspace packages ship TypeScript source; Next compiles them with the app.
 	transpilePackages: ["@makemyevent/core", "@makemyevent/db"],
+	// The pass email reads the logo from public/ when it sends (guests/passes.ts):
+	// public/ is served, not bundled, so the server functions get a copy.
+	outputFileTracingIncludes: {
+		"/dashboard/[event]/guests": ["./public/makemyevent-symbol-164x180.png"],
+	},
 	// Lets a second build or CI run sit beside a running dev server without sharing its output folder.
 	distDir: process.env.NEXT_DIST_DIR || ".next",
 	// The Organized list moved from /dashboard/organized to /dashboard. Old

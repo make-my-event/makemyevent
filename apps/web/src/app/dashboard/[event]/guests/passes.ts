@@ -1,5 +1,8 @@
 "use server";
 
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import { recordId, renderPass } from "@makemyevent/core";
 import { revalidatePath } from "next/cache";
 import { asUser } from "@/lib/db";
@@ -33,6 +36,26 @@ const NO_KEY =
 	"Passes aren't set up on this site yet. It needs TICKET_SIGNING_KEY.";
 /** One email per guest per minute, however often Resend is pressed. */
 const RESEND_GAP_MS = 60_000;
+/** The symbol beside the name at the top of the email (next.config ships it). */
+const LOGO_FILE = "makemyevent-symbol-164x180.png";
+let logo: Promise<Buffer | null> | null = null;
+
+/** Read once per server; an email goes out without it rather than not at all. */
+function logoPng(): Promise<Buffer | null> {
+	logo ??= readFile(join(process.cwd(), "public", LOGO_FILE)).catch(() => null);
+	return logo;
+}
+
+/** "Sat, Nov 28", in the event's zone, for the subject line. */
+function dayText(start: Date | null, timeZone: string | null): string | null {
+	if (!start) return null;
+	return new Intl.DateTimeFormat("en-US", {
+		timeZone: timeZone ?? "UTC",
+		weekday: "short",
+		month: "short",
+		day: "numeric",
+	}).format(start);
+}
 /** Guests per call, so a big send is many short calls the page can follow. */
 const BATCH = 10;
 
@@ -222,6 +245,7 @@ export async function sendPasses(
 		return { ok: false, message: slow.message, retryAfter: slow.retryAfter };
 
 	const event = data.event;
+	const symbol = await logoPng();
 	const now = Date.now();
 	const skipped: { name: string; reason: string }[] = [];
 	const failed: { name: string; reason: string }[] = [];
@@ -274,10 +298,15 @@ export async function sendPasses(
 			ticketCode: guest.ticketCode,
 			qrCid: "pass-qr",
 			ticketUrl: `${env.appUrl}/t/${view}`,
+			ticketsUrl: `${env.appUrl}/dashboard/attending`,
+			logoCid: symbol ? "logo" : null,
 		};
 		const result = await sendEmail({
 			to: guest.attendeeEmail,
-			subject: passSubject(event.title),
+			subject: passSubject(
+				event.title,
+				dayText(event.startsAt, event.timeZone),
+			),
 			html: passHtml(details),
 			text: passText(details),
 			attachments: [
@@ -286,6 +315,15 @@ export async function sendPasses(
 					content: png.toString("base64"),
 					contentId: "pass-qr",
 				},
+				...(symbol
+					? [
+							{
+								filename: "makemyevent.png",
+								content: symbol.toString("base64"),
+								contentId: "logo",
+							},
+						]
+					: []),
 			],
 			// Within the minute, a retry of the same send is the same email.
 			idempotencyKey: `pass:${guest.id}:${Math.floor(now / RESEND_GAP_MS)}`,

@@ -600,9 +600,10 @@ export function passArtwork(id: string): PassArtwork {
 }
 
 /**
- * The accents an organizer can choose: the data colours of design-spec.md,
- * light values (a pass is the same in both themes). Null keeps the design's
- * own.
+ * The accents an organizer can choose: the data colours of design-spec.md.
+ * A pass is the same in both themes, so the design's tone picks the value:
+ * the light values on a light design, the dark values on a dark one, where
+ * the light ones are too dim. Null keeps the design's own.
  */
 export const PASS_ACCENTS = {
 	green: "#1f7a4d",
@@ -611,6 +612,15 @@ export const PASS_ACCENTS = {
 	violet: "#7048e8",
 	cyan: "#0b7285",
 } as const;
+
+/** The same accents on a dark design: the spec's dark values. */
+export const PASS_ACCENTS_ON_DARK: Record<keyof typeof PASS_ACCENTS, string> = {
+	green: "#2d9b5e",
+	blue: "#4dabf7",
+	pink: "#f783ac",
+	violet: "#b197fc",
+	cyan: "#3bc9db",
+};
 
 export type PassAccent = keyof typeof PASS_ACCENTS;
 
@@ -628,5 +638,9 @@ export const PASS_ACCENT_NAMES: Record<PassAccent, string> = {
 };
 
 export function accentColour(id: string, accent: PassAccent | null): string {
-	return accent ? PASS_ACCENTS[accent] : passArtwork(id).accent;
+	const art = passArtwork(id);
+	if (!accent) return art.accent;
+	return art.tone === "dark"
+		? PASS_ACCENTS_ON_DARK[accent]
+		: PASS_ACCENTS[accent];
 }

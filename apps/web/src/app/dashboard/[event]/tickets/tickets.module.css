@@ -610,6 +610,9 @@
 /* The pass, drawn by packages/core in its saved design: artwork, never
    themed (design-spec.md, "Pass designs"). */
 .pass {
+	/* A preview, not the pass itself: small enough to glance at beside the
+	   ticket's settings. */
+	max-width: 26rem;
 	line-height: 0;
 }
 

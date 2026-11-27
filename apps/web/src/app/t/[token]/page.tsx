@@ -15,6 +15,7 @@ import { masterKey, readView, signPass } from "@/lib/pass-token";
 import { qrModules, qrSvg } from "@/lib/qr";
 import { limited } from "@/lib/rate-limit";
 import { CopyCode } from "./copy-code";
+import { ShowCode } from "./show-code";
 import styles from "./ticket.module.css";
 
 export const metadata: Metadata = {
@@ -64,8 +65,8 @@ function endedAt(event: View["event"]): number | null {
  *   │                                        │ │ When, where        │
  *   └────────────────────────────────────────┘ └────────────────────┘
  *
- * On a phone the pass's own code is too small to scan, so a large one
- * follows it. A day after the event, cancelled, or reissued: the pass
+ * The pass's own code is small on a phone: "Show code to scan" opens it
+ * large, for the door. A day after the event, cancelled, or reissued: the pass
  * stays, its code is retired, and the page says why.
  */
 export default async function TicketPage({ params }: Props) {
@@ -169,25 +170,19 @@ export default async function TicketPage({ params }: Props) {
 						</p>
 					) : null}
 
-					{entry ? (
-						<div className={styles.scan}>
-							<div
-								className={styles.qr}
-								role="img"
-								aria-label={`Entry code for ${view.attendeeName}`}
-								// A QR the server drew from a token it signed; no guest text in it.
-								// biome-ignore lint/security/noDangerouslySetInnerHtml: see above
-								dangerouslySetInnerHTML={{ __html: await qrSvg(entry) }}
-							/>
-						</div>
-					) : null}
-
 					{live ? (
 						<div className={styles.block}>
 							<p className={styles.label} id="code-label">
 								Ticket code
 							</p>
 							<CopyCode code={view.ticketCode} />
+							{entry ? (
+								<ShowCode
+									svg={await qrSvg(entry)}
+									code={view.ticketCode}
+									name={view.attendeeName}
+								/>
+							) : null}
 							<p className={styles.hint}>
 								Show the code on your pass at the door. If it won't scan, read
 								out this code.
