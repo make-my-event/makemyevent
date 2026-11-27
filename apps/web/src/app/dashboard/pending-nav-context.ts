@@ -21,6 +21,7 @@ export type DashboardSkeletons = {
 	formBuilder: ReactNode;
 	guests: ReactNode;
 	tickets: ReactNode;
+	scan: ReactNode;
 	section: ReactNode;
 };
 

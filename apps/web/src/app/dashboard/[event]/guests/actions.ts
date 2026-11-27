@@ -6,13 +6,13 @@ import {
 	type FieldSettings,
 	isFieldKind,
 	recordId,
-	utcToZoned,
 } from "@makemyevent/core";
-import { Prisma, type Tx } from "@makemyevent/db";
+import { Prisma } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
 import { actingUser } from "@/lib/require-user";
+import { checkInDay as today } from "../check-in-day";
 
 /**
  * The Guests tab's reads and writes beyond the list, each as the person
@@ -135,36 +135,6 @@ export async function getGuest(
 }
 
 export type CheckInResult = { ok: true } | { ok: false; message: string };
-
-/**
- * Which event day a check-in now counts for: today, on the event's own
- * clock. An event without days has one check-in in all (null). Checking in
- * on a day the event doesn't run is refused, so a pass can't be used up on
- * the wrong day.
- */
-async function today(
-	tx: Tx,
-	eventId: string,
-): Promise<
-	{ ok: true; dayId: bigint | null } | { ok: false; message: string }
-> {
-	const event = await tx.event.findUnique({
-		where: { id: eventId },
-		select: { timeZone: true, days: { select: { id: true, day: true } } },
-	});
-	if (!event) return { ok: false, message: "That event was not found." };
-	if (event.days.length === 0) return { ok: true, dayId: null };
-	const date = utcToZoned(new Date(), event.timeZone ?? "UTC").date;
-	const match = event.days.find(
-		(d) => d.day.toISOString().slice(0, 10) === date,
-	);
-	return match
-		? { ok: true, dayId: match.id }
-		: {
-				ok: false,
-				message: "The event doesn't run today, so no one can check in yet.",
-			};
-}
 
 function isDuplicate(error: unknown) {
 	return (
