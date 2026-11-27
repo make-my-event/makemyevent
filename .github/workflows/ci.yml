@@ -140,6 +140,10 @@ jobs:
       - name: Every ticket rule, whoever writes
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/tickets.sql
 
+      # Concurrent confirmations are tested with the rest (place-limits.db.test.ts).
+      - name: No place past a limit without the organizer's say, and each recorded
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/place-limits.sql
+
       - name: Type check
         run: pnpm typecheck
 

@@ -14,6 +14,12 @@ import { revalidatePath } from "next/cache";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
 import { actingUser, bringingPeopleIn } from "@/lib/require-user";
+import {
+	allowPastLimits,
+	fullNow,
+	notAllowedPastLimits,
+	pastLimit,
+} from "./place-limits";
 
 /**
  * The team's changes to guests: adding one (Invite guest), correcting their
@@ -80,6 +86,10 @@ async function formOf(tx: Tx, eventId: string): Promise<FormField[]> {
 /**
  * Places left on the ticket and at the event, if adding one guest would
  * pass either: the words to ask "add anyway?" with. Null when there's room.
+ *
+ * Read without a lock, so only for asking first. The database refuses a
+ * place past either limit, under a lock on the event, unless the organizer
+ * answered yes (allowPastLimits).
  */
 async function overCapacity(
 	tx: Tx,
@@ -188,11 +198,22 @@ async function checked(
 	return submission;
 }
 
+/**
+ * `anyway` asks to go past a limit that filled between the check and the
+ * write, e.g. "Invite anyway?"; yes sends the same call with force.
+ */
 function failure(
 	error: unknown,
 	emailFieldId?: string,
+	anyway?: string,
 ): GuestWriteResult | null {
 	if (error instanceof Refused) return error.result;
+	const full = pastLimit(error);
+	if (full)
+		return anyway
+			? { ok: false, confirm: true, message: `${fullNow(full)} ${anyway}` }
+			: { ok: false, message: fullNow(full) };
+	if (notAllowedPastLimits(error)) return { ok: false, message: NOT_ALLOWED };
 	const text = error instanceof Error ? error.message : "";
 	if (/blocked contact/.test(text))
 		return {
@@ -300,6 +321,9 @@ export async function inviteGuest(
 					});
 				}
 			}
+			// They said invite anyway: the database lets this one past, and
+			// records it.
+			if (input.force && !waitlisted) await allowPastLimits(tx, eventId);
 			const created = await tx.registration.create({
 				data: {
 					eventId,
@@ -318,7 +342,7 @@ export async function inviteGuest(
 		revalidatePath("/dashboard/[event]/guests", "page");
 		return { ok: true, id };
 	} catch (error) {
-		const result = failure(error, emailFieldId);
+		const result = failure(error, emailFieldId, "Invite anyway?");
 		if (result) return result;
 		throw error;
 	}
@@ -411,6 +435,7 @@ export async function editGuest(
 						message: `${full} Move them anyway?`,
 					});
 			}
+			if (moving && input.force) await allowPastLimits(tx, eventId);
 			const { count } = await tx.registration.updateMany({
 				where: { id: registrationId, eventId },
 				data: {
@@ -467,7 +492,7 @@ export async function editGuest(
 		revalidatePath("/dashboard/[event]/guests", "page");
 		return { ok: true, id: registrationId };
 	} catch (error) {
-		const result = failure(error, emailFieldId);
+		const result = failure(error, emailFieldId, "Move them anyway?");
 		if (result) return result;
 		throw error;
 	}
@@ -513,6 +538,7 @@ export async function setCancelled(
 						message: `${full} Give them a place anyway?`,
 					});
 			}
+			if (!cancelled && force) await allowPastLimits(tx, eventId);
 			const { count } = await tx.registration.updateMany({
 				where: { id: registrationId, eventId },
 				data: { status: cancelled ? "cancelled" : "confirmed" },
@@ -533,7 +559,7 @@ export async function setCancelled(
 		revalidatePath("/dashboard/[event]/guests", "page");
 		return { ok: true, id: registrationId };
 	} catch (error) {
-		const result = failure(error);
+		const result = failure(error, undefined, "Give them a place anyway?");
 		if (result) return result;
 		throw error;
 	}
