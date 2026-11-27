@@ -41,6 +41,8 @@ export type GuestWriteResult =
 			problems?: Record<string, string>;
 			/** Over capacity: the same call with force true goes ahead. */
 			confirm?: boolean;
+			/** And the ticket keeps a waiting list: they can join it instead. */
+			waitlist?: boolean;
 			/** The guest who already has this email. */
 			existingId?: string;
 	  };
@@ -246,7 +248,12 @@ async function storeAnswers(
  */
 export async function inviteGuest(
 	eventId: string,
-	input: GuestFormValues & { code: string | null; force: boolean },
+	input: GuestFormValues & {
+		code: string | null;
+		force: boolean;
+		/** Onto the ticket's waiting list, with no place yet. */
+		waitlist?: boolean;
+	},
 ): Promise<GuestWriteResult> {
 	// A guest is someone else: the button sent them to set up two-step
 	// sign-in first; this is for an action reached some other way.
@@ -274,14 +281,24 @@ export async function inviteGuest(
 					});
 				code = normalized.code;
 			}
-			if (!input.force) {
+			const waitlisted = input.waitlist === true;
+			if (!input.force && !waitlisted) {
 				const full = await overCapacity(tx, eventId, input.ticketTypeId);
-				if (full)
+				if (full) {
+					const ticket = await tx.ticketType.findFirst({
+						where: { id: input.ticketTypeId, eventId },
+						select: { waitlistEnabled: true },
+					});
+					const waitlist = ticket?.waitlistEnabled === true;
 					throw new Refused({
 						ok: false,
 						confirm: true,
-						message: `${full} Invite anyway?`,
+						...(waitlist ? { waitlist } : {}),
+						message: waitlist
+							? `${full} Add them to the waiting list, or invite them anyway?`
+							: `${full} Invite anyway?`,
 					});
+				}
 			}
 			const created = await tx.registration.create({
 				data: {
@@ -289,7 +306,7 @@ export async function inviteGuest(
 					ticketTypeId: input.ticketTypeId,
 					attendeeName: submission.name,
 					attendeeEmail: submission.email,
-					status: "confirmed",
+					status: waitlisted ? "waitlisted" : "confirmed",
 					source: "invite",
 					...(code ? { ticketCode: code } : {}),
 				},
@@ -457,9 +474,10 @@ export async function editGuest(
 }
 
 /**
- * Cancels a guest's place, or gives it back. Cancelled guests leave the
- * list and the counts, keep their answers, and can be restored; restoring
- * to a full ticket asks first.
+ * Cancels a guest's place, or gives one: back to someone cancelled, or to
+ * someone on the waiting list. Cancelled guests leave the list and the
+ * counts, keep their answers, and can be restored; giving a place on a full
+ * ticket asks first.
  */
 export async function setCancelled(
 	eventId: string,
@@ -484,14 +502,15 @@ export async function setCancelled(
 			});
 			if (!guest)
 				throw new Refused({ ok: false, message: "That guest was not found." });
-			if ((guest.status === "cancelled") === cancelled) return;
+			const want = cancelled ? "cancelled" : "confirmed";
+			if (guest.status === want) return;
 			if (!cancelled && !force) {
 				const full = await overCapacity(tx, eventId, guest.ticketTypeId);
 				if (full)
 					throw new Refused({
 						ok: false,
 						confirm: true,
-						message: `${full} Restore anyway?`,
+						message: `${full} Give them a place anyway?`,
 					});
 			}
 			const { count } = await tx.registration.updateMany({
@@ -502,7 +521,11 @@ export async function setCancelled(
 			await tx.auditLog.create({
 				data: {
 					eventId,
-					action: cancelled ? "guest.cancel" : "guest.restore",
+					action: cancelled
+						? "guest.cancel"
+						: guest.status === "waitlisted"
+							? "guest.admit"
+							: "guest.restore",
 					targetId: registrationId,
 				},
 			});

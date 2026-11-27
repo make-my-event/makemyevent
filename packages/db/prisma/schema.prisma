@@ -212,7 +212,9 @@ model EventDay {
 }
 
 // A kind of ticket: "General Pass", created with every event, or any the
-// host adds. Each limit is off while its column is empty or false.
+// host adds. Each limit is off while its column is empty or false. Free
+// until payments exist (price_minor is held at 0), and its own capacity is
+// never more than the event's.
 model TicketType {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId         String    @map("event_id") @db.Uuid
@@ -225,6 +227,13 @@ model TicketType {
   inviteOnly      Boolean   @default(false) @map("invite_only")
   // Set by "Close ticket"; cleared to reopen.
   closedAt        DateTime? @map("closed_at") @db.Timestamptz
+  // What it includes, for guests choosing. Up to 500 characters.
+  description     String    @default("")
+  // In once on each day it admits (its days, or every day); false is in
+  // once on any one day. Only matters for an event over more than one day.
+  multiDay        Boolean   @default(true) @map("multi_day")
+  // Its holder may pass it to someone else.
+  transferable    Boolean   @default(false)
   position        Int       @default(0)
   // Confirmed registrations, kept by a trigger on registrations, so counts
   // are a read of one row rather than a count of many. No one writes it.
