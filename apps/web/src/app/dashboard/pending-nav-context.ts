@@ -20,6 +20,7 @@ export type DashboardSkeletons = {
 	edit: ReactNode;
 	formBuilder: ReactNode;
 	guests: ReactNode;
+	tickets: ReactNode;
 	section: ReactNode;
 };
 

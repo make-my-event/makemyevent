@@ -2,6 +2,7 @@ import { SiteHeader } from "@/components/site-header";
 import EventPageLoading from "./[event]/edit/loading";
 import FormBuilderLoading from "./[event]/form-builder/loading";
 import GuestsLoading from "./[event]/guests/loading";
+import TicketsLoading from "./[event]/tickets/loading";
 import { EventHeaderSkeleton } from "./[event]/event-header";
 import SectionLoading from "./[event]/[section]/loading";
 import OverviewLoading from "./[event]/overview/loading";
@@ -38,6 +39,7 @@ export default function DashboardLayout({
 				edit: <EventPageLoading />,
 				formBuilder: <FormBuilderLoading />,
 				guests: <GuestsLoading />,
+				tickets: <TicketsLoading />,
 				section: <SectionLoading />,
 			}}
 		>
