@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
+import type { User } from "@supabase/supabase-js";
 import { cache } from "react";
+import { type Assurance, assuranceOf } from "../two-step";
 import { createClient } from "./server";
 
 /**
@@ -33,6 +35,9 @@ export async function getDisplayName(): Promise<string | null> {
 	}
 }
 
+/** A signed-in person, and how strongly this session has proved it. */
+export type CurrentUser = User & Assurance;
+
 /**
  * The verified user, for anything that gates access or reads their data.
  *
@@ -42,11 +47,22 @@ export async function getDisplayName(): Promise<string | null> {
  * and expiration invalidate the session token). It costs one round trip to
  * the Auth server per request; cache() keeps it to one however many
  * components ask.
+ *
+ * The level (aal) is read from the same token that check just accepted, with
+ * the authenticators it answered with. On its own it lets no one in: pages
+ * and actions ask requireUser or actingUser (lib/require-user.ts), and the
+ * database gives an owner, admin or organizer their role only at aal2.
  */
-export const getCurrentUser = cache(async () => {
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 	const supabase = await createClient();
 	const {
+		data: { session },
+	} = await supabase.auth.getSession();
+	if (!session) return null;
+	// Nothing in the session is believed before this: it came from a cookie.
+	const {
 		data: { user },
-	} = await supabase.auth.getUser();
-	return user;
+	} = await supabase.auth.getUser(session.access_token);
+	if (!user) return null;
+	return { ...user, ...assuranceOf(session.access_token, user.factors) };
 });

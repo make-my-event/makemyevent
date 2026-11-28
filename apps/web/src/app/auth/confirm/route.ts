@@ -1,6 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { limited } from "@/lib/rate-limit";
+import { afterSignIn } from "@/lib/after-sign-in";
 import { NEXT_COOKIE, safeRedirectPath } from "@/lib/safe-redirect";
 import { createClient } from "@/lib/supabase/server";
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
 		});
 
 	const supabase = await createClient();
-	const { error } = await supabase.auth.verifyOtp({
+	const { data, error } = await supabase.auth.verifyOtp({
 		token_hash: tokenHash,
 		type,
 	});
@@ -53,7 +54,10 @@ export async function GET(request: NextRequest) {
 		}
 	}
 
-	const response = NextResponse.redirect(new URL(next, request.url), 303);
+	const response = NextResponse.redirect(
+		new URL(afterSignIn(next, data.user), request.url),
+		303,
+	);
 	response.cookies.delete(NEXT_COOKIE);
 	return response;
 }

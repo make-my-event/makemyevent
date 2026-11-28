@@ -1,14 +1,14 @@
 import { recordId } from "@makemyevent/core";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { RightIcon } from "@/components/icons";
 import { asUser } from "@/lib/db";
 import { whenText, whereText } from "@/lib/event-text";
 import { masterKey, signPass } from "@/lib/pass-token";
 import { qrSvg } from "@/lib/qr";
 import { imageUrl } from "@/lib/storage";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { requireUser } from "@/lib/require-user";
 import { claimTickets } from "../../../claim-invites";
 import dashboard from "../../../dashboard.module.css";
 import { myTickets } from "../../../my-tickets";
@@ -29,14 +29,13 @@ type Props = { params: Promise<{ ticket: string }> };
  */
 export default async function TicketPage({ params }: Props) {
 	const { ticket: id } = await params;
-	const user = await getCurrentUser();
-	if (!user)
-		redirect(
-			`/signin?next=${encodeURIComponent(`/dashboard/attending/${encodeURIComponent(id)}`)}`,
-		);
+	const user = await requireUser(
+		`/dashboard/attending/${encodeURIComponent(id)}`,
+		"self",
+	);
 	if (!recordId.safeParse(id).success) notFound();
 
-	const [ticket] = await asUser(user.id, async (tx) => {
+	const [ticket] = await asUser(user, async (tx) => {
 		await claimTickets(tx, user);
 		return myTickets(tx, id);
 	});

@@ -6,6 +6,11 @@ const nextConfig = {
 	poweredByHeader: false,
 	// Workspace packages ship TypeScript source; Next compiles them with the app.
 	transpilePackages: ["@makemyevent/core", "@makemyevent/db"],
+	// The pass email reads the logo from public/ when it sends (guests/passes.ts):
+	// public/ is served, not bundled, so the server functions get a copy.
+	outputFileTracingIncludes: {
+		"/dashboard/[event]/guests": ["./public/makemyevent-symbol-164x180.png"],
+	},
 	// Lets a second build or CI run sit beside a running dev server without sharing its output folder.
 	distDir: process.env.NEXT_DIST_DIR || ".next",
 	// The Organized list moved from /dashboard/organized to /dashboard. Old
@@ -53,8 +58,28 @@ const nextConfig = {
 				value: "public, max-age=86400, stale-while-revalidate=604800",
 			},
 		];
+		// A guest's ticket page: its address is the ticket. Never passed on to
+		// another site, never kept by a cache, never in a search index.
+		const ticketPage = [
+			{ key: "Referrer-Policy", value: "no-referrer" },
+			{ key: "Cache-Control", value: "private, no-store" },
+			{ key: "X-Robots-Tag", value: "noindex, nofollow" },
+		];
 		return [
 			{ source: "/:path*", headers: security },
+			{ source: "/t/:token", headers: ticketPage },
+			// The door scanner reads passes with the camera: allowed on this
+			// page only, for this site only; blocked everywhere else.
+			{
+				source: "/dashboard/:event/scan-qr",
+				headers: [
+					{
+						key: "Permissions-Policy",
+						value:
+							"camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
+					},
+				],
+			},
 			{
 				source: "/:file(icon\\.svg|favicon\\.ico|manifest\\.json)",
 				headers: publicAssets,

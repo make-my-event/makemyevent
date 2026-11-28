@@ -28,7 +28,7 @@ export default async function EventEditPage({ params, searchParams }: Props) {
 	const event = await loadManagedEvent(slug, "edit");
 	// The About document only here: it can be long, and no other section
 	// needs it, so it stays out of the shared event query.
-	const more = await asUser(event.viewerId, (tx) =>
+	const more = await asUser(event.viewer, (tx) =>
 		tx.event.findUniqueOrThrow({
 			where: { id: event.id },
 			select: {

@@ -14,10 +14,10 @@ import {
 } from "@makemyevent/core";
 import { Prisma } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { imageUrl } from "@/lib/storage";
 import { limited } from "@/lib/rate-limit";
+import { actingUser } from "@/lib/require-user";
 import { getCurrentUser } from "@/lib/supabase/identity";
 
 /**
@@ -100,8 +100,7 @@ export async function saveEventPage(
 		links: { kind: string; value: string }[];
 	},
 ): Promise<EventPageResult> {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
+	const user = await actingUser();
 	if (!recordId.safeParse(eventId).success)
 		return { ok: false, field: null, message: "That event was not found." };
 
@@ -160,7 +159,7 @@ export async function saveEventPage(
 
 	let before: string | null = null;
 	try {
-		const saved = await asUser(user.id, async (tx) => {
+		const saved = await asUser(user, async (tx) => {
 			const current = await tx.event.findUnique({
 				where: { id: eventId },
 				select: { slug: true, registrationPausedAt: true },
@@ -216,6 +215,22 @@ export async function saveEventPage(
 				field: "address",
 				message: "That address is taken. Try another.",
 			};
+		// The tickets migration's rules, said where they can be fixed.
+		const text = error instanceof Error ? error.message : "";
+		if (/event under ticket capacity/.test(text))
+			return {
+				ok: false,
+				field: "capacity",
+				message:
+					"A ticket has more places than this. Lower that ticket's limit on Tickets first.",
+			};
+		if (/checked in on a dropped day/.test(text))
+			return {
+				ok: false,
+				field: "start",
+				message:
+					"Guests have checked in on a day these dates leave out. Keep that day in the dates.",
+			};
 		throw error;
 	}
 
@@ -243,7 +258,7 @@ export async function checkAddress(
 	if (!parsed.success) return "invalid";
 	if (await limited("event.address", { user: user.id })) return "slow";
 	const [row] = await asUser(
-		user.id,
+		user,
 		(tx) =>
 			tx.$queryRaw<{ available: boolean }[]>`
 			SELECT app.address_available(${parsed.data}, ${eventId}::uuid) AS available
@@ -261,14 +276,13 @@ export async function setListing(
 	eventId: string,
 	listed: boolean,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
+	const user = await actingUser();
 	if (!recordId.safeParse(eventId).success || typeof listed !== "boolean")
 		return { ok: false, message: "That event was not found." };
 
 	const slow = await limited("event.write", { user: user.id });
 	if (slow) return { ok: false, message: slow.message };
-	const { count } = await asUser(user.id, (tx) =>
+	const { count } = await asUser(user, (tx) =>
 		tx.event.updateMany({ where: { id: eventId }, data: { listed } }),
 	);
 	if (count === 0) return { ok: false, message: NOT_ALLOWED };

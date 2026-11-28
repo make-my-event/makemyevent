@@ -16,10 +16,15 @@ import {
 } from "@makemyevent/core";
 import { BULK_LIMITS, Prisma, type Tx } from "@makemyevent/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { bringingPeopleIn } from "@/lib/require-user";
+import {
+	allowPastLimits,
+	fullNow,
+	notAllowedPastLimits,
+	pastLimit,
+} from "./place-limits";
 
 /**
  * Bulk upload: a CSV file's text, or a Google Sheet's link, read into the
@@ -58,12 +63,6 @@ export type ImportResult =
 
 const NOT_ALLOWED =
 	"You can't add guests to this event. Ask its owner or an admin for the Organizer role.";
-
-async function signedIn() {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
-	return user;
-}
 
 /** A body read no further than the limit, however long it claims to be. */
 async function capped(
@@ -321,7 +320,7 @@ export async function previewImport(
 	source: ImportSource,
 	ticketTypeId: string,
 ): Promise<ImportPreview> {
-	const user = await signedIn();
+	const user = await bringingPeopleIn("/dashboard");
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(ticketTypeId).success
@@ -332,7 +331,7 @@ export async function previewImport(
 	if (slow) return { ok: false, message: slow.message };
 	const text = await sourceText(source);
 	if (!text.ok) return text;
-	return asUser(user.id, async (tx) => {
+	return asUser(user, async (tx) => {
 		const result = await check(tx, eventId, text.text, ticketTypeId);
 		if (!result.ok) return result;
 		const { columns, missing, rows } = result.checked;
@@ -353,7 +352,8 @@ export async function previewImport(
 
 /**
  * Adds every good row as an imported guest, with answers, on the ticket,
- * all or none. Going past the ticket's or event's capacity asks first.
+ * all or none. Going past the ticket's or event's capacity asks first; the
+ * check here only decides when to ask, and the database holds the limits.
  */
 export async function importGuests(
 	eventId: string,
@@ -361,7 +361,7 @@ export async function importGuests(
 	ticketTypeId: string,
 	force: boolean,
 ): Promise<ImportResult> {
-	const user = await signedIn();
+	const user = await bringingPeopleIn("/dashboard");
 	if (
 		!recordId.safeParse(eventId).success ||
 		!recordId.safeParse(ticketTypeId).success
@@ -374,7 +374,7 @@ export async function importGuests(
 	if (!text.ok) return text;
 	try {
 		const result = await asUser(
-			user.id,
+			user,
 			async (tx): Promise<ImportResult> => {
 				const checkedResult = await check(tx, eventId, text.text, ticketTypeId);
 				if (!checkedResult.ok) return checkedResult;
@@ -422,6 +422,9 @@ export async function importGuests(
 						};
 				}
 
+				// They said import anyway: the database lets these past, and
+				// records each one that goes past a limit.
+				if (force) await allowPastLimits(tx, eventId);
 				const ids = good.map(() => randomUUID());
 				await tx.registration.createMany({
 					data: good.map((row, i) => ({
@@ -468,6 +471,15 @@ export async function importGuests(
 		if (result.ok) revalidatePath("/dashboard/[event]/guests", "page");
 		return result;
 	} catch (error) {
+		// Filled between the check and the write.
+		const full = pastLimit(error);
+		if (full)
+			return {
+				ok: false,
+				confirm: true,
+				message: `${fullNow(full)} Import anyway?`,
+			};
+		if (notAllowedPastLimits(error)) return { ok: false, message: NOT_ALLOWED };
 		const text = error instanceof Error ? error.message : "";
 		if (/blocked contact/.test(text))
 			return {

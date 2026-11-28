@@ -22,6 +22,7 @@ import { checkIn, type GuestDetail, getGuest, undoCheckIn } from "./actions";
 import { setCancelled } from "./guest-writes";
 import { getPass, type PassView, sendPasses } from "./passes";
 import styles from "./guests.module.css";
+import { knownDoor } from "../scan-qr/door-memory";
 
 const SOURCE: Record<string, string> = {
 	self: "Registered",
@@ -136,7 +137,7 @@ export function GuestPanel({
 		startCheck(async () => {
 			const result = checkedIn
 				? await undoCheckIn(eventId, shown.id)
-				: await checkIn(eventId, shown.id);
+				: await checkIn(eventId, shown.id, knownDoor(eventId));
 			if (!result.ok) {
 				setError(result.message);
 				return;
@@ -326,6 +327,7 @@ export function GuestPanel({
 											<li key={c.at}>
 												{exactTime(new Date(c.at), timeZone)}
 												{c.by ? `, by ${c.by}` : ""}
+												{c.door ? `, at ${c.door}` : ""}
 											</li>
 										))}
 									</ul>
@@ -365,9 +367,10 @@ export function GuestPanel({
 								<QrIcon /> View pass
 							</button>
 						</div>
-						{shown.status !== "confirmed" ? (
+						{shown.status === "waitlisted" ? (
 							<p className={styles.panelNote}>
-								On the waitlist: they can be checked in once they have a place.
+								On the waiting list: they can be checked in once they have a
+								place.
 							</p>
 						) : null}
 
@@ -447,15 +450,21 @@ export function GuestPanel({
 
 						{canManage ? (
 							<div className={styles.manage}>
-								{shown.status === "cancelled" ? (
+								{shown.status !== "confirmed" ? (
 									<>
 										<button
 											type="button"
-											className={styles.secondary}
+											className={
+												shown.status === "waitlisted"
+													? styles.primary
+													: styles.secondary
+											}
 											disabled={pending}
 											onClick={() => changeCancelled(false)}
 										>
-											Restore their place
+											{shown.status === "waitlisted"
+												? "Give them a place"
+												: "Restore their place"}
 										</button>
 										{restoreFull ? (
 											<div className={styles.formResult} role="alert">
@@ -466,9 +475,19 @@ export function GuestPanel({
 													disabled={pending}
 													onClick={() => changeCancelled(false, true)}
 												>
-													Restore anyway
+													Give a place anyway
 												</button>
 											</div>
+										) : null}
+										{shown.status === "waitlisted" ? (
+											<button
+												type="button"
+												className={styles.danger}
+												disabled={pending}
+												onClick={() => setConfirmCancel(true)}
+											>
+												Take off the waiting list
+											</button>
 										) : null}
 									</>
 								) : (
@@ -523,6 +542,11 @@ export function GuestPanel({
 					</p>
 				) : pass.ok ? (
 					<div className={styles.pass}>
+						<div
+							className={styles.passDesign}
+							// biome-ignore lint/security/noDangerouslySetInnerHtml: drawn by renderPass on the server, every word escaped
+							dangerouslySetInnerHTML={{ __html: pass.pass }}
+						/>
 						<div
 							className={styles.passQr}
 							role="img"

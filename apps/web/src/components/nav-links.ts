@@ -32,4 +32,5 @@ export const ACCOUNT_LINKS: readonly NavLink[] = [
 	// Events they hold tickets for: the Attending list. Organizations get a
 	// link here when they exist.
 	{ label: "My tickets", href: "/dashboard/attending" },
+	{ label: "Account security", href: "/account/security" },
 ];

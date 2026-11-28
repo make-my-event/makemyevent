@@ -131,8 +131,27 @@ jobs:
       - name: A guest's tickets are theirs alone
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/guest-tickets.sql
 
+      - name: Two-step sign-in, at each level
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/two-step.sql
+
       - name: A team member's name is their own
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/team-names.sql
+
+      - name: Every ticket rule, whoever writes
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/tickets.sql
+
+      # Concurrent confirmations are tested with the rest (place-limits.db.test.ts).
+      - name: No place past a limit without the organizer's say, and each recorded
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/place-limits.sql
+
+      - name: A pass design holds its shape, and only the event's managers change it
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/ticket-designs.sql
+
+      - name: A guest's ticket page reads one ticket, and only what it shows
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/ticket-view.sql
+
+      - name: Doors hold their rules, whoever writes
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/doors.sql
 
       - name: Type check
         run: pnpm typecheck

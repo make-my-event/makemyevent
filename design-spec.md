@@ -30,6 +30,27 @@ For telling things of the same kind apart, such as ticket types in a count. Neve
 
 Series are given biggest first, and every chart lists each item by name and number in text, so colour is never the only way to tell them apart.
 
+### Pass colours
+
+The guest's ticket pass, and its preview on the Tickets page. Used only on the pass, never for the interface around it. Taken from [Open Color](https://yeun.github.io/open-color/) 1.9.1 (MIT), indigo.
+
+| Token | Light | Dark | Open Color | Used for |
+|---|---|---|---|---|
+| `pass` | `#364FC7` | `#3B5BDB` | indigo 9 / indigo 8 | The pass background |
+| `on-pass` | `#FFFFFF` | `#FFFFFF` | white | Text on the pass: 6.8:1 light, 5.7:1 dark |
+| `on-pass-muted` | `#DBE4FF` | `#EDF2FF` | indigo 1 / indigo 0 | Secondary text on the pass: 5.3:1 light, 5.1:1 dark |
+| `pass-line` | `#748FFC` | `#748FFC` | indigo 4 | The tear line and dividers on the pass; decorative, never text |
+
+### Pass designs
+
+The designs an organizer picks for a ticket's pass: Classic (the pass colours above, light values) and 20 drawn designs, all in `packages/core/src/pass-designs.ts`. Each design's ground, shapes and text colours are artwork, like the logo files. They stay inside the pass, and nothing in the interface samples them.
+
+- **A pass is the same in both themes.** It is printed, emailed and scanned, so it never follows the viewer's light or dark mode.
+- **Accent:** a design's own, or one of the data colours above, `series-1` to `series-5`: their light values on a light design, their dark values on a dark one.
+- **Default:** a ticket with no design chosen gets Midnight Orbital with the `series-1` accent (the brand green; `#2D9B5E` on this dark design).
+- **Text on a pass** is one of three colours its design names: ink, soft (secondary) or the accent. The editor warns below 4.5:1 against the design's ground, or 3:1 for large text (26 px and up).
+- **The entry code** is always dark modules on a light tile, as everywhere else: `ink` on `surface`.
+
 ## Typography
 
 | Role | Font | Used for |

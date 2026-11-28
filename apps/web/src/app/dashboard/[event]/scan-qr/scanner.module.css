@@ -1,0 +1,972 @@
+/* The door: a mode switch and the door's name, the answer as a banner, a
+   compact camera beside its settings, then the guest list. In the site's
+   light or dark theme like every other page. Tokens from globals.css,
+   colours from design-spec.md. The three answers: stamp for let in, the
+   neutral tint for already in, alert for stop; each also has its own words
+   and sound, so colour is never the only signal. */
+
+.srOnly {
+	composes: srOnly from "../../../../components/ui/ui.module.css";
+}
+
+.primaryButton {
+	composes: primary from "../../../../components/ui/ui.module.css";
+}
+
+.secondaryButton {
+	composes: secondary from "../../../../components/ui/ui.module.css";
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2xs);
+}
+
+.secondaryButton svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.bone {
+	composes: bone from "../../../../components/ui/ui.module.css";
+}
+
+.door {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+	max-width: 64rem;
+}
+
+.meta {
+	color: var(--muted);
+	font-size: var(--text-caption);
+	font-weight: 400;
+}
+
+.mono {
+	font-family: var(--font-mono);
+}
+
+.hint {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+	line-height: 1.5;
+}
+
+/* ---- The bar: mode, door, count ---------------------------------------- */
+
+.bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs) var(--space-s);
+}
+
+.modes {
+	display: inline-flex;
+	gap: 2px;
+	margin: 0;
+	padding: 3px;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-segment);
+	background: var(--tint);
+}
+
+.mode {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control-compact);
+	padding: 0 var(--space-s);
+	border-radius: var(--radius-compact);
+	color: var(--muted);
+	font-size: var(--text-small);
+	font-weight: 500;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.mode:has(:checked) {
+	background: var(--ink);
+	color: var(--paper);
+}
+
+.mode:has(:focus-visible),
+.gate:focus-visible,
+.bannerButton:focus-visible,
+.bannerClose:focus-visible,
+.camTool:focus-visible,
+.camStop:focus-visible,
+.match:focus-visible,
+.rowIn:focus-visible,
+.linkButton:focus-visible,
+.more:focus-visible,
+.filter:has(:focus-visible),
+.toggle:has(:focus-visible) {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+/* Shortcut hints, for a keyboard; a phone has none. */
+.kbd {
+	display: none;
+	padding: 0 4px;
+	border: 1px solid currentColor;
+	border-radius: var(--radius-badge);
+	font-family: var(--font-mono);
+	font-size: var(--text-micro);
+	line-height: 1.4;
+	opacity: 0.7;
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.kbd {
+		display: inline-block;
+	}
+}
+
+.barEnd {
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+	min-width: 0;
+}
+
+.gate {
+	max-width: 12rem;
+	min-height: var(--control-compact);
+	padding: 0 var(--space-xs);
+	overflow: hidden;
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.count {
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-small);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.offline {
+	margin: 0;
+	padding: var(--space-xs) var(--space-s);
+	border-radius: var(--radius-compact);
+	background: var(--alert);
+	color: var(--paper);
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+/* ---- The answer ---------------------------------------------------------- */
+
+.banner {
+	--banner: var(--perforation);
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+	padding: var(--space-s);
+	border: 1px solid var(--banner);
+	border-radius: var(--radius-m);
+	background: var(--surface);
+}
+
+.banner[data-kind="admit"] {
+	--banner: var(--stamp);
+	background: var(--stamp-tint);
+}
+
+.banner[data-kind="again"] {
+	--banner: var(--border-strong);
+	background: var(--tint);
+}
+
+.banner[data-kind="stop"] {
+	--banner: var(--alert);
+	background: color-mix(in srgb, var(--alert) 10%, var(--surface));
+}
+
+.bannerDot {
+	flex: none;
+	width: var(--space-s);
+	height: var(--space-s);
+	border-radius: var(--radius-full);
+	background: var(--banner);
+}
+
+.bannerText {
+	flex: 1;
+	min-width: 0;
+}
+
+.bannerTitle {
+	margin: 0;
+	font-size: var(--text-body);
+	font-weight: 700;
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+
+.bannerTicket {
+	color: var(--muted);
+	font-size: var(--text-small);
+	font-weight: 400;
+}
+
+.bannerMeta {
+	margin: var(--space-2xs) 0 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.bannerMeta:empty {
+	display: none;
+}
+
+.bannerButton {
+	flex: none;
+	min-height: var(--control-compact);
+	padding: 0 var(--space-s);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.bannerClose {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--control-compact);
+	height: var(--control-compact);
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--muted);
+	cursor: pointer;
+}
+
+.bannerClose svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+/* ---- The scanner ------------------------------------------------------------ */
+
+.scanPanel,
+.typePanel,
+.guests {
+	padding: var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+}
+
+.scanPanel {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-s);
+}
+
+@media (min-width: 768px) {
+	.scanPanel {
+		grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+		align-items: stretch;
+	}
+}
+
+.viewfinder {
+	position: relative;
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	border-radius: var(--radius-m);
+	background: var(--tint);
+}
+
+@media (min-width: 768px) {
+	.viewfinder {
+		aspect-ratio: auto;
+		height: 15rem;
+	}
+}
+
+.video {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	opacity: 0;
+}
+
+.video[data-on] {
+	opacity: 1;
+}
+
+/* Where to aim: four corners in the stamp, seen on any picture. */
+.corners {
+	--c: var(--stamp);
+	--l: var(--space-m);
+	position: absolute;
+	inset: var(--space-m);
+	background:
+		linear-gradient(var(--c), var(--c)) top left / var(--l) 3px no-repeat,
+		linear-gradient(var(--c), var(--c)) top left / 3px var(--l) no-repeat,
+		linear-gradient(var(--c), var(--c)) top right / var(--l) 3px no-repeat,
+		linear-gradient(var(--c), var(--c)) top right / 3px var(--l) no-repeat,
+		linear-gradient(var(--c), var(--c)) bottom left / var(--l) 3px no-repeat,
+		linear-gradient(var(--c), var(--c)) bottom left / 3px var(--l) no-repeat,
+		linear-gradient(var(--c), var(--c)) bottom right / var(--l) 3px no-repeat,
+		linear-gradient(var(--c), var(--c)) bottom right / 3px var(--l) no-repeat;
+	pointer-events: none;
+}
+
+/* The one moving thing on the page: it says the camera is reading. */
+.scanline {
+	position: absolute;
+	top: var(--space-m);
+	right: calc(var(--space-m) + 4px);
+	left: calc(var(--space-m) + 4px);
+	height: 2px;
+	border-radius: var(--radius-full);
+	background: var(--stamp);
+	animation: sweep 2.4s ease-in-out infinite alternate;
+	pointer-events: none;
+}
+
+@keyframes sweep {
+	to {
+		top: calc(100% - var(--space-m) - 2px);
+	}
+}
+
+.camTools {
+	position: absolute;
+	top: var(--space-xs);
+	right: var(--space-xs);
+	display: flex;
+	gap: var(--space-2xs);
+}
+
+.camTool,
+.camStop {
+	min-height: var(--control-compact);
+	padding: 0 var(--space-xs);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-caption);
+	font-weight: 500;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.camTool[aria-pressed="true"] {
+	border-color: var(--stamp);
+	background: var(--stamp-tint);
+}
+
+.camStop {
+	border-color: var(--alert);
+	background: var(--alert);
+	color: var(--paper);
+}
+
+.idle {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-xs);
+	padding: var(--space-m);
+	text-align: center;
+}
+
+.idleTitle {
+	margin: 0;
+	font-weight: 700;
+}
+
+.idleText {
+	max-width: 22rem;
+	margin: 0 0 var(--space-xs);
+	color: var(--muted);
+	font-size: var(--text-small);
+	line-height: 1.45;
+}
+
+.scanSide {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--space-s);
+	min-width: 0;
+}
+
+.scanHead {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	align-self: stretch;
+}
+
+.scanTitle,
+.guestsTitle,
+.dialogTitle {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-card-title);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control-compact);
+	color: var(--muted);
+	font-size: var(--text-small);
+	cursor: pointer;
+}
+
+/* A switch from a checkbox: the track, and the thumb as its marker. */
+.toggleInput {
+	position: relative;
+	width: calc(var(--control-compact) * 1.25);
+	height: calc(var(--control-compact) * 0.75);
+	margin: 0;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-full);
+	background: var(--tint);
+	appearance: none;
+	cursor: pointer;
+}
+
+.toggleInput::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 2px;
+	width: calc(var(--control-compact) * 0.75 - 6px);
+	height: calc(var(--control-compact) * 0.75 - 6px);
+	border-radius: var(--radius-full);
+	background: var(--border-strong);
+	translate: 0 -50%;
+	transition: left var(--motion);
+}
+
+.toggleInput:checked {
+	border-color: var(--stamp);
+	background: var(--stamp);
+}
+
+.toggleInput:checked::after {
+	left: calc(100% - (var(--control-compact) * 0.75 - 6px) - 2px);
+	background: var(--surface);
+}
+
+/* ---- Type code ---------------------------------------------------------------- */
+
+.typePanel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+}
+
+.typeRow {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+}
+
+.typeLabel {
+	font-size: var(--text-small);
+	font-weight: 500;
+}
+
+.typeInputRow {
+	display: flex;
+	gap: var(--space-xs);
+}
+
+.typeInput {
+	composes: input from "../../../../components/ui/ui.module.css";
+	flex: 1;
+	min-width: 0;
+	font-size: var(--text-large);
+}
+
+.matches {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid var(--perforation);
+	list-style: none;
+}
+
+.noMatch {
+	padding: var(--space-s) 0 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.match {
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+	width: 100%;
+	min-height: var(--control);
+	padding: var(--space-xs);
+	border: 0;
+	border-bottom: 1px solid var(--perforation);
+	background: none;
+	color: var(--ink);
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.match:hover {
+	background: var(--tint);
+}
+
+.matchText {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.matchName {
+	overflow: hidden;
+	font-weight: 700;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* In today: the stamp. Not yet: an empty ring. */
+.dot {
+	flex: none;
+	width: 10px;
+	height: 10px;
+	border: 2px solid var(--border-strong);
+	border-radius: var(--radius-full);
+}
+
+.dot[data-in] {
+	border-color: var(--stamp);
+	background: var(--stamp);
+}
+
+/* ---- Guests -------------------------------------------------------------------- */
+
+.guests {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-s);
+}
+
+.guestsHead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+}
+
+.guestsTools {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-xs);
+}
+
+.search {
+	composes: input from "../../../../components/ui/ui.module.css";
+	flex: 1 1 14rem;
+	min-width: 0;
+}
+
+.filters {
+	display: inline-flex;
+	gap: var(--space-2xs);
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.filter {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	min-height: var(--control);
+	padding: 0 var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-full);
+	font-size: var(--text-small);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.filter:has(:checked) {
+	border-color: var(--ink);
+	background: var(--ink);
+	color: var(--paper);
+}
+
+.listNote {
+	margin: 0;
+	padding: var(--space-s) 0;
+	color: var(--muted);
+	font-size: var(--text-small);
+}
+
+.rows {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.row {
+	border-top: 1px solid var(--perforation);
+}
+
+.rowMain {
+	display: flex;
+	align-items: center;
+	gap: var(--space-s);
+	min-height: calc(var(--control) + var(--space-xs));
+	padding: var(--space-2xs) 0;
+}
+
+.rowText {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.rowName {
+	overflow: hidden;
+	font-weight: 700;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.rowIn {
+	min-height: var(--control-compact);
+	padding: 0 var(--space-xs);
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--muted);
+	font: inherit;
+	font-family: var(--font-mono);
+	font-size: var(--text-caption);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.rowIn:hover {
+	background: var(--tint);
+}
+
+.rowMore {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-xs);
+	padding: 0 0 var(--space-s) calc(10px + var(--space-s));
+}
+
+.rowMore p {
+	margin: 0;
+}
+
+.linkButton {
+	min-height: var(--control-compact);
+	padding: 0 var(--space-xs);
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--alert);
+	font: inherit;
+	font-size: var(--text-small);
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.more {
+	align-self: center;
+	min-height: var(--control-compact);
+	padding: 0 var(--space-s);
+	border: 0;
+	border-radius: var(--radius-compact);
+	background: none;
+	color: var(--ink);
+	font: inherit;
+	font-size: var(--text-small);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+}
+
+.boneRow {
+	display: block;
+	height: calc(var(--control) + var(--space-xs));
+	margin: var(--space-2xs) 0;
+	border-radius: var(--radius-compact);
+}
+
+/* ---- Name this door -------------------------------------------------------- */
+
+.dialog {
+	width: min(calc(100vw - 2 * var(--space-s)), 24rem);
+	padding: var(--space-m);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-l);
+	background: var(--surface);
+	color: var(--ink);
+}
+
+.dialog::backdrop {
+	background: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+.dialogBody {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+}
+
+.dialogActions {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-xs);
+	margin-top: var(--space-xs);
+}
+
+/* ---- Doors ------------------------------------------------------------------ */
+
+/* The door chip is a label when assigned: not a button, no pointer. */
+span.gate {
+	display: inline-flex;
+	align-items: center;
+	cursor: default;
+}
+
+.doorChoices {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xs);
+	margin: 0 0 var(--space-xs);
+	padding: 0;
+	border: 0;
+}
+
+.doorChoice {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	min-height: var(--control);
+	padding: 0 var(--space-s);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.doorChoice:has(:checked) {
+	border-color: var(--stamp);
+	background: var(--stamp-tint);
+}
+
+.doorChoice input {
+	accent-color: var(--stamp);
+}
+
+.doorChoice:has(:focus-visible) {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.doorsDialog {
+	width: min(calc(100vw - 2 * var(--space-s)), 30rem);
+	max-height: min(90dvh, 44rem);
+}
+
+.doorsHead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-s);
+}
+
+.toggleLabel {
+	color: var(--ink);
+	font-weight: 500;
+}
+
+.message {
+	margin: 0;
+	color: var(--alert);
+	font-size: var(--text-small);
+}
+
+.message:empty {
+	display: none;
+}
+
+.doorList {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.doorRow {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+}
+
+.doorName {
+	composes: input from "../../../../components/ui/ui.module.css";
+	flex: 1;
+	min-width: 0;
+}
+
+.iconButton {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--control);
+	height: var(--control);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-compact);
+	background: var(--surface);
+	color: var(--alert);
+	cursor: pointer;
+}
+
+.iconButton svg {
+	width: var(--space-s);
+	height: var(--space-s);
+}
+
+.iconButton:focus-visible {
+	outline: 2px solid var(--stamp);
+	outline-offset: 2px;
+}
+
+.addDoor {
+	display: flex;
+	gap: var(--space-xs);
+}
+
+.assign {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	padding-top: var(--space-s);
+	border-top: 1px solid var(--perforation);
+}
+
+.assignTitle {
+	margin: 0;
+	font-size: var(--text-small);
+	font-weight: 700;
+}
+
+.assignName {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	font-size: var(--text-small);
+	font-weight: 500;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.assignSelect {
+	composes: select from "../../../../components/ui/ui.module.css";
+	width: auto;
+	max-width: 55%;
+}
+
+/* ---- Loading ------------------------------------------------------------------ */
+
+.boneBar {
+	height: var(--control);
+	border-radius: var(--radius-segment);
+}
+
+.bonePanel {
+	height: 17rem;
+	border-radius: var(--radius-l);
+}
+
+.boneList {
+	height: calc(var(--control) * 6);
+	border-radius: var(--radius-l);
+}
+
+@media (max-width: 639px) {
+	.banner {
+		flex-wrap: wrap;
+	}
+
+	.bannerText {
+		flex-basis: calc(100% - var(--space-s) * 2 - var(--control-compact));
+	}
+
+	.filters {
+		flex: 1 1 100%;
+	}
+
+	.filter {
+		flex: 1;
+		justify-content: center;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.scanline {
+		top: 50%;
+		animation: none;
+	}
+
+	.toggleInput::after {
+		transition: none;
+	}
+}

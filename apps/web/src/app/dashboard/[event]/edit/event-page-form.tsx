@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { CopyIcon, EditIcon, SettingsIcon, TickIcon } from "@/components/icons";
-import { useCopy } from "../overview/use-copy";
+import { useCopy } from "@/components/ui/use-copy";
 import { SaveBar } from "@/components/ui/save-bar";
 import { useDraft } from "@/components/ui/use-draft";
 import { useUnsavedChanges } from "../unsaved-changes";

@@ -3,6 +3,7 @@
 import {
 	createEventInput,
 	isTimeZone,
+	EVENT_TITLE_MAX,
 	numberedSlug,
 	slugFromTitle,
 } from "@makemyevent/core";
@@ -10,7 +11,8 @@ import { Prisma } from "@makemyevent/db";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { requireUser } from "@/lib/require-user";
+import type { CurrentUser } from "@/lib/supabase/identity";
 import { displayNameOf } from "./workspaces";
 
 /** What the popup shows when creating fails; null before the first try. */
@@ -38,8 +40,15 @@ export async function createEvent(
 	_previous: CreateEventState,
 	form: FormData,
 ): Promise<CreateEventState> {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fdashboard");
+	// A new event is a private draft, which needs no second step. Someone who
+	// has an authenticator enters its code first, and comes back to the name
+	// they typed.
+	const typed = form.get("title");
+	const back =
+		typeof typed === "string" && typed.trim()
+			? `/events/new?${new URLSearchParams({ title: typed.trim().slice(0, EVENT_TITLE_MAX) })}`
+			: "/events/new";
+	const user = await requireUser(back, "self");
 
 	const parsed = createEventInput.safeParse({
 		title: form.get("title"),
@@ -83,13 +92,13 @@ export async function createEvent(
  * address is taken.
  */
 async function insertDraft(
-	user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
+	user: CurrentUser,
 	title: string,
 	timeZone: string | null,
 	slug: string,
 ): Promise<string | null> {
 	try {
-		await asUser(user.id, async (tx) => {
+		await asUser(user, async (tx) => {
 			// Their own row, on the first thing they create. Written from the
 			// verified session; an existing row is left as it is.
 			await tx.user.createMany({

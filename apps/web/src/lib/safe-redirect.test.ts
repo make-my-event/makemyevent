@@ -16,6 +16,22 @@ test("falls back when nothing is given", () => {
 	assert.equal(safeRedirectPath(""), DEFAULT_REDIRECT);
 });
 
+test("never sends someone back into sign-in, its second step included", () => {
+	for (const path of [
+		"/signin",
+		"/signin?next=/events",
+		"/signin/verify",
+		"/signin/setup?next=/dashboard",
+		"/signin/recovery",
+		"/auth/confirm",
+		"/auth/callback?code=1",
+		"/dashboard/../signin/verify",
+	])
+		assert.equal(safeRedirectPath(path), DEFAULT_REDIRECT, path);
+	assert.equal(safeRedirectPath("/signin-help"), "/signin-help");
+	assert.equal(safeRedirectPath("/account/security"), "/account/security");
+});
+
 test("refuses other sites, however they are written", () => {
 	for (const bad of [
 		"https://evil.example",

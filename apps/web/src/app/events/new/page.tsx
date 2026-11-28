@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { EVENT_TITLE_MAX } from "@makemyevent/core";
+import { requireUser } from "@/lib/require-user";
 import { CreateEventForm } from "../../dashboard/create-event-dialog";
 import styles from "../../dashboard/create-event.module.css";
 import { workspacesFor } from "../../dashboard/workspaces";
@@ -15,9 +15,22 @@ export const metadata: Metadata = {
  * /events/new directly. The dashboard's button opens the same form as a
  * popup; both post to the same action.
  */
-export default async function NewEventPage() {
-	const user = await getCurrentUser();
-	if (!user) redirect("/signin?next=%2Fevents%2Fnew");
+export default async function NewEventPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ title?: string | string[] }>;
+}) {
+	// Carried over from the popup, by someone who stopped to enter their
+	// two-step code on the way.
+	const { title } = await searchParams;
+	const typed =
+		typeof title === "string" ? title.slice(0, EVENT_TITLE_MAX) : "";
+	const user = await requireUser(
+		typed
+			? `/events/new?${new URLSearchParams({ title: typed })}`
+			: "/events/new",
+		"self",
+	);
 
 	return (
 		<main className={styles.page}>
@@ -26,6 +39,7 @@ export default async function NewEventPage() {
 					workspaces={workspacesFor(user)}
 					activeWorkspaceId="me"
 					cancelHref="/dashboard"
+					defaultTitle={typed}
 				/>
 			</div>
 		</main>

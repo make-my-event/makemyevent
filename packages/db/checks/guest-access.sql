@@ -80,6 +80,8 @@ BEGIN
   LOOP
     PERFORM set_config('app.user_id', CASE WHEN person.number = 0 THEN ''
       ELSE format('aaaaaaaa-0000-4000-8000-00000000000%s', person.number) END, true);
+    -- Everyone at aal2; what is different without it is in two-step.sql.
+    PERFORM set_config('app.aal', 'aal2', true);
     FOR i IN 1 .. array_length(actions, 1) LOOP
       SET LOCAL ROLE app_user;
       got := pg_temp.attempt(actions[i]);

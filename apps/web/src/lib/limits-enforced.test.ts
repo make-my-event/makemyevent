@@ -14,9 +14,26 @@ const NO_LIMIT: Record<string, string> = {
 	"app/dashboard/[event]/guests/actions.ts getGuest": "a read",
 	"app/dashboard/[event]/guests/guest-writes.ts guestFormValues": "a read",
 	"app/dashboard/[event]/guests/passes.ts getPass": "a read",
+	"app/dashboard/[event]/scan-qr/actions.ts doorCount": "a read",
+	"app/dashboard/[event]/scan-qr/actions.ts scanPass": "asks in ready()",
+	"app/dashboard/[event]/scan-qr/actions.ts scanCode": "asks in ready()",
+	"app/dashboard/[event]/scan-qr/actions.ts checkInGuest": "asks in ready()",
+	"app/dashboard/[event]/scan-qr/actions.ts doorGuests": "a read",
+	"app/dashboard/[event]/scan-qr/doors-actions.ts setDoors": "asks in run()",
+	"app/dashboard/[event]/scan-qr/doors-actions.ts addDoor": "asks in run()",
+	"app/dashboard/[event]/scan-qr/doors-actions.ts renameDoor": "asks in run()",
+	"app/dashboard/[event]/scan-qr/doors-actions.ts removeDoor": "asks in run()",
+	"app/dashboard/[event]/scan-qr/doors-actions.ts assignDoor": "asks in run()",
 	"app/dashboard/[event]/guests/actions.ts checkIn": "calls checkInMany",
 	"app/api/events/[id]/media/route.ts POST": "asks in authorise()",
 	"app/api/events/[id]/media/route.ts DELETE": "asks in authorise()",
+	"app/account/(page)/security/actions.ts makeNewCodes": "asks in tooMany()",
+	"app/account/(page)/security/actions.ts turnOff": "asks in tooMany()",
+	"app/account/(page)/security/actions.ts signOutOthers": "asks in tooMany()",
+	"app/dashboard/[event]/tickets/[ticket]/design/actions.ts saveDesign":
+		"asks in prepare()",
+	"app/dashboard/[event]/tickets/[ticket]/design/actions.ts applyDesignToAll":
+		"asks in prepare()",
 };
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -47,10 +64,37 @@ test("every server action and route asks a limit", () => {
 	assert.ok(found.size > 20, "the search found the endpoints");
 	// An exception outlived its endpoint.
 	for (const id of Object.keys(NO_LIMIT)) assert.ok(found.has(id), id);
+	const scans = readFileSync(
+		`${root}/app/dashboard/[event]/scan-qr/actions.ts`,
+		"utf8",
+	);
+	assert.match(scans, /async function ready[\s\S]*?limited\("guest\.check_in"/);
+	assert.equal(scans.match(/await ready\(/g)?.length, 3);
+	const doors = readFileSync(
+		`${root}/app/dashboard/[event]/scan-qr/doors-actions.ts`,
+		"utf8",
+	);
+	assert.match(doors, /async function run[\s\S]*?limited\("event\.write"/);
+	assert.equal(doors.match(/return run\(/g)?.length, 5);
+	const designs = readFileSync(
+		`${root}/app/dashboard/[event]/tickets/[ticket]/design/actions.ts`,
+		"utf8",
+	);
+	assert.match(
+		designs,
+		/async function prepare[\s\S]*?limited\("event\.write"/,
+	);
+	assert.equal(designs.match(/await prepare\(/g)?.length, 2);
 	const media = readFileSync(
 		`${root}/app/api/events/[id]/media/route.ts`,
 		"utf8",
 	);
 	assert.match(media, /async function authorise[\s\S]*?limited\(limit/);
 	assert.equal(media.match(/await authorise\(/g)?.length, 2);
+	const security = readFileSync(
+		`${root}/app/account/(page)/security/actions.ts`,
+		"utf8",
+	);
+	assert.match(security, /async function tooMany[\s\S]*?limited\(/);
+	assert.equal(security.match(/await tooMany\(/g)?.length, 3);
 });

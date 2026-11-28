@@ -1,5 +1,6 @@
 export * from "./events";
 export * from "./team";
+export * from "./tickets";
 export * from "./about";
 export * from "./schedule";
 export * from "./zones";
@@ -9,4 +10,7 @@ export * from "./phone";
 export * from "./form";
 export * from "./guests";
 export * from "./imports";
+export * from "./pass-designs";
+export * from "./pass-design";
+export * from "./scan";
 export * from "./contact";

@@ -1,21 +1,21 @@
 import "server-only";
-import type { EventRole, MemberRole } from "@makemyevent/core";
-import { notFound, redirect } from "next/navigation";
+import type { EventRole } from "@makemyevent/core";
+import { notFound } from "next/navigation";
+import type { Person } from "@makemyevent/db";
 import { cache } from "react";
 import { asUser } from "@/lib/db";
-import { getCurrentUser } from "@/lib/supabase/identity";
+import { requireUser, twoStepFirst } from "@/lib/require-user";
+import { type CurrentUser, getCurrentUser } from "@/lib/supabase/identity";
 import { claimInvites } from "../claim-invites";
 import { opensSection } from "./sections";
-
-type SignedInUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
 /**
  * One query for the event, the reader's role on it, and what the sections
  * share: its own fields and its ticket types.
  */
-async function queryEvent(slug: string, userId: string) {
-	const event = await asUser(userId, (tx) =>
-		tx.event.findUnique({
+async function queryEvent(slug: string, user: CurrentUser) {
+	const found = await asUser(user, async (tx) => {
+		const event = await tx.event.findUnique({
 			where: { slug },
 			select: {
 				id: true,
@@ -46,26 +46,23 @@ async function queryEvent(slug: string, userId: string) {
 					},
 					orderBy: [{ position: "asc" }, { createdAt: "asc" }],
 				},
-				// Their own membership, if any: on the (event_id, user_id) key.
-				members: {
-					where: { userId },
-					select: { role: true },
-					take: 1,
-				},
 			},
-		}),
-	);
-	if (!event) return null;
-	const { members, ...rest } = event;
-	// A published event is readable by anyone under row-level security, so
-	// the role is what says this person runs it.
-	const role: EventRole | null =
-		event.hostUserId === userId
-			? "owner"
-			: ((members[0]?.role as MemberRole | undefined) ?? null);
-	// viewerId: who is reading, for the section's own queries, which must run
+		});
+		if (!event) return null;
+		// Their role, as every policy sees it: the database's one answer, two
+		// steps and private drafts included. A published event is readable by
+		// anyone, so this, not finding it, says they run it.
+		const [row] = await tx.$queryRaw<{ role: EventRole | null }[]>`
+			SELECT app.team_role(${event.id}::uuid) AS role
+		`;
+		return { event, role: row?.role ?? null };
+	});
+	if (!found?.role) return null;
+	const { event: rest, role } = found;
+	// viewer: who is reading, for the section's own queries, which must run
 	// as them (never as the host) so their role's limits apply.
-	return role ? { ...rest, role, viewerId: userId } : null;
+	const viewer: Person = { id: user.id, aal: user.aal };
+	return { ...rest, role, viewer };
 }
 
 export type ManagedEvent = NonNullable<Awaited<ReturnType<typeof queryEvent>>>;
@@ -80,11 +77,11 @@ export type ManagedEvent = NonNullable<Awaited<ReturnType<typeof queryEvent>>>;
  * as before.
  */
 const resolveEvent = cache(
-	async (slug: string, user: SignedInUser): Promise<ManagedEvent | null> => {
-		const found = await queryEvent(slug, user.id);
+	async (slug: string, user: CurrentUser): Promise<ManagedEvent | null> => {
+		const found = await queryEvent(slug, user);
 		if (found) return found;
-		const claimed = await asUser(user.id, (tx) => claimInvites(tx, user));
-		return claimed > 0 ? queryEvent(slug, user.id) : null;
+		const claimed = await asUser(user, (tx) => claimInvites(tx, user));
+		return claimed > 0 ? queryEvent(slug, user) : null;
 	},
 );
 
@@ -92,7 +89,8 @@ const resolveEvent = cache(
  * The event a dashboard section is about, for someone on its team whose role
  * opens that section. This is the gate: every section's page calls it.
  *
- * Signed out goes to sign-in and back. Not on the team, or a section their
+ * Signed out goes to sign-in and back, and whoever still has a code to enter
+ * or an authenticator to set up goes there and back. Not on the team, or a section their
  * role does not open: "not found", the same answer as an address that does
  * not exist, so the dashboard never confirms that someone else's event is
  * there.
@@ -100,15 +98,14 @@ const resolveEvent = cache(
 export async function loadManagedEvent(
 	slug: string,
 	section: string,
-): Promise<ManagedEvent> {
-	const user = await getCurrentUser();
-	if (!user)
-		redirect(
-			`/signin?next=${encodeURIComponent(`/dashboard/${encodeURIComponent(slug)}/${section}`)}`,
-		);
+): Promise<ManagedEvent & { twoStepHref: string | null }> {
+	const here = `/dashboard/${encodeURIComponent(slug)}/${section}`;
+	const user = await requireUser(here, "team");
 	const event = await resolveEvent(slug, user);
 	if (!event || !opensSection(event.role, section)) notFound();
-	return event;
+	// Only the owner of a private draft gets here without the second step:
+	// where they would bring someone in, they are sent to set it up.
+	return { ...event, twoStepHref: twoStepFirst(user, here) };
 }
 
 /**

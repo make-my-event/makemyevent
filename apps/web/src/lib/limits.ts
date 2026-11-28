@@ -182,11 +182,43 @@ export const LIMITS = {
 		withoutRedis: "refuse",
 		says: "Too many passes are being emailed right now.",
 	},
+	/**
+	 * Opening a ticket from its emailed link. A venue's Wi-Fi is one network
+	 * for everyone at the door, so the allowance is wide; it stops one network
+	 * trying link after link.
+	 */
+	"ticket.view": {
+		rules: [{ by: "ip", count: 300, per: 10 * MINUTE }],
+		withoutRedis: "local",
+		says: "Too many tickets opened from this network.",
+	},
 	/** However many events, hosts or resends: what one inbox can be sent. */
 	"passes.recipient": {
 		rules: [{ by: "email", count: 10, per: DAY }],
 		withoutRedis: "refuse",
 		says: "This address has been emailed too often.",
+	},
+	/**
+	 * A code from the authenticator, or a recovery code. The database also
+	 * allows each person five tries in fifteen minutes (app.count_two_step_try);
+	 * this keeps one network from trying many people's.
+	 */
+	"two_step.code": {
+		rules: [
+			{ by: "user", count: 10, per: 15 * MINUTE },
+			{ by: "ip", count: 60, per: 15 * MINUTE },
+		],
+		withoutRedis: "local",
+		says: "Too many codes tried.",
+	},
+	/** Starting an authenticator, new recovery codes, turning off, signing out elsewhere. */
+	"two_step.change": {
+		rules: [
+			{ by: "user", count: 20, per: HOUR },
+			{ by: "ip", count: 100, per: HOUR },
+		],
+		withoutRedis: "local",
+		says: "Too many changes to sign-in.",
 	},
 	/** Photon is a free, shared service, and sees only our servers. */
 	geocode: {

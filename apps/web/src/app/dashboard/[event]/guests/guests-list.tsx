@@ -42,6 +42,7 @@ import { GuestPanel } from "./guest-panel";
 import { columnsCookie } from "./columns-cookie";
 import type { GuestColumn, GuestRow } from "./guests-data";
 import styles from "./guests.module.css";
+import { knownDoor } from "../scan-qr/door-memory";
 
 export type TicketOption = { id: string; name: string; tone: Tone };
 
@@ -82,6 +83,7 @@ export function GuestsList({
 	invited,
 	blocked,
 	canManage,
+	twoStepHref,
 	blocklistHref,
 	emailReady,
 	rows,
@@ -101,6 +103,11 @@ export function GuestsList({
 	blocked: number;
 	/** Owner, admin or organizer: invites, edits, cancels. Volunteers check in. */
 	canManage: boolean;
+	/**
+	 * Set while the owner of a private draft has no second step: inviting
+	 * or importing a guest goes there first, and comes back.
+	 */
+	twoStepHref: string | null;
 	blocklistHref: string;
 	/** Email and pass signing are set up. */
 	emailReady: boolean;
@@ -191,7 +198,7 @@ export function GuestsList({
 	function checkInSelected() {
 		const ids = [...selected];
 		startAction(async () => {
-			const result = await checkInMany(eventId, ids);
+			const result = await checkInMany(eventId, ids, knownDoor(eventId));
 			if (result.ok) {
 				setMessage({
 					tone: "ok",
@@ -209,7 +216,11 @@ export function GuestsList({
 				invited={invited}
 				blocked={blocked}
 				canManage={canManage}
-				onInvite={() => setFormMode({ kind: "invite" })}
+				onInvite={() =>
+					twoStepHref
+						? router.push(twoStepHref)
+						: setFormMode({ kind: "invite" })
+				}
 				blocklistHref={blocklistHref}
 			/>
 			<section className={styles.list} aria-labelledby={`${id}title`}>
@@ -286,7 +297,11 @@ export function GuestsList({
 								<button
 									type="button"
 									className={`${styles.tool} ${styles.toolIcon}`}
-									onClick={() => setImporting("list")}
+									onClick={() =>
+										twoStepHref
+											? router.push(twoStepHref)
+											: setImporting("list")
+									}
 								>
 									<UploadIcon />
 									<span className={styles.tip}>Bulk upload guests</span>
