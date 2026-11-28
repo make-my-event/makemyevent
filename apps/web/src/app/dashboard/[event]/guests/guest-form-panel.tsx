@@ -63,6 +63,7 @@ export function GuestFormPanel({
 	onSaved,
 	onOpenGuest,
 	onImport,
+	walkIn = false,
 }: {
 	eventId: string;
 	mode: FormMode;
@@ -73,9 +74,12 @@ export function GuestFormPanel({
 	onClose: () => void;
 	/** After a save: the guest's id, to open them, and whether to email their pass. */
 	onSaved: (id: string, emailPass: boolean) => void;
+	/** Their email is already a guest's: open them (or, for a walk-in, let them in). */
 	onOpenGuest: (id: string) => void;
-	/** Opens bulk upload, for adding many at once. */
-	onImport: () => void;
+	/** Opens bulk upload, for adding many at once; left out, it isn't offered. */
+	onImport?: () => void;
+	/** At the door: added and let in at once (the scanner checks them in). */
+	walkIn?: boolean;
 }) {
 	const id = useId();
 	const ref = useModalDialog(mode !== null);
@@ -174,12 +178,22 @@ export function GuestFormPanel({
 		baseline !== null &&
 		fingerprint(answers, other, ticketId, useCode ? code : "") !== baseline;
 	const guard = useCloseGuard(ref, dirty, {
-		title: editing ? "Save your changes?" : "Invite this guest?",
+		title: editing
+			? "Save your changes?"
+			: walkIn
+				? "Add this walk-in?"
+				: "Invite this guest?",
 		body: editing
 			? "You changed this guest's answers. Save them, or discard the changes and close."
-			: "What you entered isn't saved until they're invited. Invite them now, or discard it and close.",
+			: walkIn
+				? "What you entered isn't saved until they're added. Add them now, or discard it and close."
+				: "What you entered isn't saved until they're invited. Invite them now, or discard it and close.",
 		save: {
-			label: editing ? "Save changes" : "Invite guest",
+			label: editing
+				? "Save changes"
+				: walkIn
+					? "Add and check in"
+					: "Invite guest",
 			run: () => submit(false),
 		},
 	});
@@ -202,7 +216,11 @@ export function GuestFormPanel({
 			>
 				<header className={styles.panelHead}>
 					<h3 className={styles.panelTitle} id={`${id}title`}>
-						{editing ? "Edit submission" : "Invite a guest"}
+						{editing
+							? "Edit submission"
+							: walkIn
+								? "Add a walk-in"
+								: "Invite a guest"}
 					</h3>
 					<button
 						type="button"
@@ -226,7 +244,7 @@ export function GuestFormPanel({
 					</div>
 				) : (
 					<div className={styles.panelBody}>
-						{editing ? null : (
+						{editing || !onImport ? null : (
 							<div className={styles.bulkOffer}>
 								<p className={styles.bulkOfferText}>
 									Adding many guests?
@@ -389,7 +407,7 @@ export function GuestFormPanel({
 										if (existing) onOpenGuest(existing);
 									}}
 								>
-									Open their details
+									{walkIn ? "Check them in instead" : "Open their details"}
 								</button>
 							) : null}
 						</div>
@@ -408,7 +426,13 @@ export function GuestFormPanel({
 							disabled={pending || loading || tickets.length === 0}
 							aria-busy={pending || undefined}
 						>
-							{pending ? "Saving…" : editing ? "Save changes" : "Invite guest"}
+							{pending
+								? "Saving…"
+								: editing
+									? "Save changes"
+									: walkIn
+										? "Add and check in"
+										: "Invite guest"}
 						</button>
 					</div>
 				</footer>

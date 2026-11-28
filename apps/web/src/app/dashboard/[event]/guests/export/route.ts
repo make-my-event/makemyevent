@@ -22,7 +22,7 @@ type ExportRow = {
 	status: string;
 	source: string;
 	createdAt: Date;
-	checkIns: { checkedInAt: Date }[];
+	checkIns: { checkedInAt: Date; door: { name: string } | null }[];
 	answers: { fieldId: string; value: unknown; otherText: string | null }[];
 };
 
@@ -99,6 +99,7 @@ export async function GET(
 				"Joined by",
 				"Registered",
 				"Checked in",
+				"Door",
 				...fields.map((f) => f.label),
 			])}`;
 			let count = 0;
@@ -133,7 +134,7 @@ export async function GET(
 						checkIns: {
 							orderBy: { checkedInAt: "asc" },
 							take: 1,
-							select: { checkedInAt: true },
+							select: { checkedInAt: true, door: { select: { name: true } } },
 						},
 						answers: {
 							select: { fieldId: true, value: true, otherText: true },
@@ -152,6 +153,7 @@ export async function GET(
 						SOURCE[row.source] ?? row.source,
 						exactTime(row.createdAt, event.timeZone),
 						checked ? exactTime(checked, event.timeZone) : "",
+						row.checkIns[0]?.door?.name ?? "",
 						...fields.map((field) => {
 							const answer = answers.get(field.id);
 							return answer && isFieldKind(field.kind)

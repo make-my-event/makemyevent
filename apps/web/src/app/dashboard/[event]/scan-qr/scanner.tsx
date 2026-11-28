@@ -1,34 +1,42 @@
 "use client";
 
 import {
+	type FormField,
 	repeatGuard,
 	SCAN_WORDS,
 	type ScanKind,
 	scanKind,
 } from "@makemyevent/core";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { ownClose, useModalDialog } from "@/components/ui/use-modal-dialog";
+import { CloseIcon } from "@/components/icons";
 import { undoCheckIn } from "../guests/actions";
+import { GuestFormPanel } from "../guests/guest-form-panel";
+import { sendPasses } from "../guests/passes";
 import {
+	checkInGuest,
 	type DoorCount,
+	type DoorGuest,
 	doorCount,
 	type ScanResult,
 	scanCode,
 	scanPass,
 } from "./actions";
+import { DoorGuests } from "./door-guests";
+import { knownDoor, rememberDoor } from "./door-memory";
+import {
+	DoorPicker,
+	type DoorSetup,
+	DoorsPanel,
+	type DoorState,
+} from "./doors";
+import { playFor, VIBRATE } from "./door-sound";
+import { ago, clock } from "./door-time";
+import { makeReader, type Reader } from "./qr-reader";
 import styles from "./scanner.module.css";
+import { TypeCode } from "./type-code";
 
-/** Not in TypeScript's DOM library yet: the browser's own QR reader. */
-type Detector = {
-	detect: (source: CanvasImageSource) => Promise<{ rawValue: string }[]>;
-};
-type DetectorClass = {
-	new (options: { formats: string[] }): Detector;
-	getSupportedFormats: () => Promise<string[]>;
-};
-type Reader = (video: HTMLVideoElement) => Promise<string | null>;
-
-/** How long each answer stays before scanning carries on. */
+/** How long each answer holds the camera before it reads again. */
 const HOLD_MS: Record<ScanKind, number> = {
 	admit: 1400,
 	again: 2400,
@@ -38,10 +46,12 @@ const HOLD_MS: Record<ScanKind, number> = {
 const REPEAT_MS = 5000;
 const FRAME_MS = 120;
 const COUNT_MS = 5000;
-const SOUND_KEY = "scanner-sound";
+const KEYS = { sound: "scanner-sound", auto: "scanner-auto" };
 
-type Shown = { result: Extract<ScanResult, { ok: true }>; at: number };
-type Last = { id: string; name: string; at: number };
+type Answer =
+	| { kind: ScanKind; result: Extract<ScanResult, { ok: true }> }
+	| { kind: "stop"; message: string }
+	| { kind: "note"; message: string };
 type Phase =
 	| "idle"
 	| "starting"
@@ -49,129 +59,61 @@ type Phase =
 	| "denied"
 	| "nocamera"
 	| "insecure";
-
-// ---- Sounds -----------------------------------------------------------------
-
-function tone(
-	ctx: AudioContext,
-	freq: number,
-	start: number,
-	length: number,
-	type: OscillatorType,
-	level: number,
-) {
-	const osc = ctx.createOscillator();
-	const gain = ctx.createGain();
-	osc.type = type;
-	osc.frequency.value = freq;
-	const t = ctx.currentTime + start;
-	// A short ramp each end, so it beeps rather than clicks.
-	gain.gain.setValueAtTime(0, t);
-	gain.gain.linearRampToValueAtTime(level, t + 0.01);
-	gain.gain.setValueAtTime(level, t + length - 0.02);
-	gain.gain.linearRampToValueAtTime(0, t + length);
-	osc.connect(gain).connect(ctx.destination);
-	osc.start(t);
-	osc.stop(t + length + 0.01);
-}
-
-/** Admit: a high rising pair. Already in: two even beeps. Stop: a low buzz. */
-function playFor(ctx: AudioContext, kind: ScanKind) {
-	if (kind === "admit") {
-		tone(ctx, 880, 0, 0.09, "sine", 0.3);
-		tone(ctx, 1320, 0.1, 0.16, "sine", 0.3);
-	} else if (kind === "again") {
-		tone(ctx, 660, 0, 0.1, "triangle", 0.3);
-		tone(ctx, 660, 0.18, 0.1, "triangle", 0.3);
-	} else {
-		tone(ctx, 196, 0, 0.5, "square", 0.12);
-	}
-}
-
-const VIBRATE: Record<ScanKind, number[]> = {
-	admit: [60],
-	again: [60, 80, 60],
-	stop: [320],
+type Mode = "scan" | "type";
+type WalkIn = {
+	fields: FormField[];
+	tickets: { id: string; name: string }[];
+	emailReady: boolean;
 };
 
-// ---- Reading codes ------------------------------------------------------------
-
-/** The browser's own reader where it has one; jsQR, loaded now, elsewhere. */
-async function makeReader(): Promise<Reader> {
-	const Native = (globalThis as { BarcodeDetector?: DetectorClass })
-		.BarcodeDetector;
-	if (Native) {
-		try {
-			if ((await Native.getSupportedFormats()).includes("qr_code")) {
-				const detector = new Native({ formats: ["qr_code"] });
-				return async (video) =>
-					(await detector.detect(video))[0]?.rawValue ?? null;
-			}
-		} catch {
-			// Fall through to jsQR.
-		}
+function stored(key: string): string | null {
+	try {
+		return localStorage.getItem(key);
+	} catch {
+		return null;
 	}
-	const { default: jsQR } = await import("jsqr");
-	const canvas = document.createElement("canvas");
-	const context = canvas.getContext("2d", { willReadFrequently: true });
-	return async (video) => {
-		if (!context || !video.videoWidth) return null;
-		// 640 wide is plenty for a pass held at arm's length, and quick.
-		const scale = Math.min(1, 640 / video.videoWidth);
-		canvas.width = Math.round(video.videoWidth * scale);
-		canvas.height = Math.round(video.videoHeight * scale);
-		context.drawImage(video, 0, 0, canvas.width, canvas.height);
-		const image = context.getImageData(0, 0, canvas.width, canvas.height);
-		return (
-			jsQR(image.data, image.width, image.height, {
-				inversionAttempts: "dontInvert",
-			})?.data ?? null
-		);
-	};
 }
-
-function clock(ms: number) {
-	return new Intl.DateTimeFormat(undefined, {
-		hour: "numeric",
-		minute: "2-digit",
-	}).format(ms);
+function store(key: string, value: string) {
+	try {
+		localStorage.setItem(key, value);
+	} catch {
+		// Not remembered on this phone; still applies now.
+	}
 }
-
-function ago(iso: string, now: number) {
-	const mins = Math.round((now - new Date(iso).getTime()) / 60000);
-	if (mins < 1) return "just now";
-	if (mins < 60) return `${mins} min ago`;
-	const hours = Math.round(mins / 60);
-	return `${hours} h ago`;
-}
-
-// ---- The scanner ------------------------------------------------------------------
 
 /**
- * The door scanner. One tap starts the camera and unlocks sound (phones
- * allow neither until someone taps). Then it reads codes nonstop: each read
- * pauses it, the server answers, the screen and a sound say which of three
- * kinds it is, and after a moment it carries on by itself. It follows the
- * site's light or dark theme, like every other page.
+ * The door. The answer to each scan is a banner over the scanner (and a
+ * sound and a buzz); below, the guest list. Scanner and Type code switch
+ * with S and T (or /); Esc clears the answer.
  *
- *   ┌ Summit 2026, Day 2                 312 / 400 in ┐
- *   │            [ the camera, a frame to aim at ]    │
- *   │ Last: Asha Rao, 10:42                    Undo   │
- *   └ [Torch]       [Sound on]        [Type code]     ┘
+ *   [Scanner | Type code]         [Main gate] [Doors]   8 / 12 in
+ *   ┌ ● Admitted: Asha Rao, General  10:42, Main gate  Undo  × ┐
+ *   ┌ camera, brackets, scan line ─┐  Scanner   Auto-advance ●
+ *   │       [Flip] [Torch] [Stop] │  Point at a pass…   Sound on
+ *   ┌ Guests 12                                      + Walk-in ┐
+ *   │ [search]  All · Checked in · Not yet                      │
  */
 export function Scanner({
 	eventId,
-	eventTitle,
 	dayLabel,
 	initialCount,
+	doors,
+	doorSetup,
+	walkIn,
 }: {
 	eventId: string;
-	eventTitle: string;
 	dayLabel: string | null;
 	initialCount: DoorCount | null;
+	/** The event's doors, and this person's if they're held to one. */
+	doors: DoorState;
+	/** For those who manage the event: who is held to which door. */
+	doorSetup: DoorSetup | null;
+	walkIn: WalkIn | null;
 }) {
 	const id = useId();
+	const router = useRouter();
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const typeRef = useRef<HTMLInputElement>(null);
 	const streamRef = useRef<MediaStream | null>(null);
 	const readerRef = useRef<Reader | null>(null);
 	const audioRef = useRef<AudioContext | null>(null);
@@ -180,29 +122,69 @@ export function Scanner({
 	const guardRef = useRef(repeatGuard(REPEAT_MS));
 	const holdRef = useRef<number | undefined>(undefined);
 
+	const [mode, setMode] = useState<Mode>("scan");
 	const [phase, setPhase] = useState<Phase>("idle");
-	const [shown, setShown] = useState<Shown | null>(null);
-	const [problem, setProblem] = useState<string | null>(null);
+	const [facing, setFacing] = useState<"environment" | "user">("environment");
+	const [answer, setAnswer] = useState<Answer | null>(null);
 	const [count, setCount] = useState<DoorCount | null>(initialCount);
-	const [last, setLast] = useState<Last | null>(null);
 	const [sound, setSound] = useState(true);
+	const [auto, setAuto] = useState(true);
+	const [doorId, setDoorId] = useState<string | null>(
+		doors.assigned?.id ?? null,
+	);
+	const [picking, setPicking] = useState<"start" | "change" | null>(null);
+	const [setting, setSetting] = useState(false);
 	const [torch, setTorch] = useState<boolean | null>(null);
 	const [online, setOnline] = useState(true);
-	const [typing, setTyping] = useState(false);
+	const [version, setVersion] = useState(0);
+	const [adding, setAdding] = useState(false);
 	const [undoing, setUndoing] = useState(false);
 	const [, tick] = useState(0);
 
 	const soundRef = useRef(sound);
 	soundRef.current = sound;
+	const autoRef = useRef(auto);
+	autoRef.current = auto;
+	// With doors on: the assigned door, else the one picked on this phone
+	// (if it's still open). Off: none.
+	const door = !doors.enabled
+		? null
+		: (doors.assigned ?? doors.list.find((d) => d.id === doorId) ?? null);
+	const doorRef = useRef<string | null>(door?.id ?? null);
+	doorRef.current = door?.id ?? null;
 
-	// Sound on or off is this phone's own choice, remembered here.
+	// This phone's own choices, remembered on it.
 	useEffect(() => {
-		try {
-			if (localStorage.getItem(SOUND_KEY) === "off") setSound(false);
-		} catch {
-			// Private mode: sound stays on.
-		}
+		if (stored(KEYS.sound) === "off") setSound(false);
+		if (stored(KEYS.auto) === "off") setAuto(false);
 	}, []);
+
+	// The door this phone remembers, and what the Guests page will use.
+	useEffect(() => {
+		if (!doors.enabled) {
+			rememberDoor(eventId, null);
+			return;
+		}
+		if (doors.assigned) {
+			rememberDoor(eventId, doors.assigned.id);
+			setDoorId(doors.assigned.id);
+			return;
+		}
+		const known = knownDoor(eventId);
+		if (known && doors.list.some((d) => d.id === known)) setDoorId(known);
+		else rememberDoor(eventId, null);
+	}, [eventId, doors]);
+
+	/** With doors on and none known yet, the door comes first. */
+	function needsDoor(): boolean {
+		if (!doors.enabled || doorRef.current) return false;
+		setPicking("change");
+		setAnswer({
+			kind: "note",
+			message: "Pick your door first, then try again.",
+		});
+		return true;
+	}
 
 	useEffect(() => {
 		const update = () => setOnline(navigator.onLine);
@@ -242,46 +224,40 @@ export function Scanner({
 
 	useEffect(() => stopCamera, [stopCamera]);
 
-	const keepAwake = useCallback(async () => {
-		try {
-			lockRef.current = await navigator.wakeLock?.request("screen");
-		} catch {
-			// Not offered here: the screen may dim, scanning still works.
-		}
-	}, []);
-
-	/** Says the answer: on screen, aloud for screen readers, a sound, a buzz. */
-	const answer = useCallback(
-		(result: ScanResult) => {
-			if (!result.ok) {
-				setProblem(result.message);
-				const ctx = audioRef.current;
-				if (ctx && soundRef.current) playFor(ctx, "stop");
-				window.clearTimeout(holdRef.current);
-				holdRef.current = window.setTimeout(() => {
-					setProblem(null);
-					busyRef.current = false;
-				}, HOLD_MS.stop);
-				return;
+	/** Sound is allowed only from a tap: made (or woken) on one. */
+	function wakeSound() {
+		if (!audioRef.current) {
+			try {
+				audioRef.current = new AudioContext();
+			} catch {
+				// No sound on this browser; the banner still says it all.
 			}
-			const kind = scanKind(result.outcome);
-			setShown({ result, at: Date.now() });
+		}
+		void audioRef.current?.resume();
+	}
+
+	/** Says the answer: banner, aloud for screen readers, a sound, a buzz. */
+	const say = useCallback(
+		(result: ScanResult) => {
+			const kind: ScanKind = result.ok ? scanKind(result.outcome) : "stop";
+			setAnswer(
+				result.ok
+					? { kind, result }
+					: { kind: "stop", message: result.message },
+			);
 			const ctx = audioRef.current;
 			if (ctx && soundRef.current) playFor(ctx, kind);
 			navigator.vibrate?.(VIBRATE[kind]);
-			if (result.outcome === "admitted" && result.guest)
-				setLast({
-					id: result.guest.id,
-					name: result.guest.name,
-					// The server's time, so it agrees with "Already in, by".
-					at: result.at ? new Date(result.at).getTime() : Date.now(),
-				});
-			if (kind !== "stop") void refreshCount();
+			if (result.ok && result.outcome === "admitted") {
+				setVersion((v) => v + 1);
+				void refreshCount();
+			}
+			// The camera waits: a moment with auto-advance, else for a tap.
 			window.clearTimeout(holdRef.current);
-			holdRef.current = window.setTimeout(() => {
-				setShown(null);
-				busyRef.current = false;
-			}, HOLD_MS[kind]);
+			if (autoRef.current)
+				holdRef.current = window.setTimeout(() => {
+					busyRef.current = false;
+				}, HOLD_MS[kind]);
 		},
 		[refreshCount],
 	);
@@ -290,22 +266,28 @@ export function Scanner({
 		async (send: () => Promise<ScanResult>) => {
 			busyRef.current = true;
 			try {
-				answer(await send());
+				say(await send());
 			} catch {
-				answer({
+				say({
 					ok: false,
 					message: navigator.onLine
-						? "That scan couldn't be checked. Try again."
-						: "No connection: scans can't be checked.",
+						? "That couldn't be checked. Try again."
+						: "No connection: it can't be checked until it's back.",
 				});
 			}
 		},
-		[answer],
+		[say],
 	);
+
+	function dismiss() {
+		window.clearTimeout(holdRef.current);
+		setAnswer(null);
+		busyRef.current = false;
+	}
 
 	// The reading loop: a frame every FRAME_MS while scanning and not busy.
 	useEffect(() => {
-		if (phase !== "scanning") return;
+		if (phase !== "scanning" || mode !== "scan") return;
 		let stopped = false;
 		let timer: number | undefined;
 		const step = async () => {
@@ -323,7 +305,7 @@ export function Scanner({
 				try {
 					const text = await read(video);
 					if (text && guardRef.current(text, Date.now()))
-						await check(() => scanPass(eventId, text));
+						await check(() => scanPass(eventId, text, doorRef.current));
 				} catch {
 					// A frame that couldn't be read: the next one will be.
 				}
@@ -335,40 +317,20 @@ export function Scanner({
 			stopped = true;
 			window.clearTimeout(timer);
 		};
-	}, [phase, eventId, check]);
+	}, [phase, mode, eventId, check]);
 
-	// Hidden: the camera stops, so a phone in a pocket isn't filming.
-	// Back: it starts again, and the screen is kept awake again.
-	useEffect(() => {
-		if (phase !== "scanning") return;
-		const onVisibility = () => {
-			if (document.visibilityState === "visible") void start();
-			else stopCamera();
-		};
-		document.addEventListener("visibilitychange", onVisibility);
-		return () => document.removeEventListener("visibilitychange", onVisibility);
-	});
-
-	async function start() {
+	async function start(side = facing) {
 		if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
 			setPhase("insecure");
 			return;
 		}
 		setPhase("starting");
-		// Made on this tap: phones only allow sound that a tap started.
-		if (!audioRef.current) {
-			try {
-				audioRef.current = new AudioContext();
-			} catch {
-				// No sound on this browser; the screen still says it all.
-			}
-		}
-		void audioRef.current?.resume();
+		wakeSound();
 		try {
 			stopCamera();
 			const stream = await navigator.mediaDevices.getUserMedia({
 				video: {
-					facingMode: { ideal: "environment" },
+					facingMode: { ideal: side },
 					width: { ideal: 1280 },
 					height: { ideal: 720 },
 				},
@@ -386,7 +348,11 @@ export function Scanner({
 				| undefined;
 			setTorch(caps?.torch ? false : null);
 			readerRef.current ??= await makeReader();
-			await keepAwake();
+			try {
+				lockRef.current = await navigator.wakeLock?.request("screen");
+			} catch {
+				// The screen may dim; scanning still works.
+			}
 			setPhase("scanning");
 		} catch (error) {
 			const name = error instanceof DOMException ? error.name : "";
@@ -396,6 +362,28 @@ export function Scanner({
 					: "nocamera",
 			);
 		}
+	}
+
+	function stop() {
+		stopCamera();
+		setTorch(null);
+		setPhase("idle");
+	}
+
+	// Hidden: the camera stops, so a phone in a pocket isn't filming.
+	useEffect(() => {
+		if (phase !== "scanning") return;
+		const onHide = () => {
+			if (document.visibilityState === "hidden") stop();
+		};
+		document.addEventListener("visibilitychange", onHide);
+		return () => document.removeEventListener("visibilitychange", onHide);
+	});
+
+	async function flip() {
+		const next = facing === "environment" ? "user" : "environment";
+		setFacing(next);
+		await start(next);
 	}
 
 	async function flipTorch() {
@@ -411,51 +399,122 @@ export function Scanner({
 		}
 	}
 
-	function flipSound() {
-		const next = !sound;
-		setSound(next);
-		try {
-			localStorage.setItem(SOUND_KEY, next ? "on" : "off");
-		} catch {
-			// Not remembered; still applies now.
+	function switchMode(next: Mode) {
+		setMode(next);
+		if (next === "type") {
+			wakeSound();
+			requestAnimationFrame(() => typeRef.current?.focus());
 		}
 	}
 
-	async function undo() {
-		if (!last) return;
+	// S: Scanner. T or /: Type code. Esc: clear the answer.
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				if (answer) dismiss();
+				return;
+			}
+			const target = e.target as HTMLElement | null;
+			if (
+				e.metaKey ||
+				e.ctrlKey ||
+				e.altKey ||
+				target?.closest("input, textarea, select, [contenteditable], dialog")
+			)
+				return;
+			if (e.key === "s" || e.key === "S") switchMode("scan");
+			else if (e.key === "t" || e.key === "T" || e.key === "/") {
+				e.preventDefault();
+				switchMode("type");
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	});
+
+	async function undo(guestId: string, name: string) {
 		setUndoing(true);
-		const result = await undoCheckIn(eventId, last.id);
+		const result = await undoCheckIn(eventId, guestId);
 		setUndoing(false);
 		if (result.ok) {
-			setLast(null);
+			setAnswer({ kind: "note", message: `Check-in undone for ${name}.` });
+			setVersion((v) => v + 1);
 			void refreshCount();
-		} else setProblem(result.message);
+		} else setAnswer({ kind: "stop", message: result.message });
 	}
 
-	function dismiss() {
-		window.clearTimeout(holdRef.current);
-		setShown(null);
-		setProblem(null);
-		busyRef.current = false;
-	}
-
-	const kind = shown ? scanKind(shown.result.outcome) : problem ? "stop" : null;
-	const words = shown ? SCAN_WORDS[shown.result.outcome] : null;
-	const guest = shown?.result.guest;
-	const earlier = shown?.result.earlier;
+	const shown = answer && "result" in answer ? answer.result : null;
+	const words = shown ? SCAN_WORDS[shown.outcome] : null;
+	const guest = shown?.guest;
+	const spoken = answer
+		? "message" in answer
+			? answer.message
+			: [words?.title, guest?.name, answer.kind === "stop" ? words?.detail : ""]
+					.filter(Boolean)
+					.join(". ")
+		: "";
 
 	return (
-		<div className={styles.scanner}>
-			<div className={styles.top}>
-				<p className={styles.where}>
-					<span className={styles.event}>{eventTitle}</span>
-					{dayLabel ? <span className={styles.day}>{dayLabel}</span> : null}
-				</p>
-				{count ? (
-					<p className={styles.count}>
-						{count.in} / {count.of} in
-					</p>
-				) : null}
+		<div className={styles.door}>
+			<div className={styles.bar}>
+				<fieldset className={styles.modes}>
+					<legend className={styles.srOnly}>Check in by</legend>
+					{(
+						[
+							["scan", "Scanner", "S"],
+							["type", "Type code", "T"],
+						] as const
+					).map(([value, label, key]) => (
+						<label key={value} className={styles.mode}>
+							<input
+								type="radio"
+								name={`${id}m`}
+								className={styles.srOnly}
+								checked={mode === value}
+								onChange={() => switchMode(value)}
+							/>
+							{label}
+							<kbd className={styles.kbd}>{key}</kbd>
+						</label>
+					))}
+				</fieldset>
+				<div className={styles.barEnd}>
+					{doors.enabled ? (
+						doors.assigned ? (
+							<span className={styles.gate} title="Assigned by an organizer">
+								{doors.assigned.name}, assigned
+							</span>
+						) : (
+							<button
+								type="button"
+								className={styles.gate}
+								onClick={() => setPicking("change")}
+								aria-label={
+									door ? `Door: ${door.name}. Change` : "Pick your door"
+								}
+							>
+								{door?.name ?? "Pick your door"}
+							</button>
+						)
+					) : null}
+					{doorSetup ? (
+						<button
+							type="button"
+							className={styles.gate}
+							onClick={() => setSetting(true)}
+						>
+							Doors
+						</button>
+					) : null}
+					{count ? (
+						<p className={styles.count}>
+							{count.in} / {count.of} in
+							{dayLabel ? (
+								<span className={styles.meta}> {dayLabel}</span>
+							) : null}
+						</p>
+					) : null}
+				</div>
 			</div>
 
 			{online ? null : (
@@ -465,250 +524,270 @@ export function Scanner({
 				</p>
 			)}
 
-			<div className={styles.stage}>
-				<video
-					ref={videoRef}
-					className={styles.video}
-					playsInline
-					muted
-					// The camera's picture: what it reads is said in words.
-					tabIndex={-1}
-					data-on={phase === "scanning" || undefined}
-				/>
-				{phase === "scanning" ? (
-					<div className={styles.frame} aria-hidden="true" />
-				) : null}
-
-				{phase !== "scanning" ? (
-					<div className={styles.gate}>
-						{phase === "idle" || phase === "starting" ? (
-							<>
-								<p className={styles.gateTitle}>Ready at the door</p>
-								<p className={styles.gateText}>
-									Point the camera at a pass. It reads one after another; you
-									don't need to tap between guests.
-								</p>
-								<button
-									type="button"
-									className={styles.start}
-									onClick={() => void start()}
-									disabled={phase === "starting"}
-									aria-busy={phase === "starting" || undefined}
-								>
-									{phase === "starting"
-										? "Starting the camera…"
-										: "Start scanning"}
-								</button>
-							</>
+			{answer ? (
+				<div className={styles.banner} data-kind={answer.kind}>
+					<span className={styles.bannerDot} aria-hidden="true" />
+					<div className={styles.bannerText}>
+						{"message" in answer ? (
+							<p className={styles.bannerTitle}>{answer.message}</p>
 						) : (
 							<>
-								<p className={styles.gateTitle}>
+								<p className={styles.bannerTitle}>
+									{words?.title}
+									{guest ? `: ${guest.name}` : ""}
+									{guest ? (
+										<span className={styles.bannerTicket}> {guest.ticket}</span>
+									) : null}
+								</p>
+								<p className={styles.bannerMeta}>
+									{answer.kind === "stop"
+										? words?.detail
+										: shown?.earlier
+											? `In at ${clock(new Date(shown.earlier.at).getTime())}${shown.earlier.by ? ` by ${shown.earlier.by}` : ""}${shown.earlier.door ? ` at ${shown.earlier.door}` : ""}, ${ago(shown.earlier.at, Date.now())}`
+											: [
+													shown?.at
+														? clock(new Date(shown.at).getTime())
+														: null,
+													shown?.door ?? null,
+													guest?.code ?? null,
+												]
+													.filter(Boolean)
+													.join(", ")}
+								</p>
+							</>
+						)}
+					</div>
+					{shown?.outcome === "admitted" && guest ? (
+						<button
+							type="button"
+							className={styles.bannerButton}
+							disabled={undoing}
+							aria-busy={undoing || undefined}
+							onClick={() => void undo(guest.id, guest.name)}
+						>
+							{undoing ? "Undoing…" : "Undo"}
+						</button>
+					) : null}
+					{auto ? null : (
+						<button
+							type="button"
+							className={styles.bannerButton}
+							onClick={dismiss}
+						>
+							Next
+						</button>
+					)}
+					<button
+						type="button"
+						className={styles.bannerClose}
+						onClick={dismiss}
+						aria-label="Clear"
+					>
+						<CloseIcon />
+					</button>
+				</div>
+			) : null}
+			<p className={styles.srOnly} aria-live="assertive">
+				{spoken}
+			</p>
+
+			{mode === "scan" ? (
+				<section className={styles.scanPanel} aria-label="Scanner">
+					<div className={styles.viewfinder}>
+						<video
+							ref={videoRef}
+							className={styles.video}
+							playsInline
+							muted
+							tabIndex={-1}
+							data-on={phase === "scanning" || undefined}
+						/>
+						{phase === "scanning" ? (
+							<>
+								<span className={styles.corners} aria-hidden="true" />
+								<span className={styles.scanline} aria-hidden="true" />
+								<div className={styles.camTools}>
+									<button
+										type="button"
+										className={styles.camTool}
+										onClick={() => void flip()}
+									>
+										Flip
+									</button>
+									{torch === null ? null : (
+										<button
+											type="button"
+											className={styles.camTool}
+											aria-pressed={torch}
+											onClick={() => void flipTorch()}
+										>
+											Torch
+										</button>
+									)}
+									<button
+										type="button"
+										className={styles.camStop}
+										onClick={stop}
+									>
+										Stop
+									</button>
+								</div>
+							</>
+						) : (
+							<div className={styles.idle}>
+								<p className={styles.idleTitle}>
 									{phase === "denied"
 										? "The camera is blocked"
 										: phase === "insecure"
 											? "The camera needs a secure page"
-											: "No camera found"}
+											: phase === "nocamera"
+												? "No camera found"
+												: "Camera off"}
 								</p>
-								<p className={styles.gateText}>
+								<p className={styles.idleText}>
 									{phase === "denied"
-										? "Allow the camera for this site in your browser's settings, then try again. You can still type ticket codes."
+										? "Allow the camera for this site in your browser's settings, or use Type code."
 										: phase === "insecure"
-											? "Open this page over https to use the camera. You can still type ticket codes."
-											: "Use a phone or a laptop with a camera, or type ticket codes."}
+											? "Open this page over https, or use Type code."
+											: phase === "nocamera"
+												? "Use a phone or laptop with a camera, or Type code."
+												: "Start it to scan passes one after another."}
 								</p>
 								<button
 									type="button"
-									className={styles.start}
-									onClick={() => void start()}
+									className={styles.primaryButton}
+									onClick={() =>
+										doors.enabled ? setPicking("start") : void start()
+									}
+									disabled={phase === "starting"}
+									aria-busy={phase === "starting" || undefined}
 								>
-									Try again
+									{phase === "starting"
+										? "Starting…"
+										: phase === "idle"
+											? "Start camera"
+											: "Try again"}
 								</button>
-							</>
+							</div>
 						)}
 					</div>
-				) : null}
-
-				{kind ? (
-					<button
-						type="button"
-						className={styles.result}
-						data-kind={kind}
-						onClick={dismiss}
-						aria-label="Scan the next pass"
-					>
-						<span className={styles.mark}>{words?.title ?? "Not checked"}</span>
-						{guest && kind !== "stop" ? (
-							<span className={styles.name}>{guest.name}</span>
-						) : null}
-						{guest && kind !== "stop" ? (
-							<span className={styles.sub}>{guest.ticket}</span>
-						) : null}
-						{earlier ? (
-							<span className={styles.sub}>
-								Scanned {clock(new Date(earlier.at).getTime())}
-								{earlier.by ? ` by ${earlier.by}` : ""},{" "}
-								{ago(earlier.at, Date.now())}
-							</span>
-						) : null}
-						{kind === "stop" ? (
-							<span className={styles.sub}>{problem ?? words?.detail}</span>
-						) : null}
-						<span className={styles.next}>Tap for the next guest</span>
-					</button>
-				) : null}
-			</div>
-
-			<p className={styles.srOnly} aria-live="assertive" id={`${id}said`}>
-				{kind
-					? [
-							words?.title ?? "Not checked",
-							guest?.name,
-							kind === "stop" ? (problem ?? words?.detail) : "",
-						]
-							.filter(Boolean)
-							.join(". ")
-					: ""}
-			</p>
-
-			<div className={styles.lastRow}>
-				{last ? (
-					<>
-						<p className={styles.last}>
-							Last: {last.name}, {clock(last.at)}
+					<div className={styles.scanSide}>
+						<div className={styles.scanHead}>
+							<h3 className={styles.scanTitle}>Scanner</h3>
+							<label className={styles.toggle}>
+								<span>Auto-advance</span>
+								<input
+									type="checkbox"
+									role="switch"
+									aria-checked={auto}
+									className={styles.toggleInput}
+									checked={auto}
+									onChange={(e) => {
+										setAuto(e.target.checked);
+										store(KEYS.auto, e.target.checked ? "on" : "off");
+										// Turned back on while waiting for Next: read again.
+										if (e.target.checked) busyRef.current = false;
+									}}
+								/>
+							</label>
+						</div>
+						<p className={styles.hint}>
+							{auto
+								? "Point at a pass. Valid passes check in with a sound, and the next one is read straight away."
+								: "Point at a pass. Each answer stays until you tap Next."}
 						</p>
 						<button
 							type="button"
-							className={styles.undo}
-							onClick={() => void undo()}
-							disabled={undoing}
-							aria-busy={undoing || undefined}
+							className={styles.secondaryButton}
+							aria-pressed={sound}
+							onClick={() => {
+								setSound(!sound);
+								store(KEYS.sound, sound ? "off" : "on");
+								wakeSound();
+							}}
 						>
-							{undoing ? "Undoing…" : "Undo"}
+							{sound ? "Sound on" : "Sound off"}
 						</button>
-					</>
-				) : (
-					<p className={styles.last}>No one let in from this phone yet.</p>
-				)}
-			</div>
-
-			<div className={styles.tools}>
-				<button
-					type="button"
-					className={styles.tool}
-					aria-pressed={torch === true}
-					disabled={torch === null}
-					onClick={() => void flipTorch()}
-				>
-					{torch === null ? "No torch" : torch ? "Torch on" : "Torch"}
-				</button>
-				<button
-					type="button"
-					className={styles.tool}
-					aria-pressed={sound}
-					onClick={flipSound}
-				>
-					{sound ? "Sound on" : "Sound off"}
-				</button>
-				<button
-					type="button"
-					className={styles.tool}
-					onClick={() => setTyping(true)}
-				>
-					Type code
-				</button>
-			</div>
-
-			<TypeCode
-				open={typing}
-				onClose={() => setTyping(false)}
-				onSubmit={async (code) => {
-					// Typing unlocks sound too.
-					if (!audioRef.current) {
-						try {
-							audioRef.current = new AudioContext();
-						} catch {
-							// No sound here.
-						}
-					}
-					void audioRef.current?.resume();
-					await check(() => scanCode(eventId, code));
-				}}
-			/>
-		</div>
-	);
-}
-
-/** A ticket code typed in, for a pass that won't scan. */
-function TypeCode({
-	open,
-	onClose,
-	onSubmit,
-}: {
-	open: boolean;
-	onClose: () => void;
-	onSubmit: (code: string) => Promise<void>;
-}) {
-	const ref = useModalDialog(open);
-	const id = useId();
-	const [code, setCode] = useState("");
-	const [busy, setBusy] = useState(false);
-	return (
-		<dialog
-			ref={ref}
-			className={styles.dialog}
-			aria-labelledby={`${id}t`}
-			onClose={ownClose(onClose)}
-		>
-			<form
-				className={styles.dialogBody}
-				onSubmit={async (e) => {
-					e.preventDefault();
-					if (!code.trim()) return;
-					setBusy(true);
-					await onSubmit(code);
-					setBusy(false);
-					setCode("");
-					ref.current?.close();
-				}}
-			>
-				<h3 className={styles.dialogTitle} id={`${id}t`}>
-					Type a ticket code
-				</h3>
-				<label className={styles.label} htmlFor={`${id}c`}>
-					Ticket code
-				</label>
-				<input
-					id={`${id}c`}
-					className={styles.input}
-					value={code}
-					onChange={(e) => setCode(e.target.value)}
-					placeholder="MME-7K2Q-9F4B"
-					autoCapitalize="characters"
-					autoComplete="off"
-					spellCheck={false}
-					maxLength={20}
+					</div>
+				</section>
+			) : (
+				<TypeCode
+					ref={typeRef}
+					eventId={eventId}
+					onCode={async (code) => {
+						if (needsDoor()) return;
+						await check(() => scanCode(eventId, code, doorRef.current));
+					}}
+					onPick={async (g) => {
+						if (needsDoor()) return;
+						await check(() => checkInGuest(eventId, g.id, doorRef.current));
+					}}
 				/>
-				<p className={styles.hint}>
-					It's under the code on their pass and in their email.
-				</p>
-				<div className={styles.dialogActions}>
-					<button
-						type="button"
-						className={styles.tool}
-						onClick={() => ref.current?.close()}
-					>
-						Cancel
-					</button>
-					<button
-						type="submit"
-						className={styles.start}
-						disabled={busy || !code.trim()}
-						aria-busy={busy || undefined}
-					>
-						{busy ? "Checking…" : "Check in"}
-					</button>
-				</div>
-			</form>
-		</dialog>
+			)}
+
+			<DoorGuests
+				eventId={eventId}
+				version={version}
+				total={count?.of ?? null}
+				onCheckIn={async (g: DoorGuest) => {
+					wakeSound();
+					if (needsDoor()) return;
+					await check(() => checkInGuest(eventId, g.id, doorRef.current));
+				}}
+				onUndo={(g: DoorGuest) => undo(g.id, g.name)}
+				onWalkIn={walkIn ? () => setAdding(true) : null}
+			/>
+
+			{doors.enabled ? (
+				<DoorPicker
+					open={picking !== null}
+					doors={doors}
+					current={door?.id ?? null}
+					purpose={picking ?? "change"}
+					onClose={() => setPicking(null)}
+					onPick={(picked) => {
+						const starting = picking === "start";
+						setDoorId(picked);
+						doorRef.current = picked;
+						rememberDoor(eventId, picked);
+						if (starting) void start();
+					}}
+				/>
+			) : null}
+
+			{doorSetup ? (
+				<DoorsPanel
+					open={setting}
+					eventId={eventId}
+					doors={doors}
+					setup={doorSetup}
+					onClose={() => setSetting(false)}
+				/>
+			) : null}
+
+			{walkIn ? (
+				<GuestFormPanel
+					eventId={eventId}
+					mode={adding ? { kind: "invite" } : null}
+					fields={walkIn.fields}
+					tickets={walkIn.tickets}
+					emailReady={walkIn.emailReady}
+					walkIn
+					onClose={() => setAdding(false)}
+					onSaved={(guestId, emailPass) => {
+						setAdding(false);
+						wakeSound();
+						void check(() => checkInGuest(eventId, guestId, doorRef.current));
+						if (emailPass) void sendPasses(eventId, [guestId]);
+						router.refresh();
+					}}
+					onOpenGuest={(guestId) => {
+						setAdding(false);
+						wakeSound();
+						void check(() => checkInGuest(eventId, guestId, doorRef.current));
+					}}
+				/>
+			) : null}
+		</div>
 	);
 }

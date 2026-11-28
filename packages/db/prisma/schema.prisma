@@ -122,19 +122,23 @@ model Event {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  host             User   @relation(fields: [hostUserId], references: [id], onDelete: Restrict)
+  host             User    @relation(fields: [hostUserId], references: [id], onDelete: Restrict)
   // Raised by one on each save of the registration form, so a save made
   // from an older copy is refused rather than overwriting newer work.
-  formVersion      BigInt @default(1) @map("form_version")
+  formVersion      BigInt  @default(1) @map("form_version")
   // Signs this event's QR passes with the server's key; raised to retire
   // every pass issued before.
-  ticketKeyVersion Int    @default(1) @map("ticket_key_version")
+  ticketKeyVersion Int     @default(1) @map("ticket_key_version")
+  // More than one way in: check-ins record which door (event_doors). Off,
+  // no door is asked for or recorded. On needs two or more open doors.
+  doorsEnabled     Boolean @default(false) @map("doors_enabled")
 
   links         EventLink[]
   days          EventDay[]
   ticketTypes   TicketType[]
   registrations Registration[]
   members       EventMember[]
+  doors         EventDoor[]
   formFields    FormField[]
   blocked       BlockedContact[]
   auditLog      AuditLog[]
@@ -403,15 +407,21 @@ model CheckIn {
   checkedInBy    String?  @map("checked_in_by") @db.Uuid
   // manual or scan.
   method         String   @default("manual")
+  // Which door let them in, when the event has doors: the scanner's, or for
+  // a volunteer assigned one, theirs (the database fills and holds it).
+  // Empty without doors, and for a check-in from Guests with none known.
+  doorId         String?  @map("door_id") @db.Uuid
 
   registration Registration @relation(fields: [registrationId, eventId], references: [id, eventId], onDelete: Cascade, onUpdate: NoAction, map: "check_ins_registration_fkey")
   eventDay     EventDay?    @relation(fields: [eventDayId, eventId], references: [id, eventId], onDelete: Cascade, onUpdate: NoAction, map: "check_ins_event_day_fkey")
   by           User?        @relation("checkIns", fields: [checkedInBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  door         EventDoor?   @relation(fields: [doorId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([registrationId, eventDayId], map: "check_ins_once")
   @@index([eventId])
   @@index([eventDayId])
   @@index([checkedInBy])
+  @@index([doorId])
   @@map("check_ins")
 }
 
@@ -477,10 +487,11 @@ model EventMember {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
 
-  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event     Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
   // Deleting an account takes its memberships with it.
-  user      User? @relation("member", fields: [userId], references: [id], onDelete: Cascade)
-  invitedBy User? @relation("inviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  user      User?           @relation("member", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User?           @relation("inviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  door      DoorAssignment?
 
   @@unique([eventId, email])
   @@unique([eventId, userId])
@@ -536,4 +547,44 @@ model TwoStepTries {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("two_step_tries")
+}
+
+// A way into an event, when it has more than one ("Main gate", "VIP desk"),
+// named by those who manage the event. A door that has let anyone in is
+// retired rather than deleted, so its check-ins keep its name. Open doors'
+// names are unique in an event, whatever their case (event_doors trigger).
+model EventDoor {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId   String    @map("event_id") @db.Uuid
+  // 1 to 40 characters, trimmed.
+  name      String
+  position  Int       @default(0)
+  // Retired: off the list and the pickers; past check-ins keep it.
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  event       Event            @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  checkIns    CheckIn[]
+  assignments DoorAssignment[]
+
+  @@unique([id, eventId])
+  @@index([eventId, position])
+  @@map("event_doors")
+}
+
+// A volunteer held to one door: their check-ins record it, and only it.
+// Only volunteers (organizers and admins walk about and pick for
+// themselves). Gone when the door is retired, doors are turned off, or the
+// member stops being a volunteer.
+model DoorAssignment {
+  memberId String @id @map("member_id") @db.Uuid
+  eventId  String @map("event_id") @db.Uuid
+  doorId   String @map("door_id") @db.Uuid
+
+  member EventMember @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  door   EventDoor   @relation(fields: [doorId, eventId], references: [id, eventId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([doorId, eventId])
+  @@index([eventId])
+  @@map("door_assignments")
 }

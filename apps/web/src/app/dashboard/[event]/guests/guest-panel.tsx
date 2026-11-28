@@ -22,6 +22,7 @@ import { checkIn, type GuestDetail, getGuest, undoCheckIn } from "./actions";
 import { setCancelled } from "./guest-writes";
 import { getPass, type PassView, sendPasses } from "./passes";
 import styles from "./guests.module.css";
+import { knownDoor } from "../scan-qr/door-memory";
 
 const SOURCE: Record<string, string> = {
 	self: "Registered",
@@ -136,7 +137,7 @@ export function GuestPanel({
 		startCheck(async () => {
 			const result = checkedIn
 				? await undoCheckIn(eventId, shown.id)
-				: await checkIn(eventId, shown.id);
+				: await checkIn(eventId, shown.id, knownDoor(eventId));
 			if (!result.ok) {
 				setError(result.message);
 				return;
@@ -326,6 +327,7 @@ export function GuestPanel({
 											<li key={c.at}>
 												{exactTime(new Date(c.at), timeZone)}
 												{c.by ? `, by ${c.by}` : ""}
+												{c.door ? `, at ${c.door}` : ""}
 											</li>
 										))}
 									</ul>
