@@ -42,6 +42,7 @@ import { GuestPanel } from "./guest-panel";
 import { columnsCookie } from "./columns-cookie";
 import type { GuestColumn, GuestRow } from "./guests-data";
 import styles from "./guests.module.css";
+import { knownDoor } from "../scan-qr/door-memory";
 
 export type TicketOption = { id: string; name: string; tone: Tone };
 
@@ -197,7 +198,7 @@ export function GuestsList({
 	function checkInSelected() {
 		const ids = [...selected];
 		startAction(async () => {
-			const result = await checkInMany(eventId, ids);
+			const result = await checkInMany(eventId, ids, knownDoor(eventId));
 			if (result.ok) {
 				setMessage({
 					tone: "ok",
