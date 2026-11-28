@@ -14,7 +14,7 @@ import { env } from "@/lib/env";
  */
 export const SITE_ORIGIN = "https://www.makemyevent.org";
 
-export const SITE_NAME = "makemyevent";
+export const SITE_NAME = "MakeMyEvent";
 
 /**
  * Only the production deployment invites crawlers. Staging, previews and
@@ -23,7 +23,15 @@ export const SITE_NAME = "makemyevent";
 export const isProductionSite = new URL(env.appUrl).origin === SITE_ORIGIN;
 
 /** Pages that are public and worth finding in search, for the sitemap. */
-export const PUBLIC_PATHS = ["/", "/about", "/privacy", "/terms"] as const;
+export const PUBLIC_PATHS = [
+	"/",
+	"/about",
+	"/contact",
+	"/pricing",
+	"/privacy-policy",
+	"/terms-of-service",
+	"/refund-policy",
+] as const;
 
 type PublicPath = (typeof PUBLIC_PATHS)[number];
 

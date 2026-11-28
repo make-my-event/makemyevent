@@ -28,7 +28,7 @@ export default function NotFound() {
 								className={`${styles.btn} ${styles.btnSecondary}`}
 								href="/#features"
 							>
-								See what makemyevent does
+								See what MakeMyEvent does
 							</a>
 						</div>
 					</div>

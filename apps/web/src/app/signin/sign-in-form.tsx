@@ -6,8 +6,8 @@ import {
 	type SignInState,
 	startGoogleSignIn,
 } from "./actions";
-import { CheckedForm } from "./checked-form";
-import { ErrorIcon } from "./error-icon";
+import { CheckedForm } from "@/components/checked-form";
+import { ErrorIcon } from "@/components/error-icon";
 import styles from "./signin.module.css";
 
 export type UrlError = "link_invalid" | "cancelled" | "failed" | "busy";
@@ -21,6 +21,11 @@ const URL_ERROR_TEXT: Record<UrlError, string> = {
 };
 
 const RESEND_WAIT_SECONDS = 60;
+
+const WITHOUT_SCRIPT =
+	"Email sign-in needs JavaScript. Turn it on, or continue with Google.";
+const CHECK_FAILED =
+	"We couldn't check that you're not a bot. A content blocker or your network may be stopping it. Try again, or continue with Google.";
 const IDLE: SignInState = { status: "idle" };
 
 export function SignInForm({
@@ -131,6 +136,9 @@ export function SignInForm({
 						<CheckedForm
 							className={styles.form}
 							siteKey={siteKey}
+							check="signin"
+							withoutScript={WITHOUT_SCRIPT}
+							failed={CHECK_FAILED}
 							action={sendLink}
 							spent={state}
 							before={
@@ -181,6 +189,9 @@ export function SignInForm({
 			<CheckedForm
 				className={styles.form}
 				siteKey={siteKey}
+				check="signin"
+				withoutScript={WITHOUT_SCRIPT}
+				failed={CHECK_FAILED}
 				action={sendLink}
 				spent={state}
 				before={
@@ -266,11 +277,11 @@ export function SignInForm({
 			</p>
 			<p className={`${styles.foot} ${styles.fine}`}>
 				By continuing you agree to the{" "}
-				<a className={styles.link} href="/terms">
+				<a className={styles.link} href="/terms-of-service">
 					terms of service
 				</a>{" "}
 				and{" "}
-				<a className={styles.link} href="/privacy">
+				<a className={styles.link} href="/privacy-policy">
 					privacy policy
 				</a>
 				.

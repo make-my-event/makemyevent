@@ -1,7 +1,7 @@
 import styles from "./brand.module.css";
 
 /**
- * The makemyevent logo: symbol plus wordmark.
+ * The MakeMyEvent logo: symbol plus wordmark.
  *
  * The three drawings live in src/assets rather than public/, so the build
  * fingerprints them and they are served immutable for a year.
@@ -31,7 +31,7 @@ export function Brand({
 			<span className={styles.symbol} />
 			<span className={`${styles.wordmark} ${styles.onLight}`} />
 			<span className={`${styles.wordmark} ${styles.onDark}`} />
-			<span className={styles.srOnly}>makemyevent</span>
+			<span className={styles.srOnly}>MakeMyEvent</span>
 		</span>
 	);
 }

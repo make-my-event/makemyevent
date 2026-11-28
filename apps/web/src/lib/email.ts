@@ -21,6 +21,8 @@ export type Email = {
 	html: string;
 	text: string;
 	attachments?: Attachment[];
+	/** Where a reply goes, when not to the sender. */
+	replyTo?: string;
 	/** The same key twice sends once: a retried request never doubles. */
 	idempotencyKey: string;
 };
@@ -63,6 +65,7 @@ export async function sendEmail(email: Email): Promise<SendResult> {
 				subject: email.subject,
 				html: email.html,
 				text: email.text,
+				...(email.replyTo ? { reply_to: email.replyTo } : {}),
 				attachments: email.attachments?.map((a) => ({
 					filename: a.filename,
 					content: a.content,

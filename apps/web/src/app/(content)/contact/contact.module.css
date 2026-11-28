@@ -1,0 +1,216 @@
+/* The contact page: the form beside the details. Colours and type come from
+   design-spec.md; every other value is a token in globals.css. */
+
+.layout {
+	display: grid;
+	gap: var(--space-2xl);
+	margin-top: var(--space-2xl);
+}
+
+@media (min-width: 1024px) {
+	.layout {
+		grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+		gap: var(--space-3xl);
+		max-width: 1120px;
+	}
+}
+
+.heading {
+	margin: 0 0 var(--space-m);
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-m);
+}
+
+.row {
+	display: grid;
+	gap: var(--space-m);
+}
+
+@media (min-width: 640px) {
+	.row {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	min-width: 0;
+}
+
+.label {
+	font-weight: 500;
+	font-size: var(--text-small);
+	line-height: 1.4;
+}
+
+.input {
+	height: var(--control);
+	width: 100%;
+	padding: 0 var(--space-s);
+	/* Body size keeps iOS from zooming the page on focus. */
+	font-size: var(--text-body);
+	color: var(--ink);
+	background: transparent;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-s);
+	transition: border-color var(--motion);
+}
+
+.input:hover:not(:disabled) {
+	border-color: var(--ink);
+}
+
+.input[aria-invalid="true"] {
+	border-color: var(--alert);
+}
+
+.select {
+	background: var(--paper);
+	cursor: pointer;
+}
+
+.textarea {
+	height: auto;
+	min-height: calc(var(--control) * 3);
+	padding-block: var(--space-xs);
+	line-height: 1.5;
+	resize: vertical;
+}
+
+.hint {
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.hint a,
+.details a {
+	color: var(--ink);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	transition: color var(--motion);
+}
+
+.hint a:hover,
+.details a:hover {
+	color: var(--muted);
+}
+
+/* Below the form, a little apart from the button. */
+.form + .hint {
+	margin-top: var(--space-s);
+}
+
+/* Icon plus words, never colour alone. */
+.error,
+.fieldError {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-xs);
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--alert);
+}
+
+.error svg,
+.fieldError svg {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	margin-top: 2px;
+}
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	align-self: flex-start;
+	min-height: var(--control);
+	padding: 0 var(--space-m);
+	font-weight: 500;
+	font-size: var(--text-body);
+	line-height: 1.5;
+	color: var(--paper);
+	background: var(--ink);
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	transition:
+		background-color var(--motion),
+		border-color var(--motion),
+		color var(--motion);
+}
+
+.btn:hover:not(:disabled) {
+	background: var(--ink-hover);
+}
+
+.btn:active:not(:disabled) {
+	background: var(--ink-pressed);
+}
+
+/* Disabled: muted text, perforation border, no fill. Never opacity. */
+.btn:disabled {
+	color: var(--muted);
+	background: transparent;
+	border-color: var(--perforation);
+	cursor: not-allowed;
+}
+
+.sent {
+	padding: var(--space-m);
+	border: 1px solid var(--perforation);
+	border-radius: var(--radius-m);
+	line-height: 1.5;
+}
+
+.sent p {
+	margin: var(--space-xs) 0 0;
+}
+
+.sentTitle {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: var(--text-h3);
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.sentTitle:focus {
+	outline: none;
+}
+
+.details {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-m);
+	margin: 0;
+}
+
+.details dt {
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.details dd {
+	margin: var(--space-2xs) 0 0;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.details address {
+	font-style: normal;
+}

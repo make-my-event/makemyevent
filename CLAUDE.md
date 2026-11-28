@@ -1,6 +1,6 @@
 # makemyevent — Engineering Standards
 
-Global event ticketing marketplace (Stripe Connect, multi-organizer). Web: Next.js. Mobile: Expo. API: Hono + tRPC. DB: Postgres (Supabase-hosted) via Prisma in packages/db, which owns schema and migrations for every environment; RLS policies as SQL in Prisma migrations. No supabase/ folder unless edge functions or storage rules are adopted. Cache/queues: Redis + BullMQ.
+Global event ticketing marketplace (Cashfree Payment Gateway + Easy Split, multi-organizer). Operated by MakeMyEvent, a sole proprietorship; business details live in `apps/web/src/lib/business.ts`. Web: Next.js. Mobile: Expo. API: Hono + tRPC. DB: Postgres (Supabase-hosted) via Prisma in packages/db, which owns schema and migrations for every environment; RLS policies as SQL in Prisma migrations. No supabase/ folder unless edge functions or storage rules are adopted. Cache/queues: Redis + BullMQ.
 
 ## Non-negotiable principle
 
@@ -8,19 +8,19 @@ Phases narrow **scope**, never **quality**. Nothing ships as a temporary shortcu
 
 ## Security gates (enforced in CI and review)
 
-- Card data never touches our servers. Stripe Elements / PaymentIntents only (PCI SAQ-A).
-- Every money-affecting write: idempotency key + single DB transaction + confirmed only by Stripe webhook. Never by client callback or redirect.
-- Webhook events deduplicated via `stripe_events(id UNIQUE)`.
+- Card data never touches our servers. Cashfree hosted checkout / Drop-in only (PCI SAQ-A).
+- Every money-affecting write: idempotency key + single DB transaction + confirmed only by a signature-verified Cashfree webhook. Never by client callback or redirect.
+- Webhook events deduplicated via `payment_events(id UNIQUE)`.
 - Postgres RLS on every tenant-scoped table. User traffic runs under a per-request role, never a superuser/service connection.
 - The session is verified once per request, in the middleware. It hands the display name to the render through a request header the middleware always rewrites, so a browser cannot supply one. Anything that gates access calls `getCurrentUser` instead, which verifies and is wrapped in `cache()`.
 - Money stored as `bigint` minor units + currency. Never floats.
 - Secrets only via environment / secret manager. `gitleaks` in CI. Dependencies pinned, audited (`pnpm audit`), Renovate enabled.
 - Auth: Supabase Auth with Google as the sign-in provider (web via PKCE redirect, mobile via native Google Sign-In → ID-token exchange). Mandatory TOTP MFA for organizer/admin roles (Supabase MFA). Short-lived access tokens + rotating refresh tokens, session revocation. Google client secrets live only in the Supabase dashboard, never in the repo.
 - Sign-in methods: Google and email magic link (no passwords). Guest checkout is supported: orders carry `purchaser_email` with nullable `user_id`; tickets are claimed into an account on first sign-in with that email.
-- Rate limiting + bot protection on every public write endpoint. Stripe Radar rules live before first sale.
+- Rate limiting + bot protection on every public write endpoint. Cashfree risk and fraud rules live before first sale.
 - QR tickets are signed tokens (per-event key, rotatable), never raw IDs.
 - Append-only audit log for privileged actions: refunds, payouts, role changes, data exports.
-- Append-only `ledger_entries` for all money movement; reconciled against Stripe.
+- Append-only `ledger_entries` for all money movement; reconciled against Cashfree settlement and Easy Split reports.
 - Checklist: OWASP ASVS Level 2. Security review pass required before each stage ships.
 
 ## Performance budgets (build fails on regression)
@@ -49,7 +49,7 @@ Phases narrow **scope**, never **quality**. Nothing ships as a temporary shortcu
 - TypeScript strict everywhere. Zod schemas shared via `packages/core`; validate at every boundary.
 - Tests required for: inventory (concurrency tests proving no oversell), payments (webhook idempotency, refund paths), auth, RLS policies.
 - Conventional commits. Every PR: lint, typecheck, tests, security scan, perf budgets, a11y scan — all green.
-- Observability from day one: Sentry (errors), structured logs with request IDs, Stripe webhook failure alerts.
+- Observability from day one: Sentry (errors), structured logs with request IDs, Cashfree webhook failure alerts.
 
 ## Reference guidance (`.agents/skills/`)
 

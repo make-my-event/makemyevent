@@ -45,7 +45,7 @@ export function HeaderNav({
 				<Link
 					className={styles.brandLink}
 					href="/"
-					aria-label="makemyevent home"
+					aria-label="MakeMyEvent home"
 				>
 					{/* Signed in, the band carries two more controls, and on the
 					    narrowest phones the symbol stands in for the full mark. */}
