@@ -13,7 +13,7 @@ export function RecoveryCodes({ codes }: { codes: readonly string[] }) {
 		const href = URL.createObjectURL(
 			new Blob(
 				[
-					`makemyevent recovery codes\n\n${text}\n\nEach code works once. Keep them somewhere safe.\n`,
+					`MakeMyEvent recovery codes\n\n${text}\n\nEach code works once. Keep them somewhere safe.\n`,
 				],
 				{ type: "text/plain" },
 			),
