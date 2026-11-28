@@ -364,6 +364,8 @@ model Registration {
   @@unique([id, eventId])
   // The newest-first lists: Overview and Guests, keyset-paged.
   @@index([eventId, createdAt(sort: Desc), id(sort: Desc)])
+  // The door's list, by name: a page at a time, after the last name shown.
+  @@index([eventId, attendeeName, id])
   @@index([ticketTypeId, eventId])
   // Claiming tickets on sign-in looks them up by email.
   @@index([attendeeEmail])
@@ -418,6 +420,8 @@ model CheckIn {
   door         EventDoor?   @relation(fields: [doorId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([registrationId, eventDayId], map: "check_ins_once")
+  // Today's door, latest in first: a page at a time, and its count.
+  @@index([eventId, eventDayId, id])
   @@index([eventId])
   @@index([eventDayId])
   @@index([checkedInBy])

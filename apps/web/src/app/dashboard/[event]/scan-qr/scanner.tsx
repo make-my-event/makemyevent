@@ -728,6 +728,7 @@ export function Scanner({
 			<DoorGuests
 				eventId={eventId}
 				version={version}
+				stamp={count ? `${count.in}/${count.of}` : null}
 				total={count?.of ?? null}
 				onCheckIn={async (g: DoorGuest) => {
 					wakeSound();

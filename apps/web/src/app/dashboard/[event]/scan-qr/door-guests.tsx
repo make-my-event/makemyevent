@@ -7,7 +7,12 @@ import { clock } from "./door-time";
 import styles from "./scanner.module.css";
 
 const SEARCH_MS = 250;
-const REFRESH_MS = 15_000;
+/** Read again anyway, now and then, for a change the count can't show. */
+const FALLBACK_MS = 60_000;
+/** After a failed read: soon, not in a minute. */
+const RETRY_MS = 5000;
+const PAGE = 30;
+const TAKE_MAX = 300;
 
 const FILTERS: { value: DoorFilter; label: string }[] = [
 	{ value: "all", label: "All" },
@@ -19,12 +24,14 @@ const FILTERS: { value: DoorFilter; label: string }[] = [
  * The door's guest list: search by name or code, all or in or not yet,
  * each with their ticket and code, and when, by whom and at which door
  * they came in. Not-yet rows have Check in; open a row that's in for Undo.
- * Refreshed after each check-in at this phone and every few seconds, for
- * the other doors' scans.
+ * Read again after each check-in at this phone, when the shared count
+ * changes (another door's scan, an undo, a walk-in), and once a minute
+ * anyway; never while the screen is hidden or offline.
  */
 export function DoorGuests({
 	eventId,
 	version,
+	stamp,
 	total,
 	onCheckIn,
 	onUndo,
@@ -33,6 +40,8 @@ export function DoorGuests({
 	eventId: string;
 	/** Bumped after a check-in or an undo here: read the list again. */
 	version: number;
+	/** Today's count, as last read: when it changes, read the list again. */
+	stamp: string | null;
 	/** Everyone with a place, for the heading. */
 	total: number | null;
 	onCheckIn: (guest: DoorGuest) => Promise<void>;
@@ -44,30 +53,24 @@ export function DoorGuests({
 	const [filter, setFilter] = useState<DoorFilter>("all");
 	const [query, setQuery] = useState("");
 	const [guests, setGuests] = useState<DoorGuest[] | null>(null);
-	const [pages, setPages] = useState(1);
-	const [more, setMore] = useState(false);
+	const [next, setNext] = useState<string | null>(null);
 	const [open, setOpen] = useState<string | null>(null);
 	const [busy, setBusy] = useState<string | null>(null);
 	const [failed, setFailed] = useState(false);
 	const asked = useRef(0);
 
-	/** The first `count` pages, as one list: what's shown, read again. */
+	const shown = useRef(0);
+	shown.current = guests?.length ?? 0;
+
+	/** From the top: the first `take` rows, as one read. */
 	const load = useCallback(
-		async (count: number) => {
+		async (take: number) => {
 			const ask = ++asked.current;
 			try {
-				const all: DoorGuest[] = [];
-				let next = false;
-				for (let page = 0; page < count; page++) {
-					const got = await doorGuests(eventId, { filter, query, page });
-					if (!got) return;
-					all.push(...got.guests);
-					next = got.more;
-					if (!got.more) break;
-				}
-				if (ask !== asked.current) return;
-				setGuests(all);
-				setMore(next);
+				const got = await doorGuests(eventId, { filter, query, take });
+				if (!got || ask !== asked.current) return;
+				setGuests(got.guests);
+				setNext(got.next);
 				setFailed(false);
 			} catch {
 				if (ask === asked.current) setFailed(true);
@@ -75,26 +78,60 @@ export function DoorGuests({
 		},
 		[eventId, filter, query],
 	);
+	/** What's on screen, read again in one go. */
+	const reload = useCallback(
+		() => load(Math.min(Math.max(shown.current, PAGE), TAKE_MAX)),
+		[load],
+	);
 
 	// A new search or filter: from the first page, after typing pauses.
 	useEffect(() => {
-		setPages(1);
-		const timer = window.setTimeout(() => void load(1), query ? SEARCH_MS : 0);
+		const timer = window.setTimeout(
+			() => void load(PAGE),
+			query ? SEARCH_MS : 0,
+		);
 		return () => window.clearTimeout(timer);
 	}, [load, query]);
 
-	// After a check-in here, and every few seconds for the other doors.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: version is the trigger
+	// After a check-in here, when the count moves, and now and then anyway.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: version and stamp are the triggers
 	useEffect(() => {
-		if (version > 0) void load(pages);
+		if (version > 0) void reload();
 	}, [version]);
+	const seen = useRef(stamp);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: stamp is the trigger
 	useEffect(() => {
-		const timer = window.setInterval(() => {
-			if (document.visibilityState === "visible" && navigator.onLine)
-				void load(pages);
-		}, REFRESH_MS);
+		if (stamp === seen.current) return;
+		seen.current = stamp;
+		void reload();
+	}, [stamp]);
+	useEffect(() => {
+		const timer = window.setInterval(
+			() => {
+				if (document.visibilityState === "visible" && navigator.onLine)
+					void reload();
+			},
+			failed ? RETRY_MS : FALLBACK_MS,
+		);
 		return () => window.clearInterval(timer);
-	}, [load, pages]);
+	}, [reload, failed]);
+
+	/** The next page, after the last row shown. */
+	async function more() {
+		if (!next) return;
+		const ask = ++asked.current;
+		try {
+			const got = await doorGuests(eventId, { filter, query, after: next });
+			if (!got || ask !== asked.current) return;
+			setGuests((now) => [
+				...(now ?? []),
+				...got.guests.filter((g) => !now?.some((n) => n.id === g.id)),
+			]);
+			setNext(got.next);
+		} catch {
+			if (ask === asked.current) setFailed(true);
+		}
+	}
 
 	async function act(guest: DoorGuest, work: (g: DoorGuest) => Promise<void>) {
 		setBusy(guest.id);
@@ -240,15 +277,11 @@ export function DoorGuests({
 				</ul>
 			)}
 
-			{more ? (
+			{next ? (
 				<button
 					type="button"
 					className={styles.more}
-					onClick={() => {
-						const next = pages + 1;
-						setPages(next);
-						void load(next);
-					}}
+					onClick={() => void more()}
 				>
 					Show more
 				</button>

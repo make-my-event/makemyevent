@@ -36,7 +36,11 @@ export const TypeCode = forwardRef<
 		}
 		let gone = false;
 		const timer = window.setTimeout(async () => {
-			const page = await doorGuests(eventId, { query: text, filter: "all" });
+			const page = await doorGuests(eventId, {
+				query: text,
+				filter: "all",
+				take: SHOWN,
+			});
 			if (!gone) setFound(page ? page.guests.slice(0, SHOWN) : []);
 		}, LOOKUP_MS);
 		return () => {

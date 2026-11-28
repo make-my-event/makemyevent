@@ -13,6 +13,7 @@ import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
 import { actingUser } from "@/lib/require-user";
 import { checkInDay as today } from "../check-in-day";
+import { forgetDoorCount } from "../scan-qr/door-count";
 
 /**
  * The Guests tab's reads and writes beyond the list, each as the person
@@ -222,7 +223,10 @@ export async function checkInMany(
 				result = await write(null);
 			else throw error;
 		}
-		if (result.ok) revalidatePath("/dashboard/[event]/guests", "page");
+		if (result.ok) {
+			await forgetDoorCount(eventId);
+			revalidatePath("/dashboard/[event]/guests", "page");
+		}
 		return result;
 	} catch (error) {
 		if (isDuplicate(error)) return { ok: true };
@@ -289,6 +293,9 @@ export async function undoCheckIn(
 		});
 		return { ok: true } as const;
 	});
-	if (result.ok) revalidatePath("/dashboard/[event]/guests", "page");
+	if (result.ok) {
+		await forgetDoorCount(eventId);
+		revalidatePath("/dashboard/[event]/guests", "page");
+	}
 	return result;
 }
