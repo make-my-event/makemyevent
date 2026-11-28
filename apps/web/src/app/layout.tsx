@@ -38,7 +38,7 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
 	// Relative canonical and share-card addresses resolve against this.
 	metadataBase: new URL(SITE_ORIGIN),
-	title: { default: "makemyevent", template: "%s — makemyevent" },
+	title: { default: "MakeMyEvent", template: "%s — MakeMyEvent" },
 	description:
 		"Free event pages, QR passes and certificates for your community. From the first registration to the last scan at the door.",
 	manifest: "/manifest.json",

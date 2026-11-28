@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ADDRESS_LINE, BUSINESS, PAID_TICKET_FEE_TEXT } from "@/lib/business";
 import { publicPageMetadata } from "@/lib/site";
 import styles from "../../content.module.css";
 
@@ -5,7 +7,7 @@ export const metadata = publicPageMetadata({
 	path: "/about",
 	title: "About",
 	description:
-		"Why makemyevent exists, who builds it, and what it costs to use.",
+		"Why MakeMyEvent exists, who owns and runs it, and what it costs to use.",
 });
 
 export default function AboutPage() {
@@ -15,11 +17,19 @@ export default function AboutPage() {
 				<div className={styles.column}>
 					<h1 className={styles.h1}>Built for the people who organise.</h1>
 					<p className={styles.lede}>
-						makemyevent gives community organisers the ticketing tools that
+						MakeMyEvent gives community organisers the ticketing tools that
 						large conferences take for granted, without the cost or the setup.
 					</p>
 
 					<div className={styles.body}>
+						<h2>Our mission</h2>
+						<p>
+							To make running an event, free or paid, as simple for a community
+							organiser as it is for a large conference: a clear page, honest
+							pricing, a ticket every attendee can trust, and money that reaches
+							the organiser directly.
+						</p>
+
 						<h2>Why it exists</h2>
 						<p>
 							Most ticketing platforms are priced for events that sell thousands
@@ -31,7 +41,7 @@ export default function AboutPage() {
 						<p>
 							The work is the same at any size. Someone has to publish the
 							details, collect registrations, issue something each attendee can
-							show at the door, and know who actually turned up. makemyevent
+							show at the door, and know who actually turned up. MakeMyEvent
 							does those four things well and asks for nothing up front.
 						</p>
 
@@ -58,20 +68,26 @@ export default function AboutPage() {
 						<h2>What it costs</h2>
 						<p>
 							Publishing an event page and taking free registrations costs
-							nothing. Paid ticketing runs through Stripe, which charges its own
-							processing fee on each sale. Card details are handled by Stripe
-							and never reach our servers.
+							nothing. Paid tickets carry one platform fee of{" "}
+							{PAID_TICKET_FEE_TEXT} per ticket sold, with the payment gateway
+							charges included. Payments run through Cashfree Payments, and card
+							details are handled by Cashfree and never reach our servers. See{" "}
+							<Link href="/pricing">pricing</Link> for the details.
 						</p>
 
-						<h2>Who builds it</h2>
+						<h2>Who we are</h2>
 						<p>
-							makemyevent is built and run by a small independent team. If you
-							organise events and something here does not fit how you work, that
-							is worth telling us about.
+							{BUSINESS.name}, a sole proprietorship founded by {BUSINESS.owner}
+							, builds and runs makemyevent.org from Andhra Pradesh, India. If
+							you organise events and something here does not fit how you work,
+							that is worth telling us about.
 						</p>
 						<p>
-							Write to{" "}
-							<a href="mailto:admin@makemyevent.org">admin@makemyevent.org</a>.
+							Registered office: {ADDRESS_LINE}, {BUSINESS.address.country}.
+						</p>
+						<p>
+							Write to <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a>
+							, or <Link href="/contact">get in touch</Link>.
 						</p>
 					</div>
 				</div>

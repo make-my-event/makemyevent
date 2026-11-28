@@ -1,0 +1,40 @@
+/* The bot check inside a form. Colours and type come from design-spec.md;
+   every other value is a token in globals.css. */
+
+/* Cloudflare's box, which it draws itself at its own fixed sizes: 65px
+   tall, or 140px where the column is under 300px wide. The room is kept
+   for it, so nothing moves when it arrives. */
+.check {
+	height: 65px;
+}
+
+@media (max-width: 331px) {
+	.check {
+		height: 140px;
+	}
+}
+
+.checkNote {
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+/* Icon plus words, never colour alone. */
+.error {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-xs);
+	margin: 0;
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--alert);
+}
+
+.error svg {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	margin-top: 2px;
+}

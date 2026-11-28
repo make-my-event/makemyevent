@@ -1486,3 +1486,20 @@
 		align-items: flex-end;
 	}
 }
+
+/* Free and paid side by side, stacked on narrow screens. */
+.prices {
+	flex-wrap: wrap;
+	gap: var(--space-m) var(--space-2xl);
+}
+
+.priceLink {
+	color: var(--ink);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	transition: color var(--motion);
+}
+
+.priceLink:hover {
+	color: var(--muted);
+}

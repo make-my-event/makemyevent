@@ -76,7 +76,7 @@ export function passHtml(p: PassEmail): string {
 <tr><td style="padding:18px 20px 0">
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
 ${p.logoCid ? `<td style="padding-right:8px;vertical-align:middle"><img src="cid:${e(p.logoCid)}" width="26" height="29" alt="" style="display:block;width:26px;height:29px;border:0"></td>` : ""}
-<td style="vertical-align:middle;font-size:16px;font-weight:700;color:${INK}">makemyevent</td>
+<td style="vertical-align:middle;font-size:16px;font-weight:700;color:${INK}">MakeMyEvent</td>
 </tr></table>
 </td></tr>
 <tr><td style="padding:18px 20px 4px">

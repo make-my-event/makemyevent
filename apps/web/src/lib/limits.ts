@@ -62,6 +62,17 @@ export const LIMITS = {
 		withoutRedis: "local",
 		says: "Too many sign-in attempts.",
 	},
+	/** Each sends an email to our own inbox, from a form anyone can open. */
+	"contact.send": {
+		rules: [
+			{ by: "email", count: 3, per: HOUR },
+			{ by: "ip", count: 10, per: HOUR },
+			{ by: "ip", count: 30, per: DAY },
+			{ by: "site", count: 300, per: DAY },
+		],
+		withoutRedis: "local",
+		says: "Too many messages sent just now.",
+	},
 	"event.create": {
 		rules: [
 			{ by: "user", count: 20, per: HOUR },

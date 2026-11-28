@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { QrPattern } from "@/components/qr-pattern";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { PAID_TICKET_FEE } from "@/lib/business";
 import { publicPageMetadata } from "@/lib/site";
 import { CheckInDemo } from "./_landing/check-in-demo";
 import { CreateCta } from "./_landing/create-cta";
@@ -10,7 +12,7 @@ import styles from "./landing.module.css";
 
 export const metadata = publicPageMetadata({
 	path: "/",
-	title: { absolute: "makemyevent — event pages, QR passes and certificates" },
+	title: { absolute: "MakeMyEvent — event pages, QR passes and certificates" },
 	description:
 		"Free event pages, QR passes and certificates for your community. From the first registration to the last scan at the door.",
 });
@@ -196,7 +198,7 @@ export default function LandingPage() {
 				</section>
 
 				{/* Who it is for */}
-				<section className={styles.trust} aria-label="Who makemyevent is for">
+				<section className={styles.trust} aria-label="Who MakeMyEvent is for">
 					<div className={`${styles.inner} ${styles.trustRow}`}>
 						<p className={styles.trustLead}>
 							Built for the people who bring communities together.
@@ -430,16 +432,28 @@ export default function LandingPage() {
 							>
 								<h3 className={styles.h3}>No unnecessary barriers.</h3>
 								<p className={styles.desc}>
-									Publish an event page and take registrations with no upfront
-									fee.
+									Free events stay free. Paid events pay a small fee per ticket
+									sold, and nothing upfront.{" "}
+									<Link className={styles.priceLink} href="/pricing">
+										See pricing
+									</Link>
 								</p>
-								<div className={styles.visual}>
+								<div className={`${styles.visual} ${styles.prices}`}>
 									<p className={styles.price}>
 										<span className={styles.priceNum}>
 											<sup>₹</sup>0
 										</span>
 										<span className={styles.priceLine}>
-											to publish an event page
+											for free events, QR passes and certificates
+										</span>
+									</p>
+									<p className={styles.price}>
+										<span className={styles.priceNum}>
+											{PAID_TICKET_FEE.percent}% + <sup>₹</sup>
+											{PAID_TICKET_FEE.fixedRupees}
+										</span>
+										<span className={styles.priceLine}>
+											per paid ticket, payment gateway fee included
 										</span>
 									</p>
 								</div>
@@ -563,7 +577,7 @@ export default function LandingPage() {
 						<article className={styles.ticket}>
 							<div className={styles.ticketMain}>
 								<p className={styles.ticketTop}>
-									<span>makemyevent pass</span>
+									<span>MakeMyEvent pass</span>
 									<span className={styles.ticketStatus}>
 										Valid, not yet scanned
 									</span>
@@ -661,7 +675,7 @@ export default function LandingPage() {
 								<h2 className={styles.h2}>Your next event starts here.</h2>
 								<p className={styles.lede}>
 									Create your page, share it with your community, and let
-									makemyevent handle the tickets.
+									MakeMyEvent handle the tickets.
 								</p>
 							</div>
 							<div className={styles.closingAction}>

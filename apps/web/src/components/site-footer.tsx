@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ADDRESS_LINE, BUSINESS } from "@/lib/business";
 import { Brand } from "./brand";
 import styles from "./site-footer.module.css";
 
@@ -8,21 +9,22 @@ const COLUMNS = [
 		links: [
 			{ label: "Features", href: "/#features" },
 			{ label: "How it works", href: "/#how-it-works" },
-			{ label: "Pricing", href: "/#pricing" },
+			{ label: "Pricing", href: "/pricing" },
 		],
 	},
 	{
 		heading: "Company",
 		links: [
 			{ label: "About", href: "/about" },
-			{ label: "Contact", href: "mailto:admin@makemyevent.org" },
+			{ label: "Contact", href: "/contact" },
 		],
 	},
 	{
 		heading: "Legal",
 		links: [
-			{ label: "Privacy policy", href: "/privacy" },
-			{ label: "Terms of service", href: "/terms" },
+			{ label: "Privacy Policy", href: "/privacy-policy" },
+			{ label: "Terms of Service", href: "/terms-of-service" },
+			{ label: "Refund & Cancellation Policy", href: "/refund-policy" },
 		],
 	},
 ];
@@ -56,8 +58,14 @@ export function SiteFooter() {
 				</div>
 
 				<div className={styles.base}>
-					<span>© {new Date().getFullYear()} makemyevent</span>
-					<span>Sample events and names on this page are illustrative.</span>
+					<p className={styles.legal}>
+						© {new Date().getFullYear()} {BUSINESS.name}. Owned and operated by{" "}
+						{BUSINESS.owner} ({BUSINESS.structure}). Registered Office:{" "}
+						{ADDRESS_LINE}.
+					</p>
+					<p className={styles.legal}>
+						Sample events and names on this page are illustrative.
+					</p>
 				</div>
 			</div>
 		</footer>

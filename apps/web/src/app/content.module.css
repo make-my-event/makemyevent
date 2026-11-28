@@ -1,4 +1,4 @@
-/* Pages that are mostly words: the two legal pages, About, and the
+/* Pages that are mostly words: the legal pages, About, Pricing, Contact, and the
    not-found and error screens. Colours and type come from design-spec.md; every other value is a token in globals.css. */
 
 .page {
@@ -104,29 +104,46 @@
 	color: var(--muted);
 }
 
-/* A standing note, not a status: no fill and no colour of its own. */
-.callout {
-	display: flex;
+/* Who runs the site, on the legal pages and Contact: label over value. */
+.details {
+	display: grid;
 	gap: var(--space-s);
-	margin-top: var(--space-l);
+	margin: var(--space-s) 0 0;
 	padding: var(--space-m);
 	border: 1px solid var(--perforation);
 	border-radius: var(--radius-m);
 }
 
-.callout svg {
-	flex: none;
-	width: 20px;
-	height: 20px;
+@media (min-width: 640px) {
+	.details {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-m);
+	}
 }
 
-.callout p {
-	margin: 0;
+.details dt {
+	font-size: var(--text-small);
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.details dd {
+	margin: var(--space-2xs) 0 0;
 	line-height: 1.5;
+	overflow-wrap: anywhere;
 }
 
-.callout p + p {
-	margin-top: var(--space-xs);
+.details address {
+	font-style: normal;
+}
+
+.details a {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.details a:hover {
+	color: var(--muted);
 }
 
 /* Not-found and error screens */
