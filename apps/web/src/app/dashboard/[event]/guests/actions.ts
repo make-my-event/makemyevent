@@ -13,6 +13,7 @@ import { asUser } from "@/lib/db";
 import { limited } from "@/lib/rate-limit";
 import { actingUser } from "@/lib/require-user";
 import { checkInDay as today } from "../check-in-day";
+import { forgetDoorCount } from "../scan-qr/door-count";
 
 /**
  * The Guests tab's reads and writes beyond the list, each as the person
@@ -32,7 +33,13 @@ export type GuestDetail = {
 	/** When the pass was last emailed; null if never. */
 	ticketSentAt: string | null;
 	invitedBy: string | null;
-	checkIns: { at: string; by: string | null; day: string | null }[];
+	checkIns: {
+		at: string;
+		by: string | null;
+		day: string | null;
+		/** The door that let them in, when the event has doors. */
+		door: string | null;
+	}[];
 	answers: { id: string; label: string; text: string; removed: boolean }[];
 };
 
@@ -69,6 +76,7 @@ export async function getGuest(
 						checkedInAt: true,
 						by: { select: { displayName: true } },
 						eventDay: { select: { day: true } },
+						door: { select: { name: true } },
 					},
 				},
 				answers: { select: { fieldId: true, value: true, otherText: true } },
@@ -107,6 +115,7 @@ export async function getGuest(
 				at: c.checkedInAt.toISOString(),
 				by: c.by?.displayName ?? null,
 				day: c.eventDay ? c.eventDay.day.toISOString().slice(0, 10) : null,
+				door: c.door?.name ?? null,
 			})),
 			answers: fields.flatMap((field) => {
 				const answer = answers.get(field.id);
@@ -147,8 +156,9 @@ function isDuplicate(error: unknown) {
 export async function checkIn(
 	eventId: string,
 	registrationId: string,
+	doorId?: string | null,
 ): Promise<CheckInResult> {
-	return checkInMany(eventId, [registrationId]);
+	return checkInMany(eventId, [registrationId], doorId);
 }
 
 /**
@@ -159,6 +169,12 @@ export async function checkIn(
 export async function checkInMany(
 	eventId: string,
 	registrationIds: string[],
+	/**
+	 * The door this device's scanner is at, if any: with doors on, it's
+	 * recorded (an assigned volunteer's own door is, whatever this says).
+	 * A door removed since is dropped rather than failing the check-in.
+	 */
+	doorId?: string | null,
 ): Promise<CheckInResult> {
 	const user = await actingUser();
 	const ids = [...new Set(registrationIds)];
@@ -172,8 +188,12 @@ export async function checkInMany(
 
 	const slow = await limited("guest.check_in", { user: user.id });
 	if (slow) return { ok: false, message: slow.message };
-	try {
-		const result = await asUser(user, async (tx) => {
+	const door =
+		typeof doorId === "string" && recordId.safeParse(doorId).success
+			? doorId
+			: null;
+	const write = (withDoor: string | null) =>
+		asUser(user, async (tx) => {
 			const day = await today(tx, eventId);
 			if (!day.ok) return day;
 			await tx.checkIn.createMany({
@@ -182,17 +202,39 @@ export async function checkInMany(
 					eventId,
 					eventDayId: day.dayId,
 					method: "manual",
+					doorId: withDoor,
 				})),
 				skipDuplicates: true,
 			});
 			return { ok: true } as const;
 		});
-		if (result.ok) revalidatePath("/dashboard/[event]/guests", "page");
+	try {
+		let result: Awaited<ReturnType<typeof write>>;
+		try {
+			result = await write(door);
+		} catch (error) {
+			// The remembered door was removed, or this volunteer is held to
+			// another: send none, and the database records theirs or none.
+			if (
+				door &&
+				error instanceof Error &&
+				/door not open|not your door/.test(error.message)
+			)
+				result = await write(null);
+			else throw error;
+		}
+		if (result.ok) {
+			await forgetDoorCount(eventId);
+			revalidatePath("/dashboard/[event]/guests", "page");
+		}
 		return result;
 	} catch (error) {
 		if (isDuplicate(error)) return { ok: true };
 		// Their ticket's own days (the tickets migration).
-		const said = error instanceof Error ? error.message : "";
+		const said =
+			error instanceof Error
+				? `${String((error as { meta?: { driverAdapterError?: { cause?: { message?: unknown } } } }).meta?.driverAdapterError?.cause?.message ?? "")} ${error.message}`
+				: "";
 		if (/one entry used/.test(said))
 			return {
 				ok: false,
@@ -201,6 +243,12 @@ export async function checkInMany(
 			};
 		if (/not this day/.test(said))
 			return { ok: false, message: "Their ticket doesn't admit them today." };
+		if (/not your door/.test(said))
+			return {
+				ok: false,
+				message:
+					"You're assigned to another door. Ask an organizer to move you.",
+			};
 		// A row-level security refusal: a cancelled guest, or not this event.
 		// Anything else is a fault, and surfaces as one.
 		if (error instanceof Error && /row-level security/.test(error.message))
@@ -245,6 +293,9 @@ export async function undoCheckIn(
 		});
 		return { ok: true } as const;
 	});
-	if (result.ok) revalidatePath("/dashboard/[event]/guests", "page");
+	if (result.ok) {
+		await forgetDoorCount(eventId);
+		revalidatePath("/dashboard/[event]/guests", "page");
+	}
 	return result;
 }

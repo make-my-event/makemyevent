@@ -150,6 +150,9 @@ jobs:
       - name: A guest's ticket page reads one ticket, and only what it shows
         run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/ticket-view.sql
 
+      - name: Doors hold their rules, whoever writes
+        run: psql "$DIRECT_URL" -X -v ON_ERROR_STOP=1 -f packages/db/checks/doors.sql
+
       - name: Type check
         run: pnpm typecheck
 
