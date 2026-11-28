@@ -91,3 +91,9 @@
 	line-height: 1.4;
 	color: var(--muted);
 }
+
+.legal {
+	margin: 0;
+	max-width: 80ch;
+	text-wrap: pretty;
+}

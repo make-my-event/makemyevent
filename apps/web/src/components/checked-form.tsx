@@ -2,8 +2,8 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { TURNSTILE_ORIGIN } from "@/lib/turnstile";
+import styles from "./checked-form.module.css";
 import { ErrorIcon } from "./error-icon";
-import styles from "./signin.module.css";
 
 type Turnstile = {
 	render(element: HTMLElement, options: Record<string, unknown>): string;
@@ -53,9 +53,16 @@ type Phase = "checking" | "asking" | "passed" | "failed";
  *
  * Without a site key this is a plain form. A token works once, so a new one
  * is fetched whenever `spent` changes: after each answer from the server.
+ *
+ * `check` names the form to Cloudflare, and the server confirms the token
+ * was issued for that name. `withoutScript` and `failed` say what to do
+ * instead when the check can't run, in the words of the page it is on.
  */
 export function CheckedForm({
 	siteKey,
+	check,
+	withoutScript,
+	failed,
 	action,
 	spent,
 	className,
@@ -63,6 +70,9 @@ export function CheckedForm({
 	children,
 }: {
 	siteKey: string | null;
+	check: string;
+	withoutScript: string;
+	failed: string;
 	action: (form: FormData) => void;
 	spent: unknown;
 	className?: string | undefined;
@@ -99,7 +109,7 @@ export function CheckedForm({
 			setPhase("checking");
 			const id = turnstile.render(box, {
 				sitekey: siteKey,
-				action: "signin",
+				action: check,
 				size: box.clientWidth < FULL_WIDTH ? "compact" : "flexible",
 				theme: document.documentElement.classList.contains("dark")
 					? "dark"
@@ -159,7 +169,7 @@ export function CheckedForm({
 			resetRef.current = null;
 			remove();
 		};
-	}, [siteKey, attempt]);
+	}, [siteKey, check, attempt]);
 
 	// The server has answered, so the token it was sent is used up.
 	const seen = useRef(spent);
@@ -206,10 +216,7 @@ export function CheckedForm({
 					<div>
 						<div ref={boxRef} className={styles.check} />
 						<noscript>
-							<p className={styles.checkNote}>
-								Email sign-in needs JavaScript. Turn it on, or continue with
-								Google.
-							</p>
+							<p className={styles.checkNote}>{withoutScript}</p>
 						</noscript>
 						{/* Always here, so its words are announced when they arrive. */}
 						<p className={styles.checkNote} role="status">
@@ -219,11 +226,7 @@ export function CheckedForm({
 					{phase === "failed" ? (
 						<p className={styles.error} role="alert">
 							<ErrorIcon />
-							<span>
-								We couldn't check that you're not a bot. A content blocker or
-								your network may be stopping it. Try again, or continue with
-								Google.
-							</span>
+							<span>{failed}</span>
 						</p>
 					) : null}
 				</>

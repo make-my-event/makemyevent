@@ -13,3 +13,4 @@ export * from "./imports";
 export * from "./pass-designs";
 export * from "./pass-design";
 export * from "./scan";
+export * from "./contact";

@@ -11,7 +11,7 @@ import { escapeHtml } from "./text";
 const NOTICES = {
 	turned_on: {
 		subject: "Two-step sign-in is on",
-		body: "Signing in to makemyevent now also asks for a code from your authenticator app.",
+		body: "Signing in to MakeMyEvent now also asks for a code from your authenticator app.",
 	},
 	moved: {
 		subject: "Your authenticator app was changed",
@@ -19,7 +19,7 @@ const NOTICES = {
 	},
 	turned_off: {
 		subject: "Two-step sign-in is off",
-		body: "Signing in to makemyevent no longer asks for a code from an authenticator app.",
+		body: "Signing in to MakeMyEvent no longer asks for a code from an authenticator app.",
 	},
 	recovered: {
 		subject: "A recovery code was used",

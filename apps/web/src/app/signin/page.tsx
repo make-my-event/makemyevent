@@ -61,7 +61,7 @@ export default async function SignInPage({ searchParams }: Props) {
 
 				{/* The pitch comes after the form in the page so keyboard and screen-reader users reach
             the form first. From 1024px CSS places it in the left half. */}
-				<aside className={styles.pitchSide} aria-label="About makemyevent">
+				<aside className={styles.pitchSide} aria-label="About MakeMyEvent">
 					<Brand className={styles.pitchBrand} />
 
 					<div>
@@ -123,13 +123,13 @@ export default async function SignInPage({ searchParams }: Props) {
 					</div>
 
 					<nav className={styles.pitchFoot} aria-label="Legal">
-						<a className={styles.link} href="/privacy">
+						<a className={styles.link} href="/privacy-policy">
 							Privacy policy
 						</a>
-						<a className={styles.link} href="/terms">
+						<a className={styles.link} href="/terms-of-service">
 							Terms of service
 						</a>
-						<a className={styles.link} href="mailto:admin@makemyevent.org">
+						<a className={styles.link} href="/contact">
 							Contact
 						</a>
 					</nav>

@@ -1,6 +1,6 @@
 {
-	"name": "makemyevent",
-	"short_name": "makemyevent",
+	"name": "MakeMyEvent",
+	"short_name": "MakeMyEvent",
 	"description": "Open-source event management and ticketing platform for tech communities, meetups, hackathons, and open-source clubs.",
 	"start_url": "/",
 	"display": "standalone",
